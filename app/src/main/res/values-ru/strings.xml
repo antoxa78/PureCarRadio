@@ -82,4 +82,123 @@
     <string name="clear_desc">Очистить</string>
     <string name="favorite_desc">Избранное</string>
     <string name="open_desc">Открыть</string>
+<<<<<<< HEAD
+=======
+
+    <!-- Loading / Empty states -->
+    <string name="searching_for_waves">Ищем волны…</string>
+    <string name="no_stations_found">Станции не найдены</string>
+    <string name="load_more">Загрузить ещё</string>
+    <string name="loading">Загрузка…</string>
+    <string name="no_genres_selected">Жанры не выбраны. Добавьте их в Настройках.</string>
+    <string name="no_genres_found">Жанры не найдены</string>
+    <string name="no_tag_groups_found">Группы тегов не найдены</string>
+    <string name="enter_search_query">Введите запрос для поиска</string>
+    <string name="found_stations">Найдено %d станций</string>
+    <string name="found_stations_select_tag">Найдено %d станций — выберите тег для фильтра</string>
+    <string name="recent_searches">Недавние поиски</string>
+    <string name="tap_to_return">Нажмите, чтобы вернуться</string>
+    <string name="sort_label">Сортировка:</string>
+    <string name="genres_section">ЖАНРЫ</string>
+    <string name="search_mode_tag">ТЕГ</string>
+    <string name="search_mode_name">ИМЯ</string>
+    <string name="stations_count">%d станций</string>
+
+    <!-- Settings sub-menu titles -->
+    <string name="settings_personalize_home">Настройка главной вкладки</string>
+    <string name="settings_db_update_interval">Интервал обновления БД</string>
+    <string name="settings_screensaver_prefs">Настройки заставки</string>
+    <string name="settings_application_theme">Тема приложения</string>
+
+    <!-- Screensaver settings -->
+    <string name="screensaver_activate">Включить заставку</string>
+    <string name="screensaver_activate_desc">Активировать при воспроизведении</string>
+    <string name="screensaver_display_mode">Режим отображения</string>
+    <string name="screensaver_mode_retro">Ретро — инфо о станции</string>
+    <string name="screensaver_mode_black">Глубокий чёрный (OLED)</string>
+    <string name="screensaver_idle_timeout">Таймаут бездействия</string>
+    <string name="screensaver_minutes">%d минут</string>
+
+    <!-- Auto-update intervals -->
+    <string name="update_manual">Только вручную</string>
+    <string name="update_every_12h">Каждые 12 часов</string>
+    <string name="update_every_24h">Каждые 24 часа</string>
+
+    <!-- Theme names/descriptions -->
+    <string name="theme_retro_gold">Ретро Золото</string>
+    <string name="theme_retro_gold_desc">Классика: золото и дерево</string>
+    <string name="theme_blue_neon">Синий неон</string>
+    <string name="theme_blue_neon_desc">Неоновое синее свечение</string>
+    <string name="theme_violet">Фиолетовый</string>
+    <string name="theme_violet_desc">Фиолетовые тона</string>
+    <string name="theme_monochrome">Монохром</string>
+    <string name="theme_monochrome_desc">Серый и чёрный</string>
+    <string name="theme_forest">Лес</string>
+    <string name="theme_forest_desc">Зелёный и чёрный</string>
+    <string name="theme_contrast">Контраст</string>
+    <string name="theme_contrast_desc">Белый и чёрный</string>
+    <string name="theme_black">Чёрный</string>
+    <string name="theme_black_desc">Чисто чёрный фон</string>
+
+    <!-- File picker -->
+    <string name="file_picker_backup">Резервное копирование</string>
+    <string name="file_picker_restore">Восстановление</string>
+    <string name="file_picker_close">Закрыть</string>
+    <string name="file_picker_parent_dir">Перейти к родительской папке</string>
+    <string name="file_picker_save_here">СОХРАНИТЬ ЗДЕСЬ</string>
+    <string name="file_picker_file_label">Файл:</string>
+    <string name="file_picker_export_label">Имя файла:</string>
+
+    <!-- Category descriptions -->
+    <string name="category_desc_home">Лучшие станции</string>
+    <string name="category_desc_popular">Популярные станции</string>
+    <string name="category_desc_recent">Недавно прослушанные</string>
+    <string name="category_desc_genres">Просмотр по жанру</string>
+    <string name="category_desc_countries">Просмотр по стране</string>
+    <string name="category_desc_favourites">Ваши сохранённые</string>
+
+    <!-- Bitrate filter -->
+    <string name="filter_label">Фильтр:</string>
+    <string name="filter_low">Низкий</string>
+    <string name="filter_high">Высокий</string>
+    <string name="filter_flac">FLAC</string>
+
+    <!-- Settings inline values -->
+    <string name="current_theme">Текущая: %s</string>
+    <string name="current_category">Текущая: %s</string>
+    <string name="screensaver_enabled_fmt">Включена (%dм)</string>
+    <string name="screensaver_disabled">Выключена</string>
+    <string name="update_frequency_hours">Частота: каждые %d ч</string>
+    <string name="update_frequency_disabled">Частота: вручную</string>
+    <string name="badge_genre">ЖАНР</string>
+    <string name="badge_country">СТРАНА</string>
+
+    <!-- Screensaver hint -->
+    <string name="press_any_key_to_return">Нажмите любую клавишу для возврата</string>
+
+    <!-- Error / status messages -->
+    <string name="error_playback_service">Не удалось подключиться к службе воспроизведения</string>
+    <string name="error_no_stations_in_file">В файле не найдено станций</string>
+    <string name="error_database_update">Ошибка обновления базы данных</string>
+    <string name="error_load_popular">Не удалось загрузить популярные станции</string>
+    <string name="error_load_more">Не удалось загрузить дополнительные станции</string>
+    <string name="error_load_stations">Не удалось загрузить станции</string>
+    <string name="error_load_genres">Не удалось загрузить жанры</string>
+    <string name="error_load_countries">Не удалось загрузить страны</string>
+    <string name="error_load_genre_stations">Не удалось загрузить станции жанра</string>
+    <string name="error_load_country_stations">Не удалось загрузить станции страны</string>
+    <string name="error_tag_search">Ошибка поиска по тегу</string>
+    <string name="error_search_failed">Ошибка поиска</string>
+    <string name="error_station_unavailable">Станция недоступна — пропуск</string>
+    <string name="status_favorites_exported">Избранное успешно экспортировано</string>
+    <string name="error_playback_failed">Ошибка воспроизведения: %s</string>
+    <string name="error_permission_denied">Нет доступа к \'%s\'. Проверьте Настройки → Разрешения.</string>
+    <string name="error_import_failed">Ошибка импорта: %s</string>
+    <string name="error_export_failed">Ошибка экспорта: %s</string>
+    <string name="status_favorites_exported_to">Избранное экспортировано в \'%s\'</string>
+
+    <!-- Splash -->
+    <string name="splash_tagline">Тысячи станций бесплатно</string>
+
+>>>>>>> 1162dbf (Restore project)
 </resources>

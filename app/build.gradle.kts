@@ -15,8 +15,13 @@ android {
         applicationId = "com.toxa.pureradio"
         minSdk = 29
         targetSdk = 36
+<<<<<<< HEAD
         versionCode = 7
         versionName = "1.3.2"
+=======
+        versionCode = 8
+        versionName = "1.4.0"
+>>>>>>> 1162dbf (Restore project)
 
         buildConfigField("Long", "BUILD_TIME", "${System.currentTimeMillis()}L")
     }
@@ -25,12 +30,24 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+<<<<<<< HEAD
             signingConfig = signingConfigs.getByName("debug")
+=======
+            // Use your release keystore here. For local testing, debug signing is used.
+            // signingConfig = signingConfigs.getByName("release")
+>>>>>>> 1162dbf (Restore project)
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
         }
+<<<<<<< HEAD
+=======
+        debug {
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+        }
+>>>>>>> 1162dbf (Restore project)
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11

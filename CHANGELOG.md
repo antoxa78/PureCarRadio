@@ -2,6 +2,39 @@
 
 All notable changes to this project will be documented in this file.
 
+<<<<<<< HEAD
+=======
+## [1.4.0] - 2026-06-14
+
+### Added
+- **Full Localization**: All UI strings moved to `strings.xml` — ready for proper translation into Russian, Ukrainian, and Hebrew.
+- **Debug Build Variant**: New `debug` build type with `.debug` application ID suffix, enabling simultaneous installation of debug and release builds on the same device.
+
+### Changed
+- **Version bump**: `versionCode` 7 → 8, `versionName` 1.3.2 → 1.4.0.
+- **Screensaver mode labels**: "Deep Black" is now labeled "Deep Black (OLED Safe)" in the TV settings screen for clarity.
+
+### Fixed
+- **Duplicate constant**: `CMD_PLAY_STATION` was declared twice (top-level and in `companion object`). Removed the top-level duplicate; the canonical reference is now `PlaybackService.CMD_PLAY_STATION`.
+- **Release signing**: Removed `signingConfig = signingConfigs.getByName("debug")` from the `release` build type. Release APKs must now be signed with a proper release keystore (see build instructions below).
+
+### Build Notes
+To produce a signed release APK, create a keystore and add to `build.gradle.kts`:
+```
+signingConfigs {
+    create("release") {
+        storeFile = file("your-key.jks")
+        storePassword = System.getenv("KEYSTORE_PASSWORD")
+        keyAlias = System.getenv("KEY_ALIAS")
+        keyPassword = System.getenv("KEY_PASSWORD")
+    }
+}
+```
+Then set `signingConfig = signingConfigs.getByName("release")` in the `release` block.
+
+---
+
+>>>>>>> 1162dbf (Restore project)
 ## [1.2.0] - 2025-01-31
 
 ### Added

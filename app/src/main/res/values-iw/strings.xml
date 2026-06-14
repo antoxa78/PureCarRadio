@@ -82,4 +82,102 @@
     <string name="clear_desc">ניקוי</string>
     <string name="favorite_desc">מועדף</string>
     <string name="open_desc">פתיחה</string>
+<<<<<<< HEAD
+=======
+
+    <!-- Loading / Empty states -->
+    <string name="searching_for_waves">מחפשים גלים…</string>
+    <string name="no_stations_found">לא נמצאו תחנות</string>
+    <string name="load_more">טען עוד</string>
+    <string name="loading">טוען…</string>
+    <string name="no_genres_selected">לא נבחרו ז\'אנרים. הוסיפו בהגדרות.</string>
+    <string name="no_genres_found">לא נמצאו ז\'אנרים</string>
+    <string name="no_tag_groups_found">לא נמצאו קבוצות תגיות</string>
+    <string name="enter_search_query">הכניסו שאילתת חיפוש</string>
+    <string name="found_stations">נמצאו %d תחנות</string>
+    <string name="found_stations_select_tag">נמצאו %d תחנות — בחרו תגית לסינון</string>
+    <string name="recent_searches">חיפושים אחרונים</string>
+    <string name="tap_to_return">הקישו לחזרה</string>
+    <string name="sort_label">מיון:</string>
+    <string name="genres_section">ז\'אנרים</string>
+    <string name="search_mode_tag">תגית</string>
+    <string name="search_mode_name">שם</string>
+    <string name="stations_count">%d תחנות</string>
+
+    <!-- Settings sub-menu titles -->
+    <string name="settings_personalize_home">התאמה אישית של דף הבית</string>
+    <string name="settings_db_update_interval">מרווח עדכון מסד הנתונים</string>
+    <string name="settings_screensaver_prefs">הגדרות שומר מסך</string>
+    <string name="settings_application_theme">ערכת נושא</string>
+
+    <!-- Screensaver settings -->
+    <string name="screensaver_activate">הפעלת שומר מסך</string>
+    <string name="screensaver_activate_desc">הפעל בזמן השמעה</string>
+    <string name="screensaver_display_mode">מצב תצוגה</string>
+    <string name="screensaver_mode_retro">רטרו — מידע על תחנה</string>
+    <string name="screensaver_mode_black">שחור עמוק (OLED)</string>
+    <string name="screensaver_idle_timeout">זמן המתנה</string>
+    <string name="screensaver_minutes">%d דקות</string>
+
+    <!-- Auto-update intervals -->
+    <string name="update_manual">ידני בלבד</string>
+    <string name="update_every_12h">כל 12 שעות</string>
+    <string name="update_every_24h">כל 24 שעות</string>
+
+    <!-- Theme names/descriptions -->
+    <string name="theme_retro_gold">זהב רטרו</string>
+    <string name="theme_retro_gold_desc">קלאסי: זהב ועץ</string>
+    <string name="theme_blue_neon">ניאון כחול</string>
+    <string name="theme_blue_neon_desc">זוהר ניאון כחול</string>
+    <string name="theme_violet">סגול</string>
+    <string name="theme_violet_desc">גוונים סגולים</string>
+    <string name="theme_monochrome">מונוכרום</string>
+    <string name="theme_monochrome_desc">אפור ושחור</string>
+    <string name="theme_forest">יער</string>
+    <string name="theme_forest_desc">ירוק ושחור</string>
+    <string name="theme_contrast">ניגודיות</string>
+    <string name="theme_contrast_desc">לבן ושחור</string>
+    <string name="theme_black">שחור</string>
+    <string name="theme_black_desc">רקע שחור טהור</string>
+
+    <!-- File picker -->
+    <string name="file_picker_backup">גיבוי מועדפים</string>
+    <string name="file_picker_restore">שחזור מועדפים</string>
+    <string name="file_picker_close">סגור</string>
+    <string name="file_picker_parent_dir">עבור לתיקייה אב</string>
+    <string name="file_picker_save_here">שמור כאן</string>
+    <string name="file_picker_file_label">קובץ:</string>
+    <string name="file_picker_export_label">שם קובץ:</string>
+
+    <!-- Category descriptions -->
+    <string name="category_desc_home">התחנות הטובות ביותר</string>
+    <string name="category_desc_popular">תחנות פופולריות</string>
+    <string name="category_desc_recent">הושמעו לאחרונה</string>
+    <string name="category_desc_genres">עיון לפי ז\'אנר</string>
+    <string name="category_desc_countries">עיון לפי ארץ</string>
+    <string name="category_desc_favourites">המועדפים שלכם</string>
+
+    <!-- Bitrate filter -->
+    <string name="filter_label">סינון:</string>
+    <string name="filter_low">נמוך</string>
+    <string name="filter_high">גבוה</string>
+    <string name="filter_flac">FLAC</string>
+
+    <!-- Settings inline values -->
+    <string name="current_theme">נוכחית: %s</string>
+    <string name="current_category">נוכחית: %s</string>
+    <string name="screensaver_enabled_fmt">פעיל (%d דק\')</string>
+    <string name="screensaver_disabled">כבוי</string>
+    <string name="update_frequency_hours">תדירות: כל %d שעות</string>
+    <string name="update_frequency_disabled">תדירות: ידני</string>
+    <string name="badge_genre">ז\'אנר</string>
+    <string name="badge_country">ארץ</string>
+
+    <!-- Screensaver hint -->
+    <string name="press_any_key_to_return">לחצו על מקש כלשהו לחזרה</string>
+
+    <!-- Splash -->
+    <string name="splash_tagline">אלפי תחנות, בחינם</string>
+
+>>>>>>> 1162dbf (Restore project)
 </resources>

@@ -36,7 +36,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.guava.future
 
 enum class PlayerAction { Next, Previous }
+<<<<<<< HEAD
 const val CMD_PLAY_STATION = "play_station"
+=======
+>>>>>>> 1162dbf (Restore project)
 
 class PlaybackService : MediaLibraryService() {
 
@@ -44,7 +47,11 @@ class PlaybackService : MediaLibraryService() {
         private val _playerAction = MutableSharedFlow<PlayerAction>(replay = 1, extraBufferCapacity = 1)
         val playerAction: SharedFlow<PlayerAction> = _playerAction.asSharedFlow()
         fun sendPlayerAction(action: PlayerAction) { _playerAction.tryEmit(action) }
+<<<<<<< HEAD
         private const val CMD_PLAY_STATION = "play_station"
+=======
+        const val CMD_PLAY_STATION = "play_station"
+>>>>>>> 1162dbf (Restore project)
     }
 
     private var mediaLibrarySession: MediaLibrarySession? = null

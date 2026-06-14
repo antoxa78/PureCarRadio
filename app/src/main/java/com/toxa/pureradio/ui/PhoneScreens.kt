@@ -237,14 +237,22 @@ fun PhoneMainScreen(viewModel: MainViewModel) {
                 onImportPlaylist = {
                     try { importLauncher.launch(arrayOf("*/*")) }
                     catch (e: Exception) {
+<<<<<<< HEAD
                         viewModel.setError("System picker unavailable")
+=======
+                        viewModel.setError(context.getString(R.string.error_system_picker_unavailable))
+>>>>>>> 1162dbf (Restore project)
                         viewModel.openFilePicker(isExport = false)
                     }
                 },
                 onExportPlaylist = {
                     try { exportLauncher.launch("pure_radio_favorites.m3u") }
                     catch (e: Exception) {
+<<<<<<< HEAD
                         viewModel.setError("System picker unavailable")
+=======
+                        viewModel.setError(context.getString(R.string.error_system_picker_unavailable))
+>>>>>>> 1162dbf (Restore project)
                         viewModel.openFilePicker(isExport = true, suggestedFileName = "pure_radio_favorites.m3u")
                     }
                 }
@@ -261,7 +269,11 @@ fun PhoneMainScreen(viewModel: MainViewModel) {
                     LinearProgressIndicator(modifier = Modifier.width(200.dp))
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
+<<<<<<< HEAD
                         text = "Searching for waves...",
+=======
+                        text = stringResource(R.string.searching_for_waves),
+>>>>>>> 1162dbf (Restore project)
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
                     )
@@ -584,7 +596,11 @@ fun PhoneStationGrid(
 
     if (stations.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+<<<<<<< HEAD
             Text("No stations found", style = MaterialTheme.typography.bodyLarge)
+=======
+            Text(stringResource(R.string.no_stations_found), style = MaterialTheme.typography.bodyLarge)
+>>>>>>> 1162dbf (Restore project)
         }
         return
     }
@@ -616,7 +632,11 @@ fun PhoneStationGrid(
                         onClick = { if (!isLoading) onLoadMore() },
                         enabled = !isLoading
                     ) {
+<<<<<<< HEAD
                         Text(if (isLoading) "Loading..." else "Load More")
+=======
+                        Text(if (isLoading) stringResource(R.string.loading) else stringResource(R.string.load_more))
+>>>>>>> 1162dbf (Restore project)
                     }
                 }
             }
@@ -727,7 +747,11 @@ fun PhoneGenreGroupGrid(
 ) {
     if (groups.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+<<<<<<< HEAD
             Text("No genres selected. Add some in Settings.", style = MaterialTheme.typography.bodyLarge)
+=======
+            Text(stringResource(R.string.no_genres_selected), style = MaterialTheme.typography.bodyLarge)
+>>>>>>> 1162dbf (Restore project)
         }
         return
     }
@@ -904,7 +928,11 @@ fun PhoneSearchScreen(
             OutlinedTextField(
                 value = localSearchQuery,
                 onValueChange = { viewModel.onSearchQueryChange(it); localSearchQuery = it },
+<<<<<<< HEAD
                 label = { Text("Search stations...") },
+=======
+                label = { Text(stringResource(R.string.search_hint)) },
+>>>>>>> 1162dbf (Restore project)
                 modifier = Modifier.weight(1f),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -929,7 +957,11 @@ fun PhoneSearchScreen(
                     androidx.compose.material3.ButtonDefaults.buttonColors()
                 }
             ) {
+<<<<<<< HEAD
                 Text(if (searchMode == SearchMode.Tag) "TAG" else "NAME")
+=======
+                Text(if (searchMode == SearchMode.Tag) stringResource(R.string.search_mode_tag) else stringResource(R.string.search_mode_name))
+>>>>>>> 1162dbf (Restore project)
             }
         }
 
@@ -945,7 +977,11 @@ fun PhoneSearchScreen(
                 stations.isEmpty() && localSearchQuery.isEmpty() && tagSearchGroups.isEmpty() -> {
                     if (recentSearches.isNotEmpty()) {
                         Column(modifier = Modifier.padding(16.dp)) {
+<<<<<<< HEAD
                             Text("Recent Searches", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(bottom = 8.dp))
+=======
+                            Text(stringResource(R.string.recent_searches), style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(bottom = 8.dp))
+>>>>>>> 1162dbf (Restore project)
                             LazyRow {
                                 items(recentSearches) { query ->
                                     Button(
@@ -960,14 +996,22 @@ fun PhoneSearchScreen(
                         }
                     } else {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+<<<<<<< HEAD
                             Text("Enter search query", style = MaterialTheme.typography.bodyLarge)
+=======
+                            Text(stringResource(R.string.enter_search_query), style = MaterialTheme.typography.bodyLarge)
+>>>>>>> 1162dbf (Restore project)
                         }
                     }
                 }
                 searchMode == SearchMode.Tag && tagSearchGroups.isNotEmpty() && selectedSearchTag == null -> {
                     Column(modifier = Modifier.fillMaxSize()) {
                         Text(
+<<<<<<< HEAD
                             text = "Found ${stations.size} stations",
+=======
+                            text = stringResource(R.string.found_stations, stations.size),
+>>>>>>> 1162dbf (Restore project)
                             style = MaterialTheme.typography.bodySmall,
                             modifier = Modifier.padding(4.dp)
                         )
@@ -1008,7 +1052,11 @@ fun PhoneTagSearchGroupGrid(
 ) {
     if (groups.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+<<<<<<< HEAD
             Text("No tag groups found")
+=======
+            Text(stringResource(R.string.no_tag_groups_found))
+>>>>>>> 1162dbf (Restore project)
         }
         return
     }
@@ -1083,7 +1131,11 @@ fun PhoneGenresScreen(
             OutlinedTextField(
                 value = localTagSearchQuery,
                 onValueChange = { localTagSearchQuery = it; viewModel.setTagSearchQuery(it) },
+<<<<<<< HEAD
                 label = { Text("Search genres...") },
+=======
+                label = { Text(stringResource(R.string.search_hint)) },
+>>>>>>> 1162dbf (Restore project)
                 modifier = Modifier.weight(1f),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -1101,7 +1153,11 @@ fun PhoneGenresScreen(
                 )
             )
             Spacer(modifier = Modifier.width(8.dp))
+<<<<<<< HEAD
             Text("Sort:", style = MaterialTheme.typography.bodySmall)
+=======
+            Text(stringResource(R.string.sort_label), style = MaterialTheme.typography.bodySmall)
+>>>>>>> 1162dbf (Restore project)
             Spacer(modifier = Modifier.width(4.dp))
             GenreSortMode.entries.forEach { mode ->
                 FilterChip(
@@ -1134,7 +1190,11 @@ fun PhoneTagGrid(
 ) {
     if (tags.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+<<<<<<< HEAD
             Text("No genres found", style = MaterialTheme.typography.bodyLarge)
+=======
+            Text(stringResource(R.string.no_genres_found), style = MaterialTheme.typography.bodyLarge)
+>>>>>>> 1162dbf (Restore project)
         }
         return
     }
@@ -1308,17 +1368,30 @@ fun PhoneBitrateFilters(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
+<<<<<<< HEAD
         Text("Filter:", style = MaterialTheme.typography.labelSmall)
         BitrateFilter.entries.forEach { filter ->
             val label = when (filter) {
                 BitrateFilter.Low -> "Low"
                 BitrateFilter.High -> "High"
                 BitrateFilter.FLAC -> "FLAC"
+=======
+        Text(stringResource(R.string.filter_label), style = MaterialTheme.typography.labelSmall)
+        BitrateFilter.entries.forEach { filter ->
+            val labelRes = when (filter) {
+                BitrateFilter.Low -> R.string.filter_low
+                BitrateFilter.High -> R.string.filter_high
+                BitrateFilter.FLAC -> R.string.filter_flac
+>>>>>>> 1162dbf (Restore project)
             }
             FilterChip(
                 selected = selectedBitrates.contains(filter),
                 onClick = { onToggleFilter(filter) },
+<<<<<<< HEAD
                 label = { Text(label) },
+=======
+                label = { Text(stringResource(labelRes)) },
+>>>>>>> 1162dbf (Restore project)
                 modifier = Modifier.padding(horizontal = 2.dp)
             )
         }
@@ -1347,10 +1420,17 @@ fun PhoneSettingsScreen(
                     } catch (e2: Exception) {}
                 }
             } else {
+<<<<<<< HEAD
                 viewModel.setError("Storage permission already granted")
             }
         } else {
             viewModel.setError("Storage permission already requested")
+=======
+                viewModel.setError(context.getString(R.string.error_permission_already_granted))
+            }
+        } else {
+            viewModel.setError(context.getString(R.string.error_permission_already_requested))
+>>>>>>> 1162dbf (Restore project)
         }
     }
 
@@ -1423,7 +1503,11 @@ fun PhoneSettingsMain(
         item {
             ListItem(
                 headlineContent = { Text(stringResource(R.string.settings_theme)) },
+<<<<<<< HEAD
                 supportingContent = { Text("Current: ${appTheme.name}") },
+=======
+                supportingContent = { Text(stringResource(R.string.current_theme, appTheme.name)) },
+>>>>>>> 1162dbf (Restore project)
                 leadingContent = { Icon(Icons.Default.TheaterComedy, contentDescription = null) },
                 trailingContent = { Icon(Icons.Default.ChevronRight, contentDescription = null) },
                 modifier = Modifier.clickable { viewModel.setSettingsSubMenu("AppTheme") }
@@ -1450,7 +1534,11 @@ fun PhoneSettingsMain(
         item {
             ListItem(
                 headlineContent = { Text(stringResource(R.string.settings_startup_category)) },
+<<<<<<< HEAD
                 supportingContent = { Text("Current: ${stringResource(defaultStartupCategory.labelRes)}") },
+=======
+                supportingContent = { Text(stringResource(R.string.current_category, stringResource(defaultStartupCategory.labelRes))) },
+>>>>>>> 1162dbf (Restore project)
                 leadingContent = { Icon(Icons.Default.PlayArrow, contentDescription = null) },
                 trailingContent = { Icon(Icons.Default.ChevronRight, contentDescription = null) },
                 modifier = Modifier.clickable { viewModel.setSettingsSubMenu("DefaultCategory") }
@@ -1473,7 +1561,11 @@ fun PhoneSettingsMain(
         item {
             ListItem(
                 headlineContent = { Text(stringResource(R.string.settings_screensaver)) },
+<<<<<<< HEAD
                 supportingContent = { Text(if (screensaverEnabled) "Enabled (${screensaverTimeout}m)" else "Disabled") },
+=======
+                supportingContent = { Text(if (screensaverEnabled) stringResource(R.string.screensaver_enabled_fmt, screensaverTimeout) else stringResource(R.string.screensaver_disabled)) },
+>>>>>>> 1162dbf (Restore project)
                 leadingContent = { Icon(Icons.Default.MusicVideo, contentDescription = null) },
                 trailingContent = { Icon(Icons.Default.ChevronRight, contentDescription = null) },
                 modifier = Modifier.clickable { viewModel.setSettingsSubMenu("Screensaver") }
@@ -1650,13 +1742,21 @@ fun PhoneHomeGenresSettings(
                 IconButton(onClick = { viewModel.setSettingsSubMenu(null) }) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back_desc))
                 }
+<<<<<<< HEAD
                 Text("Personalize Home Tab", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+=======
+                Text(stringResource(R.string.settings_personalize_home), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+>>>>>>> 1162dbf (Restore project)
             }
             Spacer(modifier = Modifier.height(8.dp))
         }
         item {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+<<<<<<< HEAD
                 Text("Sort:", style = MaterialTheme.typography.bodySmall)
+=======
+                Text(stringResource(R.string.sort_label), style = MaterialTheme.typography.bodySmall)
+>>>>>>> 1162dbf (Restore project)
                 GenreSortMode.entries.forEach { mode ->
                     FilterChip(
                         selected = genreSortMode == mode,
@@ -1671,7 +1771,11 @@ fun PhoneHomeGenresSettings(
             OutlinedTextField(
                 value = localTagSearchQuery,
                 onValueChange = onTagSearchChange,
+<<<<<<< HEAD
                 label = { Text("Search tags...") },
+=======
+                label = { Text(stringResource(R.string.search_hint)) },
+>>>>>>> 1162dbf (Restore project)
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -1689,14 +1793,22 @@ fun PhoneHomeGenresSettings(
                 )
             )
             Spacer(modifier = Modifier.height(8.dp))
+<<<<<<< HEAD
             Text("GENRES", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+=======
+            Text(stringResource(R.string.genres_section), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+>>>>>>> 1162dbf (Restore project)
         }
         items(filteredTags) { tag ->
             ListItem(
                 headlineContent = {
                     Text(tag.name.lowercase().split(" ").joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } })
                 },
+<<<<<<< HEAD
                 supportingContent = { Text("${tag.stationcount} stations") },
+=======
+                supportingContent = { Text(stringResource(R.string.stations_count, tag.stationcount)) },
+>>>>>>> 1162dbf (Restore project)
                 trailingContent = {
                     Checkbox(checked = visibleGenres.contains(tag.name), onCheckedChange = { viewModel.toggleGenreVisibility(tag.name) })
                 }
@@ -1707,7 +1819,15 @@ fun PhoneHomeGenresSettings(
 
 @Composable
 fun PhoneAutoUpdateSettings(viewModel: MainViewModel, autoUpdateInterval: Int) {
+<<<<<<< HEAD
     val options = listOf(0 to "Manual Only", 12 to "Every 12 Hours", 24 to "Every 24 Hours")
+=======
+    val options = listOf(
+        0 to R.string.update_manual,
+        12 to R.string.update_every_12h,
+        24 to R.string.update_every_24h
+    )
+>>>>>>> 1162dbf (Restore project)
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp, 8.dp, 16.dp, 140.dp)
@@ -1717,6 +1837,7 @@ fun PhoneAutoUpdateSettings(viewModel: MainViewModel, autoUpdateInterval: Int) {
                 IconButton(onClick = { viewModel.setSettingsSubMenu(null) }) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back_desc))
                 }
+<<<<<<< HEAD
                 Text("Database Update Interval", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             }
         }
@@ -1724,6 +1845,15 @@ fun PhoneAutoUpdateSettings(viewModel: MainViewModel, autoUpdateInterval: Int) {
             item {
                 ListItem(
                     headlineContent = { Text(label) },
+=======
+                Text(stringResource(R.string.settings_db_update_interval), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            }
+        }
+        options.forEach { (hours, labelRes) ->
+            item {
+                ListItem(
+                    headlineContent = { Text(stringResource(labelRes)) },
+>>>>>>> 1162dbf (Restore project)
                     trailingContent = {
                         if (autoUpdateInterval == hours) {
                             Icon(Icons.Default.History, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
@@ -1751,23 +1881,44 @@ fun PhoneScreensaverSettings(
                 IconButton(onClick = { viewModel.setSettingsSubMenu(null) }) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back_desc))
                 }
+<<<<<<< HEAD
                 Text("Screensaver Preferences", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+=======
+                Text(stringResource(R.string.settings_screensaver_prefs), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+>>>>>>> 1162dbf (Restore project)
             }
         }
         item {
             ListItem(
+<<<<<<< HEAD
                 headlineContent = { Text("Activate Screensaver") },
                 supportingContent = { Text("Engage when music is playing") },
+=======
+                headlineContent = { Text(stringResource(R.string.screensaver_activate)) },
+                supportingContent = { Text(stringResource(R.string.screensaver_activate_desc)) },
+>>>>>>> 1162dbf (Restore project)
                 trailingContent = { Switch(checked = screensaverEnabled, onCheckedChange = { viewModel.toggleScreensaver(it) }) }
             )
         }
         item {
+<<<<<<< HEAD
             Text("Display Mode", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(vertical = 8.dp))
         }
         listOf(ScreensaverMode.StationInfo to "Retro Station Info", ScreensaverMode.BlackScreen to "Deep Black").forEach { (mode, label) ->
             item {
                 ListItem(
                     headlineContent = { Text(label) },
+=======
+            Text(stringResource(R.string.screensaver_display_mode), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(vertical = 8.dp))
+        }
+        listOf(
+            ScreensaverMode.StationInfo to R.string.screensaver_mode_retro,
+            ScreensaverMode.BlackScreen to R.string.screensaver_mode_black
+        ).forEach { (mode, labelRes) ->
+            item {
+                ListItem(
+                    headlineContent = { Text(stringResource(labelRes)) },
+>>>>>>> 1162dbf (Restore project)
                     trailingContent = {
                         if (screensaverMode == mode) {
                             Icon(Icons.Default.GraphicEq, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
@@ -1778,12 +1929,20 @@ fun PhoneScreensaverSettings(
             }
         }
         item {
+<<<<<<< HEAD
             Text("Idle Timeout", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(vertical = 8.dp))
+=======
+            Text(stringResource(R.string.screensaver_idle_timeout), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(vertical = 8.dp))
+>>>>>>> 1162dbf (Restore project)
         }
         timeouts.forEach { minutes ->
             item {
                 ListItem(
+<<<<<<< HEAD
                     headlineContent = { Text("$minutes Minutes") },
+=======
+                    headlineContent = { Text(stringResource(R.string.screensaver_minutes, minutes)) },
+>>>>>>> 1162dbf (Restore project)
                     trailingContent = {
                         if (screensaverTimeout == minutes) {
                             Icon(Icons.Default.History, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
@@ -1807,6 +1966,7 @@ fun PhoneAppThemeSettings(viewModel: MainViewModel, appTheme: AppTheme) {
                 IconButton(onClick = { viewModel.setSettingsSubMenu(null) }) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back_desc))
                 }
+<<<<<<< HEAD
                 Text("Application Theme", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             }
         }
@@ -1832,6 +1992,33 @@ fun PhoneAppThemeSettings(viewModel: MainViewModel, appTheme: AppTheme) {
             ListItem(
                 headlineContent = { Text(label) },
                 supportingContent = { Text(desc) },
+=======
+                Text(stringResource(R.string.settings_application_theme), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            }
+        }
+        items(AppTheme.entries) { theme ->
+            val labelRes = when (theme) {
+                AppTheme.RetroGold -> R.string.theme_retro_gold
+                AppTheme.BlueNeon -> R.string.theme_blue_neon
+                AppTheme.Violet -> R.string.theme_violet
+                AppTheme.Monochrome -> R.string.theme_monochrome
+                AppTheme.Forest -> R.string.theme_forest
+                AppTheme.Contrast -> R.string.theme_contrast
+                AppTheme.Black -> R.string.theme_black
+            }
+            val descRes = when (theme) {
+                AppTheme.RetroGold -> R.string.theme_retro_gold_desc
+                AppTheme.BlueNeon -> R.string.theme_blue_neon_desc
+                AppTheme.Violet -> R.string.theme_violet_desc
+                AppTheme.Monochrome -> R.string.theme_monochrome_desc
+                AppTheme.Forest -> R.string.theme_forest_desc
+                AppTheme.Contrast -> R.string.theme_contrast_desc
+                AppTheme.Black -> R.string.theme_black_desc
+            }
+            ListItem(
+                headlineContent = { Text(stringResource(labelRes)) },
+                supportingContent = { Text(stringResource(descRes)) },
+>>>>>>> 1162dbf (Restore project)
                 trailingContent = {
                     if (appTheme == theme) {
                         Icon(Icons.Default.GraphicEq, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
@@ -2223,7 +2410,11 @@ fun PhoneScreensaver(viewModel: MainViewModel) {
                     }
                 }
                 Text(
+<<<<<<< HEAD
                     text = "Tap to return",
+=======
+                    text = stringResource(R.string.tap_to_return),
+>>>>>>> 1162dbf (Restore project)
                     style = MaterialTheme.typography.labelSmall,
                     color = Color.Gray.copy(alpha = 0.5f),
                     modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 32.dp)
@@ -2260,12 +2451,20 @@ fun PhoneFilePicker(
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
+<<<<<<< HEAD
                         text = if (state.isExport) "Backup Favourites" else "Restore Favourites",
+=======
+                        text = if (state.isExport) stringResource(R.string.file_picker_backup) else stringResource(R.string.file_picker_restore),
+>>>>>>> 1162dbf (Restore project)
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.weight(1f)
                     )
+<<<<<<< HEAD
                     TextButton(onClick = onDismiss) { Text("Close") }
+=======
+                    TextButton(onClick = onDismiss) { Text(stringResource(R.string.file_picker_close)) }
+>>>>>>> 1162dbf (Restore project)
                 }
 
                 Surface(
@@ -2289,7 +2488,11 @@ fun PhoneFilePicker(
                     item {
                         ListItem(
                             headlineContent = { Text("..", fontWeight = FontWeight.Bold) },
+<<<<<<< HEAD
                             supportingContent = { Text("Go to Parent Directory") },
+=======
+                            supportingContent = { Text(stringResource(R.string.file_picker_parent_dir)) },
+>>>>>>> 1162dbf (Restore project)
                             leadingContent = { Icon(Icons.Default.KeyboardArrowUp, contentDescription = null, tint = Color(0xFFFFCA28)) },
                             modifier = Modifier.clickable { onNavigateUp() }
                         )
@@ -2330,7 +2533,11 @@ fun PhoneFilePicker(
                                 Text(state.suggestedFileName, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
                             }
                             Button(onClick = { onSelected(File(state.currentPath)) }) {
+<<<<<<< HEAD
                                 Text("SAVE HERE")
+=======
+                                Text(stringResource(R.string.file_picker_save_here))
+>>>>>>> 1162dbf (Restore project)
                             }
                         }
                     }

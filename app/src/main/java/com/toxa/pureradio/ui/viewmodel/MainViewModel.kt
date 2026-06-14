@@ -91,6 +91,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val prefs = application.getSharedPreferences("pure_radio_prefs", Context.MODE_PRIVATE)
     private val faviconCache = mutableMapOf<String, ByteArray>()
 
+<<<<<<< HEAD
+=======
+    /** Convenience helper to access localized strings from the ViewModel. */
+    private fun str(resId: Int, vararg args: Any): String =
+        getApplication<Application>().getString(resId, *args)
+
+>>>>>>> 1162dbf (Restore project)
     private val _allStations = MutableStateFlow<List<Station>>(emptyList())
     private val _stations = MutableStateFlow<List<Station>>(emptyList())
     val stations: StateFlow<List<Station>> = _stations
@@ -321,7 +328,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             if (consecutiveErrors < 5) {
                                 playNext(isAuto = true)
                             } else {
+<<<<<<< HEAD
                                 _error.value = "Playback failed: ${error.message}"
+=======
+                                _error.value = str(R.string.error_playback_failed, error.message ?: "unknown")
+>>>>>>> 1162dbf (Restore project)
                                 stopPlayback()
                                 consecutiveErrors = 0
                             }
@@ -361,7 +372,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         ?: _recentStations.value.find { it.stationUuid == currentMediaItem?.mediaId }
                 }
             } catch (e: Exception) {
+<<<<<<< HEAD
                 _error.value = "Failed to connect to playback service"
+=======
+                _error.value = str(R.string.error_playback_service)
+>>>>>>> 1162dbf (Restore project)
             }
         }, com.google.common.util.concurrent.MoreExecutors.directExecutor())
     }
@@ -489,7 +504,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private fun listFiles(directory: File): List<File> {
         val files = directory.listFiles()
         if (files == null) {
+<<<<<<< HEAD
             _error.value = "Permission Denied: Cannot access ${directory.name}. Ensure storage permissions are granted in System Settings."
+=======
+            _error.value = str(R.string.error_permission_denied, directory.name)
+>>>>>>> 1162dbf (Restore project)
             return emptyList()
         }
         return files.toList().sortedWith(compareBy({ !it.isDirectory }, { it.name.lowercase() }))
@@ -525,11 +544,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     // Better to close file picker and show the restore dialog on top of settings.
                     closeFilePicker()
                 } else {
+<<<<<<< HEAD
                     _error.value = "No stations found in file"
                     closeFilePicker()
                 }
             } catch (e: Exception) {
                 _error.value = "Import failed: ${e.message}"
+=======
+                    _error.value = str(R.string.error_no_stations_in_file)
+                    closeFilePicker()
+                }
+            } catch (e: Exception) {
+                _error.value = str(R.string.error_import_failed, e.message ?: "unknown")
+>>>>>>> 1162dbf (Restore project)
                 closeFilePicker()
             } finally {
                 _isLoading.value = false
@@ -556,9 +583,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val content = generateM3uContent()
                 file.writeText(content)
+<<<<<<< HEAD
                 _error.value = "Favorites exported to ${file.name}"
             } catch (e: Exception) {
                 _error.value = "Export failed: ${e.message}"
+=======
+                _error.value = str(R.string.status_favorites_exported_to, file.name)
+            } catch (e: Exception) {
+                _error.value = str(R.string.error_export_failed, e.message ?: "unknown")
+>>>>>>> 1162dbf (Restore project)
             }
         }
     }
@@ -810,7 +843,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _tags.value = repository.getTags(limit = 500)
                 _countries.value = repository.getCountries()
             } catch (e: Exception) {
+<<<<<<< HEAD
                 _error.value = "Failed to update database"
+=======
+                _error.value = str(R.string.error_database_update)
+>>>>>>> 1162dbf (Restore project)
             } finally {
                 _isLoading.value = false
             }
@@ -1193,7 +1230,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _hasMoreStations.value = stations.size >= 100
                 updateStations(stations)
             } catch (e: Exception) {
+<<<<<<< HEAD
                 _error.value = "Failed to load popular stations"
+=======
+                _error.value = str(R.string.error_load_popular)
+>>>>>>> 1162dbf (Restore project)
             } finally {
                 _isLoading.value = false
                 applyFilters()
@@ -1243,7 +1284,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _allStations.value = (_allStations.value + newStations).distinctBy { it.stationUuid }
                 applyFilters()
             } catch (e: Exception) {
+<<<<<<< HEAD
                 _error.value = "Failed to load more stations"
+=======
+                _error.value = str(R.string.error_load_more)
+>>>>>>> 1162dbf (Restore project)
             } finally {
                 _isLoading.value = false
             }
@@ -1326,7 +1371,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     _genreGroups.value = groups
                 }
             } catch (e: Exception) {
+<<<<<<< HEAD
                 _error.value = "Failed to load stations"
+=======
+                _error.value = str(R.string.error_load_stations)
+>>>>>>> 1162dbf (Restore project)
             } finally {
                 _isLoading.value = false
                 if (_genreGroups.value.isEmpty()) {
@@ -1343,7 +1392,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 try {
                     _tags.value = repository.getTags()
                 } catch (e: Exception) {
+<<<<<<< HEAD
                     _error.value = "Failed to load genres"
+=======
+                    _error.value = str(R.string.error_load_genres)
+>>>>>>> 1162dbf (Restore project)
                 } finally {
                     _isLoading.value = false
                 }
@@ -1358,7 +1411,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 try {
                     _countries.value = repository.getCountries()
                 } catch (e: Exception) {
+<<<<<<< HEAD
                     _error.value = "Failed to load countries"
+=======
+                    _error.value = str(R.string.error_load_countries)
+>>>>>>> 1162dbf (Restore project)
                 } finally {
                     _isLoading.value = false
                 }
@@ -1458,9 +1515,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 context.contentResolver.openOutputStream(uri)?.use { outputStream ->
                     outputStream.write(content.toByteArray())
                 }
+<<<<<<< HEAD
                 _error.value = "Favorites exported successfully"
             } catch (e: Exception) {
                 _error.value = "Export failed: ${e.message}"
+=======
+                _error.value = str(R.string.status_favorites_exported)
+            } catch (e: Exception) {
+                _error.value = str(R.string.error_export_failed, e.message ?: "unknown")
+>>>>>>> 1162dbf (Restore project)
             }
         }
     }
@@ -1480,10 +1543,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 if (importedStations.isNotEmpty()) {
                     _pendingImportStations.value = importedStations
                 } else {
+<<<<<<< HEAD
                     _error.value = "No stations found in file"
                 }
             } catch (e: Exception) {
                 _error.value = "Import failed: ${e.message}"
+=======
+                    _error.value = str(R.string.error_no_stations_in_file)
+                }
+            } catch (e: Exception) {
+                _error.value = str(R.string.error_import_failed, e.message ?: "unknown")
+>>>>>>> 1162dbf (Restore project)
             } finally {
                 _isLoading.value = false
             }
@@ -1515,7 +1585,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     updateStations(stations)
                 }
             } catch (e: Exception) {
+<<<<<<< HEAD
                 _error.value = "Failed to load stations for genre"
+=======
+                _error.value = str(R.string.error_load_genre_stations)
+>>>>>>> 1162dbf (Restore project)
             } finally {
                 _isLoading.value = false
                 applyFilters()
@@ -1548,7 +1622,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     updateStations(stations)
                 }
             } catch (e: Exception) {
+<<<<<<< HEAD
                 _error.value = "Failed to load stations for country"
+=======
+                _error.value = str(R.string.error_load_country_stations)
+>>>>>>> 1162dbf (Restore project)
             } finally {
                 _isLoading.value = false
                 applyFilters()
@@ -1675,7 +1753,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _hasMoreStations.value = false // We already fetched many
                 updateStations(allResults)
             } catch (e: Exception) {
+<<<<<<< HEAD
                 _error.value = "Tag search failed"
+=======
+                _error.value = str(R.string.error_tag_search)
+>>>>>>> 1162dbf (Restore project)
             } finally {
                 _isLoading.value = false
             }
@@ -1787,7 +1869,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         // If there's only one station and it failed, stop to avoid infinite loop
         if (list.size == 1 && list[0].stationUuid == current.stationUuid) {
+<<<<<<< HEAD
             _error.value = "Station unavailable"
+=======
+            _error.value = str(R.string.error_station_unavailable)
+>>>>>>> 1162dbf (Restore project)
             stopPlayback()
             return
         }
@@ -1866,7 +1952,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _hasMoreStations.value = finalResults.size >= 100
                 updateStations(finalResults)
             } catch (e: Exception) {
+<<<<<<< HEAD
                 _error.value = "Search failed"
+=======
+                _error.value = str(R.string.error_search_failed)
+>>>>>>> 1162dbf (Restore project)
             } finally {
                 _isLoading.value = false
             }

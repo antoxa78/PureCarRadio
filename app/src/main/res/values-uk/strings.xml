@@ -82,4 +82,102 @@
     <string name="clear_desc">Очистити</string>
     <string name="favorite_desc">Обране</string>
     <string name="open_desc">Відкрити</string>
+<<<<<<< HEAD
+=======
+
+    <!-- Loading / Empty states -->
+    <string name="searching_for_waves">Шукаємо хвилі…</string>
+    <string name="no_stations_found">Станції не знайдено</string>
+    <string name="load_more">Завантажити ще</string>
+    <string name="loading">Завантаження…</string>
+    <string name="no_genres_selected">Жанри не обрано. Додайте їх у Налаштуваннях.</string>
+    <string name="no_genres_found">Жанри не знайдено</string>
+    <string name="no_tag_groups_found">Групи тегів не знайдено</string>
+    <string name="enter_search_query">Введіть запит для пошуку</string>
+    <string name="found_stations">Знайдено %d станцій</string>
+    <string name="found_stations_select_tag">Знайдено %d станцій — оберіть тег для фільтра</string>
+    <string name="recent_searches">Нещодавні пошуки</string>
+    <string name="tap_to_return">Торкніться, щоб повернутися</string>
+    <string name="sort_label">Сортування:</string>
+    <string name="genres_section">ЖАНРИ</string>
+    <string name="search_mode_tag">ТЕГ</string>
+    <string name="search_mode_name">ІМ\'Я</string>
+    <string name="stations_count">%d станцій</string>
+
+    <!-- Settings sub-menu titles -->
+    <string name="settings_personalize_home">Налаштування головної вкладки</string>
+    <string name="settings_db_update_interval">Інтервал оновлення БД</string>
+    <string name="settings_screensaver_prefs">Налаштування заставки</string>
+    <string name="settings_application_theme">Тема застосунку</string>
+
+    <!-- Screensaver settings -->
+    <string name="screensaver_activate">Увімкнути заставку</string>
+    <string name="screensaver_activate_desc">Активувати під час відтворення</string>
+    <string name="screensaver_display_mode">Режим відображення</string>
+    <string name="screensaver_mode_retro">Ретро — інфо про станцію</string>
+    <string name="screensaver_mode_black">Глибокий чорний (OLED)</string>
+    <string name="screensaver_idle_timeout">Тайм-аут бездіяльності</string>
+    <string name="screensaver_minutes">%d хвилин</string>
+
+    <!-- Auto-update intervals -->
+    <string name="update_manual">Тільки вручну</string>
+    <string name="update_every_12h">Кожні 12 годин</string>
+    <string name="update_every_24h">Кожні 24 години</string>
+
+    <!-- Theme names/descriptions -->
+    <string name="theme_retro_gold">Ретро Золото</string>
+    <string name="theme_retro_gold_desc">Класика: золото та дерево</string>
+    <string name="theme_blue_neon">Синій неон</string>
+    <string name="theme_blue_neon_desc">Неонове синє сяйво</string>
+    <string name="theme_violet">Фіолетовий</string>
+    <string name="theme_violet_desc">Фіолетові тони</string>
+    <string name="theme_monochrome">Монохром</string>
+    <string name="theme_monochrome_desc">Сірий та чорний</string>
+    <string name="theme_forest">Ліс</string>
+    <string name="theme_forest_desc">Зелений та чорний</string>
+    <string name="theme_contrast">Контраст</string>
+    <string name="theme_contrast_desc">Білий та чорний</string>
+    <string name="theme_black">Чорний</string>
+    <string name="theme_black_desc">Чисто чорний фон</string>
+
+    <!-- File picker -->
+    <string name="file_picker_backup">Резервне копіювання</string>
+    <string name="file_picker_restore">Відновлення</string>
+    <string name="file_picker_close">Закрити</string>
+    <string name="file_picker_parent_dir">Перейти до батьківської папки</string>
+    <string name="file_picker_save_here">ЗБЕРЕГТИ ТУТ</string>
+    <string name="file_picker_file_label">Файл:</string>
+    <string name="file_picker_export_label">Ім\'я файлу:</string>
+
+    <!-- Category descriptions -->
+    <string name="category_desc_home">Найкращі станції</string>
+    <string name="category_desc_popular">Популярні станції</string>
+    <string name="category_desc_recent">Нещодавно прослухані</string>
+    <string name="category_desc_genres">Перегляд за жанром</string>
+    <string name="category_desc_countries">Перегляд за країною</string>
+    <string name="category_desc_favourites">Ваші збережені</string>
+
+    <!-- Bitrate filter -->
+    <string name="filter_label">Фільтр:</string>
+    <string name="filter_low">Низький</string>
+    <string name="filter_high">Високий</string>
+    <string name="filter_flac">FLAC</string>
+
+    <!-- Settings inline values -->
+    <string name="current_theme">Поточна: %s</string>
+    <string name="current_category">Поточна: %s</string>
+    <string name="screensaver_enabled_fmt">Увімкнена (%dхв)</string>
+    <string name="screensaver_disabled">Вимкнена</string>
+    <string name="update_frequency_hours">Частота: кожні %d год</string>
+    <string name="update_frequency_disabled">Частота: вручну</string>
+    <string name="badge_genre">ЖАНР</string>
+    <string name="badge_country">КРАЇНА</string>
+
+    <!-- Screensaver hint -->
+    <string name="press_any_key_to_return">Натисніть будь-яку клавішу для повернення</string>
+
+    <!-- Splash -->
+    <string name="splash_tagline">Тисячі станцій безкоштовно</string>
+
+>>>>>>> 1162dbf (Restore project)
 </resources>

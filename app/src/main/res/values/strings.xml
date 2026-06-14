@@ -82,4 +82,141 @@
     <string name="clear_desc">Clear</string>
     <string name="favorite_desc">Favorite</string>
     <string name="open_desc">Open</string>
+<<<<<<< HEAD
+=======
+
+    <!-- Loading / Empty states -->
+    <string name="searching_for_waves">Searching for waves…</string>
+    <string name="no_stations_found">No stations found</string>
+    <string name="load_more">Load More</string>
+    <string name="loading">Loading…</string>
+    <string name="no_genres_selected">No genres selected. Add some in Settings.</string>
+    <string name="no_genres_found">No genres found</string>
+    <string name="no_tag_groups_found">No tag groups found</string>
+    <string name="enter_search_query">Enter a search query</string>
+    <string name="found_stations">Found %d stations</string>
+    <string name="found_stations_select_tag">Found %d stations — select a tag to filter</string>
+    <string name="recent_searches">Recent Searches</string>
+    <string name="tap_to_return">Tap to return</string>
+    <string name="sort_label">Sort:</string>
+    <string name="genres_section">GENRES</string>
+    <string name="search_mode_tag">TAG</string>
+    <string name="search_mode_name">NAME</string>
+    <string name="stations_count">%d stations</string>
+
+    <!-- Settings sub-menu titles -->
+    <string name="settings_personalize_home">Personalize Home Tab</string>
+    <string name="settings_db_update_interval">Database Update Interval</string>
+    <string name="settings_screensaver_prefs">Screensaver Preferences</string>
+    <string name="settings_application_theme">Application Theme</string>
+
+    <!-- Screensaver settings -->
+    <string name="screensaver_activate">Activate Screensaver</string>
+    <string name="screensaver_activate_desc">Engage when music is playing</string>
+    <string name="screensaver_display_mode">Display Mode</string>
+    <string name="screensaver_mode_retro">Retro Station Info</string>
+    <string name="screensaver_mode_black">Deep Black (OLED Safe)</string>
+    <string name="screensaver_idle_timeout">Idle Timeout</string>
+    <string name="screensaver_minutes">%d Minutes</string>
+
+    <!-- Auto-update intervals -->
+    <string name="update_manual">Manual Only</string>
+    <string name="update_every_12h">Every 12 Hours</string>
+    <string name="update_every_24h">Every 24 Hours</string>
+
+    <!-- Theme descriptions -->
+    <string name="theme_retro_gold">Retro Gold</string>
+    <string name="theme_retro_gold_desc">Classic gold and wood tones</string>
+    <string name="theme_blue_neon">Blue Neon</string>
+    <string name="theme_blue_neon_desc">Cool blue neon glow</string>
+    <string name="theme_violet">Violet</string>
+    <string name="theme_violet_desc">Purple and violet tones</string>
+    <string name="theme_monochrome">Monochrome</string>
+    <string name="theme_monochrome_desc">Grey and black</string>
+    <string name="theme_forest">Forest</string>
+    <string name="theme_forest_desc">Green and black</string>
+    <string name="theme_contrast">Contrast</string>
+    <string name="theme_contrast_desc">White and black</string>
+    <string name="theme_black">Black</string>
+    <string name="theme_black_desc">Pure black background</string>
+
+    <!-- File picker -->
+    <string name="file_picker_backup">Backup Favourites</string>
+    <string name="file_picker_restore">Restore Favourites</string>
+    <string name="file_picker_close">Close</string>
+    <string name="file_picker_parent_dir">Go to Parent Directory</string>
+    <string name="file_picker_save_here">SAVE HERE</string>
+    <string name="file_picker_file_label">File:</string>
+    <string name="file_picker_export_label">Export filename:</string>
+
+    <!-- Category descriptions -->
+    <string name="category_desc_home">Top stations</string>
+    <string name="category_desc_popular">Trending stations</string>
+    <string name="category_desc_recent">Recently played</string>
+    <string name="category_desc_genres">Browse by genre</string>
+    <string name="category_desc_countries">Browse by country</string>
+    <string name="category_desc_favourites">Your saved stations</string>
+
+    <!-- Bitrate filter -->
+    <string name="filter_label">Filter:</string>
+    <string name="filter_low">Low</string>
+    <string name="filter_high">High</string>
+    <string name="filter_flac">FLAC</string>
+
+    <!-- Settings inline values -->
+    <string name="current_theme">Current: %s</string>
+    <string name="current_category">Current: %s</string>
+    <string name="screensaver_enabled_fmt">Enabled (%dm)</string>
+    <string name="screensaver_disabled">Disabled</string>
+    <string name="update_frequency_hours">Update frequency: %dh</string>
+    <string name="update_frequency_disabled">Update frequency: Disabled</string>
+    <string name="badge_genre">GENRE</string>
+    <string name="badge_country">COUNTRY</string>
+
+    <!-- Screensaver hint -->
+    <string name="press_any_key_to_return">Press any key to return</string>
+
+    <!-- Error / status messages (shown in snackbar/toast) -->
+    <string name="error_playback_service">Failed to connect to playback service</string>
+    <string name="error_no_stations_in_file">No stations found in file</string>
+    <string name="error_database_update">Failed to update database</string>
+    <string name="error_load_popular">Failed to load popular stations</string>
+    <string name="error_load_more">Failed to load more stations</string>
+    <string name="error_load_stations">Failed to load stations</string>
+    <string name="error_load_genres">Failed to load genres</string>
+    <string name="error_load_countries">Failed to load countries</string>
+    <string name="error_load_genre_stations">Failed to load stations for genre</string>
+    <string name="error_load_country_stations">Failed to load stations for country</string>
+    <string name="error_tag_search">Tag search failed</string>
+    <string name="error_search_failed">Search failed</string>
+    <string name="error_station_unavailable">Station unavailable — skipping</string>
+    <string name="status_favorites_exported">Favourites exported successfully</string>
+    <string name="error_playback_failed">Playback failed: %s</string>
+    <string name="error_permission_denied">Storage access denied for \'%s\'. Check System Settings → Permissions.</string>
+    <string name="error_import_failed">Import failed: %s</string>
+    <string name="error_export_failed">Export failed: %s</string>
+    <string name="status_favorites_exported_to">Favourites exported to \'%s\'</string>
+
+
+
+    <!-- Splash -->
+    <string name="splash_tagline">Thousands of stations, free</string>
+
+    <!-- Playing state -->
+    <string name="playing_state_format">Playing • %s</string>
+    <string name="paused_state">Paused</string>
+
+    <!-- Settings: current value labels -->
+    <string name="current_value">Current: %s</string>
+    <string name="screensaver_status_enabled">Enabled (%dm)</string>
+    <string name="screensaver_status_disabled">Disabled</string>
+    <string name="last_update_format">Last: %s • %s stations</string>
+    <string name="last_update_never">Never</string>
+
+    <string name="error_system_picker_unavailable">System file picker unavailable</string>
+    <string name="error_permission_already_granted">Storage permission already granted</string>
+    <string name="error_permission_already_requested">Storage permission already requested</string>
+    <string name="error_all_files_access_granted">All Files Access already granted</string>
+
+>>>>>>> 1162dbf (Restore project)
 </resources>
