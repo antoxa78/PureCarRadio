@@ -82,8 +82,6 @@
     <string name="clear_desc">Очистить</string>
     <string name="favorite_desc">Избранное</string>
     <string name="open_desc">Открыть</string>
-<<<<<<< HEAD
-=======
 
     <!-- Loading / Empty states -->
     <string name="searching_for_waves">Ищем волны…</string>

@@ -2,8 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
-<<<<<<< HEAD
-=======
+## [1.4.1] - 2026-06-14
+
+### Fixed
+- **Android Auto/Automotive Connection**: Resolved service binding issues and added required Automotive metadata to the manifest.
+- **Media Content Browsing**: Enhanced `PlaybackService` with full content hierarchy support and search functionality for car head units.
+- **Project Integrity**: Repaired source code corruption by removing remaining merge conflict markers across the project.
+- **Mirror Fallback**: Fixed logic in `RadioRepository` to correctly handle mirror outages and metadata recovery.
+
 ## [1.4.0] - 2026-06-14
 
 ### Added
@@ -34,7 +40,6 @@ Then set `signingConfig = signingConfigs.getByName("release")` in the `release` 
 
 ---
 
->>>>>>> 1162dbf (Restore project)
 ## [1.2.0] - 2025-01-31
 
 ### Added

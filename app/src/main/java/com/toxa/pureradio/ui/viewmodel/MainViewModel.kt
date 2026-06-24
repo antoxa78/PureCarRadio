@@ -91,13 +91,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val prefs = application.getSharedPreferences("pure_radio_prefs", Context.MODE_PRIVATE)
     private val faviconCache = mutableMapOf<String, ByteArray>()
 
-<<<<<<< HEAD
-=======
     /** Convenience helper to access localized strings from the ViewModel. */
     private fun str(resId: Int, vararg args: Any): String =
         getApplication<Application>().getString(resId, *args)
 
->>>>>>> 1162dbf (Restore project)
     private val _allStations = MutableStateFlow<List<Station>>(emptyList())
     private val _stations = MutableStateFlow<List<Station>>(emptyList())
     val stations: StateFlow<List<Station>> = _stations
@@ -275,6 +272,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var consecutiveErrors = 0
     private var searchJob: kotlinx.coroutines.Job? = null
 
+    private val _searchFocusTrigger = MutableStateFlow(0)
+    val searchFocusTrigger: StateFlow<Int> = _searchFocusTrigger
+
     init {
         initializePlayer()
         loadTags()
@@ -328,11 +328,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             if (consecutiveErrors < 5) {
                                 playNext(isAuto = true)
                             } else {
-<<<<<<< HEAD
-                                _error.value = "Playback failed: ${error.message}"
-=======
                                 _error.value = str(R.string.error_playback_failed, error.message ?: "unknown")
->>>>>>> 1162dbf (Restore project)
                                 stopPlayback()
                                 consecutiveErrors = 0
                             }
@@ -372,11 +368,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         ?: _recentStations.value.find { it.stationUuid == currentMediaItem?.mediaId }
                 }
             } catch (e: Exception) {
-<<<<<<< HEAD
-                _error.value = "Failed to connect to playback service"
-=======
                 _error.value = str(R.string.error_playback_service)
->>>>>>> 1162dbf (Restore project)
             }
         }, com.google.common.util.concurrent.MoreExecutors.directExecutor())
     }
@@ -504,11 +496,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private fun listFiles(directory: File): List<File> {
         val files = directory.listFiles()
         if (files == null) {
-<<<<<<< HEAD
-            _error.value = "Permission Denied: Cannot access ${directory.name}. Ensure storage permissions are granted in System Settings."
-=======
             _error.value = str(R.string.error_permission_denied, directory.name)
->>>>>>> 1162dbf (Restore project)
             return emptyList()
         }
         return files.toList().sortedWith(compareBy({ !it.isDirectory }, { it.name.lowercase() }))
@@ -535,28 +523,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                val lines = file.readLines()
+                val lines = withContext(Dispatchers.IO) { file.readLines() }
                 val importedStations = parsePlaylistLines(lines)
                 
                 if (importedStations.isNotEmpty()) {
                     _pendingImportStations.value = importedStations
-                    // Don't close file picker yet if we need dialog, or close it and show dialog?
-                    // Better to close file picker and show the restore dialog on top of settings.
                     closeFilePicker()
                 } else {
-<<<<<<< HEAD
-                    _error.value = "No stations found in file"
-                    closeFilePicker()
-                }
-            } catch (e: Exception) {
-                _error.value = "Import failed: ${e.message}"
-=======
                     _error.value = str(R.string.error_no_stations_in_file)
                     closeFilePicker()
                 }
             } catch (e: Exception) {
                 _error.value = str(R.string.error_import_failed, e.message ?: "unknown")
->>>>>>> 1162dbf (Restore project)
                 closeFilePicker()
             } finally {
                 _isLoading.value = false
@@ -582,16 +560,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 val content = generateM3uContent()
-                file.writeText(content)
-<<<<<<< HEAD
-                _error.value = "Favorites exported to ${file.name}"
-            } catch (e: Exception) {
-                _error.value = "Export failed: ${e.message}"
-=======
+                withContext(Dispatchers.IO) { file.writeText(content) }
                 _error.value = str(R.string.status_favorites_exported_to, file.name)
             } catch (e: Exception) {
                 _error.value = str(R.string.error_export_failed, e.message ?: "unknown")
->>>>>>> 1162dbf (Restore project)
             }
         }
     }
@@ -653,14 +625,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return when {
             firstLine.startsWith("#EXTM3U", ignoreCase = true) -> parseM3uLines(lines)
             firstLine.startsWith("[playlist]", ignoreCase = true) -> parsePlsLines(lines)
-            firstLine.contains("=", ignoreCase = false) && firstLine.any { it.isDigit() } -> {
-                // Might be a PLS file without header (e.g. File1=url or URL1=url)
-                parsePlsLines(lines)
-            }
-            else -> {
-                // Try M3U even if no header, or just plain list of URLs
-                parseM3uLines(lines)
-            }
+            else -> parseM3uLines(lines)
         }
     }
 
@@ -678,7 +643,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val key = parts[0].trim()
             val value = parts[1].trim()
             
-            // Expected keys: FileN, TitleN, LengthN
             val keyName = key.filter { it.isLetter() }.lowercase()
             val index = key.filter { it.isDigit() }.toIntOrNull() ?: continue
             
@@ -749,7 +713,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     if (map.containsKey("bitrate")) currentBitrate = map["bitrate"]?.toIntOrNull() ?: 0
                 }
                 trimmedLine.startsWith("#EXTINF:") -> {
-                    // Try to extract metadata from standard tags
                     val logoRegex = "tvg-logo=\"([^\"]*)\"".toRegex()
                     val idRegex = "tvg-id=\"([^\"]*)\"".toRegex()
                     val groupRegex = "group-title=\"([^\"]*)\"".toRegex()
@@ -779,7 +742,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         bitrate = currentBitrate
                     ))
                     
-                    // Reset for next station
                     currentName = ""; currentUuid = ""; currentFavicon = ""; currentTags = ""
                     currentCountry = ""; currentCountryCode = ""; currentLanguage = ""
                     currentVotes = 0; currentCodec = ""; currentBitrate = 0
@@ -815,7 +777,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 if (_isPlaying.value) {
                     _playbackTime.value = player?.currentPosition ?: 0L
                     val duration = player?.duration ?: 0L
-                    // Live streams should not show a progress bar
                     val isLive = player?.isCurrentMediaItemLive ?: false
                     _playbackDuration.value = if (duration > 0 && !isLive) duration else 0L
                 }
@@ -843,11 +804,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _tags.value = repository.getTags(limit = 500)
                 _countries.value = repository.getCountries()
             } catch (e: Exception) {
-<<<<<<< HEAD
-                _error.value = "Failed to update database"
-=======
                 _error.value = str(R.string.error_database_update)
->>>>>>> 1162dbf (Restore project)
             } finally {
                 _isLoading.value = false
             }
@@ -1091,13 +1048,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             NavigationItem.Home -> loadTopStations()
             NavigationItem.Popular -> loadPopularStations()
             NavigationItem.Genres -> {
-                if (_selectedTag.value != null) selectTag(_selectedTag.value)
+                _selectedTag.value?.let { selectTag(it) }
             }
             NavigationItem.Countries -> {
-                if (_selectedCountry.value != null) selectCountry(_selectedCountry.value)
+                _selectedCountry.value?.let { selectCountry(it) }
             }
             NavigationItem.Search -> {
-                if (_searchQuery.value.length > 2) searchStations(_searchQuery.value)
+                if (_searchQuery.value.length > 2) onSearchQueryChange(_searchQuery.value)
             }
             else -> {}
         }
@@ -1125,7 +1082,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             NavigationItem.Popular -> loadPopularStations()
             NavigationItem.Recent -> {
                 _allStations.value = _recentStations.value
-                _stations.value = _recentStations.value // Don't apply bitrate filtering
+                _stations.value = _recentStations.value
                 refreshRecentStations()
             }
             NavigationItem.Genres -> loadTags()
@@ -1181,13 +1138,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _selectedBitrates.value = current
         saveBitrateFilters(current)
         
-        when {
-            _selectedTag.value != null -> selectTag(_selectedTag.value)
-            _selectedCountry.value != null -> selectCountry(_selectedCountry.value)
-            _selectedNavItem.value == NavigationItem.Popular -> loadPopularStations()
-            _selectedNavItem.value == NavigationItem.Home -> loadTopStations()
-            else -> applyFilters()
-        }
+        refreshCurrentContent()
     }
 
     private fun applyFilters() {
@@ -1230,11 +1181,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _hasMoreStations.value = stations.size >= 100
                 updateStations(stations)
             } catch (e: Exception) {
-<<<<<<< HEAD
-                _error.value = "Failed to load popular stations"
-=======
                 _error.value = str(R.string.error_load_popular)
->>>>>>> 1162dbf (Restore project)
             } finally {
                 _isLoading.value = false
                 applyFilters()
@@ -1284,16 +1231,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _allStations.value = (_allStations.value + newStations).distinctBy { it.stationUuid }
                 applyFilters()
             } catch (e: Exception) {
-<<<<<<< HEAD
-                _error.value = "Failed to load more stations"
-=======
                 _error.value = str(R.string.error_load_more)
->>>>>>> 1162dbf (Restore project)
             } finally {
                 _isLoading.value = false
             }
 
-            // Chain more pages if filtered count is still low
             if (remainingRetries > 0 && _stations.value.size < 100 && _hasMoreStations.value) {
                 loadMoreStations(remainingRetries - 1)
             }
@@ -1304,7 +1246,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _isLoading.value = true
 
-            // Instantly update genre group counts from existing data before refreshing
             if (_genreGroups.value.isNotEmpty()) {
                 applyFilters()
             }
@@ -1371,11 +1312,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     _genreGroups.value = groups
                 }
             } catch (e: Exception) {
-<<<<<<< HEAD
-                _error.value = "Failed to load stations"
-=======
                 _error.value = str(R.string.error_load_stations)
->>>>>>> 1162dbf (Restore project)
             } finally {
                 _isLoading.value = false
                 if (_genreGroups.value.isEmpty()) {
@@ -1392,11 +1329,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 try {
                     _tags.value = repository.getTags()
                 } catch (e: Exception) {
-<<<<<<< HEAD
-                    _error.value = "Failed to load genres"
-=======
                     _error.value = str(R.string.error_load_genres)
->>>>>>> 1162dbf (Restore project)
                 } finally {
                     _isLoading.value = false
                 }
@@ -1411,11 +1344,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 try {
                     _countries.value = repository.getCountries()
                 } catch (e: Exception) {
-<<<<<<< HEAD
-                    _error.value = "Failed to load countries"
-=======
                     _error.value = str(R.string.error_load_countries)
->>>>>>> 1162dbf (Restore project)
                 } finally {
                     _isLoading.value = false
                 }
@@ -1480,7 +1409,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun loadFavorites() {
         _stations.value = _favoriteStations.value
-        _allStations.value = _favoriteStations.value // Keep in sync but don't filter
+        _allStations.value = _favoriteStations.value 
         refreshFavoriteStations()
     }
 
@@ -1512,18 +1441,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val context = getApplication() as Context
                 val content = generateM3uContent()
                 
-                context.contentResolver.openOutputStream(uri)?.use { outputStream ->
-                    outputStream.write(content.toByteArray())
+                withContext(Dispatchers.IO) {
+                    context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                        outputStream.write(content.toByteArray())
+                    }
                 }
-<<<<<<< HEAD
-                _error.value = "Favorites exported successfully"
-            } catch (e: Exception) {
-                _error.value = "Export failed: ${e.message}"
-=======
                 _error.value = str(R.string.status_favorites_exported)
             } catch (e: Exception) {
                 _error.value = str(R.string.error_export_failed, e.message ?: "unknown")
->>>>>>> 1162dbf (Restore project)
             }
         }
     }
@@ -1535,25 +1460,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val context = getApplication() as Context
                 var importedStations = emptyList<Station>()
                 
-                context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                    val lines = inputStream.bufferedReader().readLines()
-                    importedStations = parsePlaylistLines(lines)
+                withContext(Dispatchers.IO) {
+                    context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                        val lines = inputStream.bufferedReader().readLines()
+                        importedStations = parsePlaylistLines(lines)
+                    }
                 }
                 
                 if (importedStations.isNotEmpty()) {
                     _pendingImportStations.value = importedStations
                 } else {
-<<<<<<< HEAD
-                    _error.value = "No stations found in file"
-                }
-            } catch (e: Exception) {
-                _error.value = "Import failed: ${e.message}"
-=======
                     _error.value = str(R.string.error_no_stations_in_file)
                 }
             } catch (e: Exception) {
                 _error.value = str(R.string.error_import_failed, e.message ?: "unknown")
->>>>>>> 1162dbf (Restore project)
             } finally {
                 _isLoading.value = false
             }
@@ -1563,9 +1483,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun selectTag(tag: Tag?) {
         val isNewTag = _selectedTag.value != tag
         _selectedTag.value = tag
-        if (tag == null) {
-            return
-        }
+        if (tag == null) return
         if (isNewTag) {
             _allStations.value = emptyList()
             _stations.value = emptyList()
@@ -1585,11 +1503,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     updateStations(stations)
                 }
             } catch (e: Exception) {
-<<<<<<< HEAD
-                _error.value = "Failed to load stations for genre"
-=======
                 _error.value = str(R.string.error_load_genre_stations)
->>>>>>> 1162dbf (Restore project)
             } finally {
                 _isLoading.value = false
                 applyFilters()
@@ -1600,9 +1514,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun selectCountry(country: Country?) {
         val isNewCountry = _selectedCountry.value != country
         _selectedCountry.value = country
-        if (country == null) {
-            return
-        }
+        if (country == null) return
         if (isNewCountry) {
             _allStations.value = emptyList()
             _stations.value = emptyList()
@@ -1622,11 +1534,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     updateStations(stations)
                 }
             } catch (e: Exception) {
-<<<<<<< HEAD
-                _error.value = "Failed to load stations for country"
-=======
                 _error.value = str(R.string.error_load_country_stations)
->>>>>>> 1162dbf (Restore project)
             } finally {
                 _isLoading.value = false
                 applyFilters()
@@ -1651,7 +1559,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (query.length > 2) {
             searchJob?.cancel()
             searchJob = viewModelScope.launch {
-                delay(400) // Debounce
+                delay(400)
                 when (_searchMode.value) {
                     SearchMode.Name -> searchStations(query)
                     SearchMode.Tag -> searchStationsByTag(query)
@@ -1668,14 +1576,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             applyFilters()
         } else {
             val hideBroken = _hideBrokenStations.value
-            
-            // First show what we have locally
             val localFiltered = _allStations.value.filter { station ->
                 station.tags.split(",").any { it.trim().equals(tagName, ignoreCase = true) }
             }
             _stations.value = localFiltered
             
-            // Then fetch comprehensive list for this specific tag
             viewModelScope.launch {
                 _isLoading.value = true
                 try {
@@ -1683,22 +1588,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     _hasMoreStations.value = false
                     val combined = (_allStations.value + remoteStations).distinctBy { it.stationUuid }
                     _allStations.value = combined
-                    
                     val filtered = combined.filter { station ->
                         station.tags.split(",").any { it.trim().equals(tagName, ignoreCase = true) }
                     }
                     _stations.value = filtered
                 } catch (e: Exception) {
-                    // Fallback to local if remote fails
                 } finally {
                     _isLoading.value = false
                 }
             }
         }
     }
-
-    private val _searchFocusTrigger = MutableStateFlow(0)
-    val searchFocusTrigger: StateFlow<Int> = _searchFocusTrigger
 
     fun clearSearch() {
         searchJob?.cancel()
@@ -1742,22 +1642,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     .filter { it.key.contains(tagQuery, ignoreCase = true) }
                     .sortedByDescending { it.value.size }
                     .map { (tag, stations) ->
-                        GenreGroup(
-                            genreName = tag,
-                            stations = stations,
-                            totalStations = stations.size,
-                            filteredCount = stations.size
-                        )
+                        GenreGroup(tag, stations, stations.size, stations.size)
                     }
                 
-                _hasMoreStations.value = false // We already fetched many
+                _hasMoreStations.value = false
                 updateStations(allResults)
             } catch (e: Exception) {
-<<<<<<< HEAD
-                _error.value = "Tag search failed"
-=======
                 _error.value = str(R.string.error_tag_search)
->>>>>>> 1162dbf (Restore project)
             } finally {
                 _isLoading.value = false
             }
@@ -1846,34 +1737,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun playNext(isAuto: Boolean = false) {
         val current = _currentStation.value ?: return
-        
-        // Use the primary filtered list if the current station is in it
         val activeList = _stations.value
         val indexInActive = activeList.indexOfFirst { it.stationUuid == current.stationUuid }
         
-        val list = if (indexInActive != -1) {
-            activeList
-        } else if (_selectedNavItem.value == NavigationItem.Home && 
-                       _visibleGenres.value.isNotEmpty() && 
-                       _selectedTag.value == null && 
-                       _selectedCountry.value == null) {
+        val list = if (indexInActive != -1) activeList
+        else if (_selectedNavItem.value == NavigationItem.Home && 
+                 _visibleGenres.value.isNotEmpty() && 
+                 _selectedTag.value == null && 
+                 _selectedCountry.value == null) {
             val bitrates = _selectedBitrates.value
             _genreGroups.value.flatMap { group ->
                 group.stations.filter { matchesBitrateFilter(it, bitrates) }
             }
-        } else {
-            _stations.value
-        }
+        } else _stations.value
         
         if (list.isEmpty()) return
 
-        // If there's only one station and it failed, stop to avoid infinite loop
         if (list.size == 1 && list[0].stationUuid == current.stationUuid) {
-<<<<<<< HEAD
-            _error.value = "Station unavailable"
-=======
             _error.value = str(R.string.error_station_unavailable)
->>>>>>> 1162dbf (Restore project)
             stopPlayback()
             return
         }
@@ -1887,23 +1768,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun playPrevious() {
         val current = _currentStation.value ?: return
-        
         val activeList = _stations.value
         val indexInActive = activeList.indexOfFirst { it.stationUuid == current.stationUuid }
         
-        val list = if (indexInActive != -1) {
-            activeList
-        } else if (_selectedNavItem.value == NavigationItem.Home && 
-                       _visibleGenres.value.isNotEmpty() && 
-                       _selectedTag.value == null && 
-                       _selectedCountry.value == null) {
+        val list = if (indexInActive != -1) activeList
+        else if (_selectedNavItem.value == NavigationItem.Home && 
+                 _visibleGenres.value.isNotEmpty() && 
+                 _selectedTag.value == null && 
+                 _selectedCountry.value == null) {
             val bitrates = _selectedBitrates.value
             _genreGroups.value.flatMap { group ->
                 group.stations.filter { matchesBitrateFilter(it, bitrates) }
             }
-        } else {
-            _stations.value
-        }
+        } else _stations.value
 
         if (list.isEmpty()) return
         val index = list.indexOfFirst { it.stationUuid == current.stationUuid }
@@ -1915,13 +1792,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun togglePlayPause() {
         player?.let {
-            if (it.isPlaying) {
-                it.pause()
-                _isPlaying.value = false
-            } else {
-                it.play()
-                _isPlaying.value = true
-            }
+            if (it.isPlaying) it.pause() else it.play()
+            _isPlaying.value = it.isPlaying
         }
     }
 
@@ -1941,22 +1813,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 val results = repository.searchStations(query = query, hideBroken = _hideBrokenStations.value)
-                
                 val finalResults = if (_selectedBitrates.value.contains(BitrateFilter.FLAC)) {
                     val flacResults = repository.searchStations(query = query, tag = "flac", hideBroken = _hideBrokenStations.value)
                     (results + flacResults).distinctBy { it.stationUuid }
-                } else {
-                    results
-                }
-                
+                } else results
                 _hasMoreStations.value = finalResults.size >= 100
                 updateStations(finalResults)
             } catch (e: Exception) {
-<<<<<<< HEAD
-                _error.value = "Search failed"
-=======
                 _error.value = str(R.string.error_search_failed)
->>>>>>> 1162dbf (Restore project)
             } finally {
                 _isLoading.value = false
             }

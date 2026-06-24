@@ -82,8 +82,6 @@
     <string name="clear_desc">Очистити</string>
     <string name="favorite_desc">Обране</string>
     <string name="open_desc">Відкрити</string>
-<<<<<<< HEAD
-=======
 
     <!-- Loading / Empty states -->
     <string name="searching_for_waves">Шукаємо хвилі…</string>

@@ -82,8 +82,6 @@
     <string name="clear_desc">Clear</string>
     <string name="favorite_desc">Favorite</string>
     <string name="open_desc">Open</string>
-<<<<<<< HEAD
-=======
 
     <!-- Loading / Empty states -->
     <string name="searching_for_waves">Searching for waves…</string>

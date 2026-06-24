@@ -476,11 +476,7 @@ fun TvMainScreen(viewModel: MainViewModel) {
                             modifier = Modifier.padding(end = 12.dp)
                         ) {
                             Text(
-<<<<<<< HEAD
-                                text = if (selectedTag != null) "GENRE" else "COUNTRY",
-=======
                                 text = if (selectedTag != null) androidx.compose.ui.res.stringResource(R.string.badge_genre) else androidx.compose.ui.res.stringResource(R.string.badge_country),
->>>>>>> 1162dbf (Restore project)
                                 style = MaterialTheme.typography.labelSmall,
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                 fontWeight = FontWeight.Bold
@@ -611,11 +607,7 @@ fun TvMainScreen(viewModel: MainViewModel) {
                                                 OutlinedTextField(
                                                     value = localTagSearchQuery,
                                                     onValueChange = { localTagSearchQuery = it; viewModel.setTagSearchQuery(it) },
-<<<<<<< HEAD
-                                                    label = { Text("Search genres...") },
-=======
                                                     label = { Text(androidx.compose.ui.res.stringResource(R.string.search_hint)) },
->>>>>>> 1162dbf (Restore project)
                                                     modifier = Modifier.weight(1f),
                                                     singleLine = true,
                                                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -639,11 +631,7 @@ fun TvMainScreen(viewModel: MainViewModel) {
                                                     )
                                                 )
                                                 Spacer(modifier = Modifier.width(16.dp))
-<<<<<<< HEAD
-                                                Text("Sort: ", style = MaterialTheme.typography.labelLarge)
-=======
                                                 Text(androidx.compose.ui.res.stringResource(R.string.sort_label), style = MaterialTheme.typography.labelLarge)
->>>>>>> 1162dbf (Restore project)
                                                 GenreSortMode.entries.forEach { mode ->
                                                     Button(
                                                         onClick = { viewModel.setGenreSortMode(mode) },
@@ -697,22 +685,14 @@ fun TvMainScreen(viewModel: MainViewModel) {
                                     onImportPlaylist = {
                                         try { importLauncher.launch(arrayOf("*/*")) }
                                         catch (e: Exception) {
-<<<<<<< HEAD
-                                            viewModel.setError("System picker unavailable. Using Internal Explorer.")
-=======
                                             viewModel.setError(context.getString(R.string.error_system_picker_unavailable))
->>>>>>> 1162dbf (Restore project)
                                             viewModel.openFilePicker(isExport = false)
                                         }
                                     },
                                     onExportPlaylist = {
                                         try { exportLauncher.launch("pure_radio_favorites.m3u") }
                                         catch (e: Exception) {
-<<<<<<< HEAD
-                                            viewModel.setError("System picker unavailable. Using Internal Explorer.")
-=======
                                             viewModel.setError(context.getString(R.string.error_system_picker_unavailable))
->>>>>>> 1162dbf (Restore project)
                                             viewModel.openFilePicker(isExport = true, suggestedFileName = "pure_radio_favorites.m3u")
                                         }
                                     },
@@ -729,11 +709,7 @@ fun TvMainScreen(viewModel: MainViewModel) {
                                                     } catch (e2: Exception) {}
                                                 }
                                             } else {
-<<<<<<< HEAD
-                                                viewModel.setError("All Files Access already granted")
-=======
                                                 viewModel.setError(context.getString(R.string.error_all_files_access_granted))
->>>>>>> 1162dbf (Restore project)
                                             }
                                         } else {
                                             permissionLauncher.launch(android.Manifest.permission.READ_EXTERNAL_STORAGE)
@@ -758,11 +734,7 @@ fun TvMainScreen(viewModel: MainViewModel) {
                                 )
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Text(
-<<<<<<< HEAD
-                                    text = "Searching for waves...",
-=======
                                     text = androidx.compose.ui.res.stringResource(R.string.searching_for_waves),
->>>>>>> 1162dbf (Restore project)
                                     style = MaterialTheme.typography.headlineSmall,
                                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
                                 )
@@ -1065,11 +1037,7 @@ fun StationGrid(
                         Box(modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp), contentAlignment = Alignment.Center) {
                             if (isTv) {
                                 Button(onClick = { if (!isLoading) { loadMoreCount++; onLoadMore() } }, modifier = Modifier.focusRequester(loadMoreFocusRequester)) {
-<<<<<<< HEAD
-                                    Text(if (isLoading) "Loading..." else "Load More")
-=======
                                     Text(if (isLoading) androidx.compose.ui.res.stringResource(R.string.loading) else androidx.compose.ui.res.stringResource(R.string.load_more))
->>>>>>> 1162dbf (Restore project)
                                 }
                             }
                         }
@@ -1131,11 +1099,7 @@ fun TvTagGrid(tags: List<Tag>, autoFocus: Boolean = true, onTagClick: (Tag) -> U
                             Text(text = tag.name.lowercase().split(" ").joinToString(" ") { it.replaceFirstChar { char -> char.uppercase() } }, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
                             Spacer(modifier = Modifier.height(4.dp))
                             Surface(shape = MaterialTheme.shapes.extraSmall, colors = SurfaceDefaults.colors(containerColor = Color.White.copy(alpha = 0.2f))) {
-<<<<<<< HEAD
-                                Text("${tag.stationcount} stations", style = MaterialTheme.typography.labelSmall, color = Color.White, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
-=======
                                 Text(androidx.compose.ui.res.stringResource(R.string.stations_count, tag.stationcount), style = MaterialTheme.typography.labelSmall, color = Color.White, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
->>>>>>> 1162dbf (Restore project)
                             }
                         }
                     }
@@ -1175,11 +1139,7 @@ fun TvCountryGrid(countries: List<Country>, autoFocus: Boolean = true, onCountry
                             Text(text = country.name.lowercase().split(" ").joinToString(" ") { it.replaceFirstChar { char -> char.uppercase() } }, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
                             Spacer(modifier = Modifier.height(4.dp))
                             Surface(shape = MaterialTheme.shapes.extraSmall, colors = SurfaceDefaults.colors(containerColor = Color.White.copy(alpha = 0.2f))) {
-<<<<<<< HEAD
-                                Text("${country.stationcount} stations", style = MaterialTheme.typography.labelSmall, color = Color.White, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
-=======
                                 Text(androidx.compose.ui.res.stringResource(R.string.stations_count, country.stationcount), style = MaterialTheme.typography.labelSmall, color = Color.White, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
->>>>>>> 1162dbf (Restore project)
                             }
                         }
                     }
@@ -1199,26 +1159,16 @@ fun TvBitrateFilters(
     val isTv = (context as? MainActivity)?.isTv() == true
 
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 8.dp)) {
-<<<<<<< HEAD
-        Text("Filter: ", style = MaterialTheme.typography.labelLarge)
-        BitrateFilter.entries.forEach { filter ->
-            val label = when (filter) { BitrateFilter.Low -> "Low"; BitrateFilter.High -> "High"; BitrateFilter.FLAC -> "FLAC" }
-=======
         Text(androidx.compose.ui.res.stringResource(R.string.filter_label), style = MaterialTheme.typography.labelLarge)
         BitrateFilter.entries.forEach { filter ->
             val labelRes = when (filter) { BitrateFilter.Low -> R.string.filter_low; BitrateFilter.High -> R.string.filter_high; BitrateFilter.FLAC -> R.string.filter_flac }
->>>>>>> 1162dbf (Restore project)
             val isSelected = selectedBitrates.contains(filter)
             Button(
                 onClick = { onToggleFilter(filter) },
                 modifier = Modifier.padding(horizontal = 4.dp),
                 scale = if (isSelected) ButtonDefaults.scale(focusedScale = 1.1f) else ButtonDefaults.scale(),
                 colors = if (isSelected) ButtonDefaults.colors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary) else ButtonDefaults.colors()
-<<<<<<< HEAD
-            ) { Text(label) }
-=======
             ) { Text(androidx.compose.ui.res.stringResource(labelRes)) }
->>>>>>> 1162dbf (Restore project)
         }
     }
 }
@@ -1287,11 +1237,7 @@ fun TvSettingsMain(viewModel: MainViewModel, appTheme: AppTheme, quitConfirmatio
         item {
             ListItem(selected = false, onClick = { viewModel.setSettingsSubMenu("AppTheme") }, modifier = Modifier.focusRequester(mainMenuFocusRequester),
                 headlineContent = { Text(stringResource(R.string.settings_theme)) },
-<<<<<<< HEAD
-                supportingContent = { Text("Current: ${appTheme.name}") },
-=======
                 supportingContent = { Text(stringResource(R.string.current_theme, appTheme.name)) },
->>>>>>> 1162dbf (Restore project)
                 leadingContent = { Icon(Icons.Default.TheaterComedy, contentDescription = null) },
                 trailingContent = { Icon(Icons.Default.ChevronRight, contentDescription = null) })
         }
@@ -1310,11 +1256,7 @@ fun TvSettingsMain(viewModel: MainViewModel, appTheme: AppTheme, quitConfirmatio
         }
         item {
             ListItem(selected = false, onClick = { viewModel.setSettingsSubMenu("Screensaver") },
-<<<<<<< HEAD
-                headlineContent = { Text(stringResource(R.string.settings_screensaver)) }, supportingContent = { Text(if (screensaverEnabled) "Enabled (${screensaverTimeout}m)" else "Disabled") },
-=======
                 headlineContent = { Text(stringResource(R.string.settings_screensaver)) }, supportingContent = { Text(if (screensaverEnabled) stringResource(R.string.screensaver_enabled_fmt, screensaverTimeout) else stringResource(R.string.screensaver_disabled)) },
->>>>>>> 1162dbf (Restore project)
                 leadingContent = { Icon(Icons.Default.MusicVideo, contentDescription = null) },
                 trailingContent = { Icon(Icons.Default.ChevronRight, contentDescription = null) })
             Spacer(modifier = Modifier.height(16.dp))
@@ -1333,11 +1275,7 @@ fun TvSettingsMain(viewModel: MainViewModel, appTheme: AppTheme, quitConfirmatio
         }
         item {
             ListItem(selected = false, onClick = { viewModel.setSettingsSubMenu("DefaultCategory") },
-<<<<<<< HEAD
-                headlineContent = { Text(stringResource(R.string.settings_startup_category)) }, supportingContent = { Text("Current: ${stringResource(defaultStartupCategory.labelRes)}") },
-=======
                 headlineContent = { Text(stringResource(R.string.settings_startup_category)) }, supportingContent = { Text(stringResource(R.string.current_category, stringResource(defaultStartupCategory.labelRes))) },
->>>>>>> 1162dbf (Restore project)
                 leadingContent = { Icon(Icons.Default.PlayArrow, contentDescription = null) },
                 trailingContent = { Icon(Icons.Default.ChevronRight, contentDescription = null) })
             Spacer(modifier = Modifier.height(16.dp))
@@ -1357,11 +1295,7 @@ fun TvSettingsMain(viewModel: MainViewModel, appTheme: AppTheme, quitConfirmatio
         }
         item {
             ListItem(selected = false, onClick = { viewModel.setSettingsSubMenu("AutoUpdate") },
-<<<<<<< HEAD
-                headlineContent = { Text(stringResource(R.string.database_sync)) }, supportingContent = { Text("Update frequency: ${if(autoUpdateInterval > 0) "${autoUpdateInterval}h" else "Disabled"}") },
-=======
                 headlineContent = { Text(stringResource(R.string.database_sync)) }, supportingContent = { Text(if (autoUpdateInterval > 0) stringResource(R.string.update_frequency_hours, autoUpdateInterval) else stringResource(R.string.update_frequency_disabled)) },
->>>>>>> 1162dbf (Restore project)
                 leadingContent = { Icon(Icons.Default.History, contentDescription = null) },
                 trailingContent = { Icon(Icons.Default.ChevronRight, contentDescription = null) })
         }
@@ -1427,20 +1361,6 @@ fun TvDefaultCategorySettings(viewModel: MainViewModel, currentCategory: Navigat
             Spacer(modifier = Modifier.height(24.dp))
         }
         validCategories.forEach { category ->
-<<<<<<< HEAD
-            val desc = when (category) {
-                NavigationItem.Home -> "Top stations"
-                NavigationItem.Popular -> "Trending stations"
-                NavigationItem.Recent -> "Recently played"
-                NavigationItem.Genres -> "Browse by genre"
-                NavigationItem.Countries -> "Browse by country"
-                NavigationItem.Favourites -> "Your saved stations"
-                else -> ""
-            }
-            item {
-                ListItem(selected = currentCategory == category, onClick = { viewModel.setDefaultStartupCategory(category) },
-                    headlineContent = { Text(stringResource(category.labelRes)) }, supportingContent = { Text(desc) },
-=======
             val descRes = when (category) {
                 NavigationItem.Home -> R.string.category_desc_home
                 NavigationItem.Popular -> R.string.category_desc_popular
@@ -1453,7 +1373,6 @@ fun TvDefaultCategorySettings(viewModel: MainViewModel, currentCategory: Navigat
             item {
                 ListItem(selected = currentCategory == category, onClick = { viewModel.setDefaultStartupCategory(category) },
                     headlineContent = { Text(stringResource(category.labelRes)) }, supportingContent = { descRes?.let { Text(stringResource(it)) } },
->>>>>>> 1162dbf (Restore project)
                     trailingContent = { if (currentCategory == category) Icon(Icons.Default.GraphicEq, contentDescription = null, tint = MaterialTheme.colorScheme.primary) })
             }
         }
@@ -1471,15 +1390,9 @@ fun TvHomeGenresSettings(viewModel: MainViewModel, visibleGenres: Set<String>, f
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Button(onClick = { viewModel.setSettingsSubMenu(null) }, modifier = Modifier.focusRequester(subMenuFocusRequester)) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back_desc)) }
                 Spacer(modifier = Modifier.width(16.dp))
-<<<<<<< HEAD
-                Text("Personalize Home Tab", style = MaterialTheme.typography.headlineMedium)
-                Spacer(modifier = Modifier.weight(1f))
-                Text("Sort: ", style = MaterialTheme.typography.labelLarge)
-=======
                 Text(stringResource(R.string.settings_personalize_home), style = MaterialTheme.typography.headlineMedium)
                 Spacer(modifier = Modifier.weight(1f))
                 Text(stringResource(R.string.sort_label), style = MaterialTheme.typography.labelLarge)
->>>>>>> 1162dbf (Restore project)
                 GenreSortMode.entries.forEach { mode ->
                     Button(onClick = { viewModel.setGenreSortMode(mode) }, modifier = Modifier.padding(horizontal = 4.dp),
                         colors = if (genreSortMode == mode) ButtonDefaults.colors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary) else ButtonDefaults.colors()
@@ -1489,16 +1402,6 @@ fun TvHomeGenresSettings(viewModel: MainViewModel, visibleGenres: Set<String>, f
             Spacer(modifier = Modifier.height(24.dp))
         }
         item {
-<<<<<<< HEAD
-            OutlinedTextField(value = localTagSearchQuery, onValueChange = { viewModel.setTagSearchQuery(it); localTagSearchQuery = it }, label = { Text("Search tags...") }, modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), singleLine = true, keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search), keyboardActions = KeyboardActions(onSearch = { keyboardController?.hide() }),
-                colors = TextFieldDefaults.colors(focusedTextColor = MaterialTheme.colorScheme.onSurface, unfocusedTextColor = MaterialTheme.colorScheme.onSurface, focusedLabelColor = MaterialTheme.colorScheme.primary, unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant, focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent))
-        }
-        item { Text("GENRES", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp), color = MaterialTheme.colorScheme.primary) }
-        items(filteredTags) { tag ->
-            ListItem(selected = false, onClick = { viewModel.toggleGenreVisibility(tag.name) },
-                headlineContent = { Text(tag.name.lowercase().split(" ").joinToString(" ") { it.replaceFirstChar { char -> char.uppercase() } }) },
-                supportingContent = { Text("${tag.stationcount} stations") },
-=======
             OutlinedTextField(value = localTagSearchQuery, onValueChange = { viewModel.setTagSearchQuery(it); localTagSearchQuery = it }, label = { Text(stringResource(R.string.search_hint)) }, modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), singleLine = true, keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search), keyboardActions = KeyboardActions(onSearch = { keyboardController?.hide() }),
                 colors = TextFieldDefaults.colors(focusedTextColor = MaterialTheme.colorScheme.onSurface, unfocusedTextColor = MaterialTheme.colorScheme.onSurface, focusedLabelColor = MaterialTheme.colorScheme.primary, unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant, focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent))
         }
@@ -1507,7 +1410,6 @@ fun TvHomeGenresSettings(viewModel: MainViewModel, visibleGenres: Set<String>, f
             ListItem(selected = false, onClick = { viewModel.toggleGenreVisibility(tag.name) },
                 headlineContent = { Text(tag.name.lowercase().split(" ").joinToString(" ") { it.replaceFirstChar { char -> char.uppercase() } }) },
                 supportingContent = { Text(stringResource(R.string.stations_count, tag.stationcount)) },
->>>>>>> 1162dbf (Restore project)
                 trailingContent = { Checkbox(checked = visibleGenres.contains(tag.name), onCheckedChange = null) })
         }
     }
@@ -1521,17 +1423,6 @@ fun TvAutoUpdateSettings(viewModel: MainViewModel, autoUpdateInterval: Int, subM
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Button(onClick = { viewModel.setSettingsSubMenu(null) }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back_desc)) }
                 Spacer(modifier = Modifier.width(16.dp))
-<<<<<<< HEAD
-                Text("Database Update Interval", style = MaterialTheme.typography.headlineMedium)
-            }
-            Spacer(modifier = Modifier.height(24.dp))
-        }
-        listOf(0 to "Manual Only (Off)", 12 to "Every 12 Hours", 24 to "Every 24 Hours").forEachIndexed { index, (hours, label) ->
-            item(key = hours) {
-                ListItem(selected = autoUpdateInterval == hours, onClick = { viewModel.setAutoUpdateInterval(hours); viewModel.setSettingsSubMenu(null) },
-                    modifier = if (index == 0) Modifier.focusRequester(subMenuFocusRequester) else Modifier,
-                    headlineContent = { Text(label) },
-=======
                 Text(stringResource(R.string.settings_db_update_interval), style = MaterialTheme.typography.headlineMedium)
             }
             Spacer(modifier = Modifier.height(24.dp))
@@ -1545,7 +1436,6 @@ fun TvAutoUpdateSettings(viewModel: MainViewModel, autoUpdateInterval: Int, subM
                 ListItem(selected = autoUpdateInterval == hours, onClick = { viewModel.setAutoUpdateInterval(hours); viewModel.setSettingsSubMenu(null) },
                     modifier = if (index == 0) Modifier.focusRequester(subMenuFocusRequester) else Modifier,
                     headlineContent = { Text(stringResource(labelRes)) },
->>>>>>> 1162dbf (Restore project)
                     trailingContent = { if (autoUpdateInterval == hours) Icon(Icons.Default.History, contentDescription = null, tint = MaterialTheme.colorScheme.primary) })
             }
         }
@@ -1560,34 +1450,12 @@ fun TvScreensaverSettings(viewModel: MainViewModel, screensaverEnabled: Boolean,
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Button(onClick = { viewModel.setSettingsSubMenu(null) }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back_desc)) }
                 Spacer(modifier = Modifier.width(16.dp))
-<<<<<<< HEAD
-                Text("Screensaver Preferences", style = MaterialTheme.typography.headlineMedium)
-=======
                 Text(stringResource(R.string.settings_screensaver_prefs), style = MaterialTheme.typography.headlineMedium)
->>>>>>> 1162dbf (Restore project)
             }
             Spacer(modifier = Modifier.height(24.dp))
         }
         item {
             ListItem(selected = false, onClick = { viewModel.toggleScreensaver(!screensaverEnabled) }, modifier = Modifier.focusRequester(subMenuFocusRequester),
-<<<<<<< HEAD
-                headlineContent = { Text("Activate Screensaver") }, supportingContent = { Text("Automatically engage when music is playing") },
-                trailingContent = { Switch(checked = screensaverEnabled, onCheckedChange = null) })
-        }
-        item { Text("Display Mode", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(vertical = 16.dp, horizontal = 12.dp), color = MaterialTheme.colorScheme.primary) }
-        listOf(ScreensaverMode.StationInfo to "Retro Station Info", ScreensaverMode.BlackScreen to "Deep Black (OLED Safe)").forEach { (mode, label) ->
-            item {
-                ListItem(selected = screensaverMode == mode, onClick = { viewModel.setScreensaverMode(mode) },
-                    headlineContent = { Text(label) },
-                    trailingContent = { if (screensaverMode == mode) Icon(Icons.Default.GraphicEq, contentDescription = null, tint = MaterialTheme.colorScheme.primary) })
-            }
-        }
-        item { Text("Idle Timeout", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(vertical = 16.dp, horizontal = 12.dp), color = MaterialTheme.colorScheme.primary) }
-        listOf(1, 5, 10, 20, 30).forEach { minutes ->
-            item {
-                ListItem(selected = screensaverTimeout == minutes, onClick = { viewModel.setScreensaverTimeout(minutes); viewModel.setSettingsSubMenu(null) },
-                    headlineContent = { Text("$minutes Minutes") },
-=======
                 headlineContent = { Text(stringResource(R.string.screensaver_activate)) }, supportingContent = { Text(stringResource(R.string.screensaver_activate_desc)) },
                 trailingContent = { Switch(checked = screensaverEnabled, onCheckedChange = null) })
         }
@@ -1607,7 +1475,6 @@ fun TvScreensaverSettings(viewModel: MainViewModel, screensaverEnabled: Boolean,
             item {
                 ListItem(selected = screensaverTimeout == minutes, onClick = { viewModel.setScreensaverTimeout(minutes); viewModel.setSettingsSubMenu(null) },
                     headlineContent = { Text(stringResource(R.string.screensaver_minutes, minutes)) },
->>>>>>> 1162dbf (Restore project)
                     trailingContent = { if (screensaverTimeout == minutes) Icon(Icons.Default.History, contentDescription = null, tint = MaterialTheme.colorScheme.primary) })
             }
         }
@@ -1622,26 +1489,15 @@ fun TvAppThemeSettings(viewModel: MainViewModel, appTheme: AppTheme, subMenuFocu
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Button(onClick = { viewModel.setSettingsSubMenu(null) }, modifier = Modifier.focusRequester(subMenuFocusRequester)) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back_desc)) }
                 Spacer(modifier = Modifier.width(16.dp))
-<<<<<<< HEAD
-                Text("Application Theme", style = MaterialTheme.typography.headlineMedium)
-=======
                 Text(stringResource(R.string.settings_application_theme), style = MaterialTheme.typography.headlineMedium)
->>>>>>> 1162dbf (Restore project)
             }
             Spacer(modifier = Modifier.height(24.dp))
         }
         items(AppTheme.entries) { theme ->
-<<<<<<< HEAD
-            val label = when (theme) { AppTheme.RetroGold -> "Retro Gold"; AppTheme.BlueNeon -> "Blue Neon"; AppTheme.Violet -> "Violet"; AppTheme.Monochrome -> "Monochrome"; AppTheme.Forest -> "Forest"; AppTheme.Contrast -> "Contrast"; AppTheme.Black -> "Black" }
-            val desc = when (theme) { AppTheme.RetroGold -> "Classic gold and wood tones"; AppTheme.BlueNeon -> "Cool blue neon glow"; AppTheme.Violet -> "Purple and violet tones"; AppTheme.Monochrome -> "Grey and black"; AppTheme.Forest -> "Green and black"; AppTheme.Contrast -> "White and black"; AppTheme.Black -> "Pure black background" }
-            ListItem(selected = appTheme == theme, onClick = { viewModel.setAppTheme(theme) },
-                headlineContent = { Text(label) }, supportingContent = { Text(desc) },
-=======
             val labelRes = when (theme) { AppTheme.RetroGold -> R.string.theme_retro_gold; AppTheme.BlueNeon -> R.string.theme_blue_neon; AppTheme.Violet -> R.string.theme_violet; AppTheme.Monochrome -> R.string.theme_monochrome; AppTheme.Forest -> R.string.theme_forest; AppTheme.Contrast -> R.string.theme_contrast; AppTheme.Black -> R.string.theme_black }
             val descRes = when (theme) { AppTheme.RetroGold -> R.string.theme_retro_gold_desc; AppTheme.BlueNeon -> R.string.theme_blue_neon_desc; AppTheme.Violet -> R.string.theme_violet_desc; AppTheme.Monochrome -> R.string.theme_monochrome_desc; AppTheme.Forest -> R.string.theme_forest_desc; AppTheme.Contrast -> R.string.theme_contrast_desc; AppTheme.Black -> R.string.theme_black_desc }
             ListItem(selected = appTheme == theme, onClick = { viewModel.setAppTheme(theme) },
                 headlineContent = { Text(stringResource(labelRes)) }, supportingContent = { Text(stringResource(descRes)) },
->>>>>>> 1162dbf (Restore project)
                 trailingContent = { if (appTheme == theme) Icon(Icons.Default.GraphicEq, contentDescription = null, tint = MaterialTheme.colorScheme.primary) })
         }
     }
@@ -1694,50 +1550,29 @@ fun TvSearchScreen(viewModel: MainViewModel, onLongClick: (Station) -> Unit = {}
 
     Column(modifier = Modifier.fillMaxSize().padding(start = 12.dp, end = 32.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-<<<<<<< HEAD
-            OutlinedTextField(value = localSearchQuery, onValueChange = { viewModel.onSearchQueryChange(it); localSearchQuery = it }, label = { Text("Search stations...") },
-=======
             OutlinedTextField(value = localSearchQuery, onValueChange = { viewModel.onSearchQueryChange(it); localSearchQuery = it }, label = { Text(stringResource(R.string.search_hint)) },
->>>>>>> 1162dbf (Restore project)
                 modifier = Modifier.weight(1f).padding(bottom = 16.dp).focusRequester(searchFieldFocusRequester).onFocusChanged { isSearchFieldFocused = it.isFocused },
                 singleLine = true, keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search), keyboardActions = KeyboardActions(onSearch = { searchTriggered.intValue++; viewModel.addToRecentSearches(localSearchQuery); keyboardController?.hide() }),
                 colors = TextFieldDefaults.colors(focusedTextColor = MaterialTheme.colorScheme.onSurface, unfocusedTextColor = MaterialTheme.colorScheme.onSurface, focusedLabelColor = MaterialTheme.colorScheme.primary, unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant, focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent))
             Button(onClick = { viewModel.toggleSearchMode() }, modifier = Modifier.padding(bottom = 16.dp),
                 colors = if (searchMode == SearchMode.Tag) ButtonDefaults.colors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary) else ButtonDefaults.colors()
-<<<<<<< HEAD
-            ) { Text(if (searchMode == SearchMode.Tag) "TAG" else "NAME") }
-        }
-        if (isLoading) Text("Searching...", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(bottom = 4.dp))
-=======
             ) { Text(if (searchMode == SearchMode.Tag) stringResource(R.string.search_mode_tag) else stringResource(R.string.search_mode_name)) }
         }
         if (isLoading) Text(stringResource(R.string.searching_for_waves), style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(bottom = 4.dp))
->>>>>>> 1162dbf (Restore project)
         TvBitrateFilters(selectedBitrates = selectedBitrates, onToggleFilter = { viewModel.toggleBitrateFilter(it) })
         Spacer(modifier = Modifier.height(8.dp))
         Box(modifier = Modifier.weight(1f)) {
             if (stations.isEmpty() && localSearchQuery.isEmpty() && tagSearchGroups.isEmpty()) {
                 if (recentSearches.isNotEmpty()) {
-<<<<<<< HEAD
-                    Column { Text("Recent Searches", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 8.dp))
-=======
                     Column { Text(stringResource(R.string.recent_searches), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 8.dp))
->>>>>>> 1162dbf (Restore project)
                         LazyRow { items(recentSearches) { query ->
                             Button(onClick = { searchTriggered.intValue++; viewModel.onSearchQueryChange(query); keyboardController?.hide() }, modifier = Modifier.padding(end = 8.dp)) { Text(query) }
                         } }
                     }
-<<<<<<< HEAD
-                } else Text("Enter search query", modifier = Modifier.padding(top = 16.dp))
-            } else if (searchMode == SearchMode.Tag && tagSearchGroups.isNotEmpty() && selectedSearchTag == null) {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    Text(text = "Found ${stations.size} stations \u2014 select a tag to filter", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(vertical = 4.dp, horizontal = 4.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
-=======
                 } else Text(stringResource(R.string.enter_search_query), modifier = Modifier.padding(top = 16.dp))
             } else if (searchMode == SearchMode.Tag && tagSearchGroups.isNotEmpty() && selectedSearchTag == null) {
                 Column(modifier = Modifier.fillMaxSize()) {
                     Text(text = stringResource(R.string.found_stations_select_tag, stations.size), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(vertical = 4.dp, horizontal = 4.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
->>>>>>> 1162dbf (Restore project)
                     Box(modifier = Modifier.weight(1f)) {
                         GenreGroupGrid(groups = tagSearchGroups, autoFocus = isReturning, onGroupClick = { viewModel.selectSearchTag(it) }, onGroupLongClick = onTagGroupLongClick)
                     }
@@ -1816,11 +1651,7 @@ fun TvScreensaver(viewModel: MainViewModel) {
                         WaveformAnalyzer(isPlaying = isPlaying)
                     }
                 }
-<<<<<<< HEAD
-                Text(text = "Press any key to return", style = MaterialTheme.typography.labelMedium, color = Color.Gray.copy(alpha = 0.5f), modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 32.dp))
-=======
                 Text(text = androidx.compose.ui.res.stringResource(R.string.press_any_key_to_return), style = MaterialTheme.typography.labelMedium, color = Color.Gray.copy(alpha = 0.5f), modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 32.dp))
->>>>>>> 1162dbf (Restore project)
             }
         }
     }
@@ -1845,13 +1676,8 @@ fun TvFilePicker(
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 16.dp)) {
                     Icon(if (state.isExport) Icons.Default.CreateNewFolder else Icons.Default.Folder, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(32.dp))
                     Spacer(modifier = Modifier.width(16.dp))
-<<<<<<< HEAD
-                    Text(if (state.isExport) "Backup Favourites" else "Restore Favourites", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                    Button(onClick = onDismiss) { Text("Close") }
-=======
                     Text(if (state.isExport) stringResource(R.string.file_picker_backup) else stringResource(R.string.file_picker_restore), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                     Button(onClick = onDismiss) { Text(stringResource(R.string.file_picker_close)) }
->>>>>>> 1162dbf (Restore project)
                 }
                 Surface(colors = SurfaceDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)), shape = MaterialTheme.shapes.small, modifier = Modifier.fillMaxWidth()) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
@@ -1863,11 +1689,7 @@ fun TvFilePicker(
                 Spacer(modifier = Modifier.height(16.dp))
                 LazyColumn(modifier = Modifier.weight(1f), contentPadding = PaddingValues(bottom = 16.dp)) {
                     item {
-<<<<<<< HEAD
-                        ListItem(selected = false, onClick = onNavigateUp, headlineContent = { Text("..", fontWeight = FontWeight.Bold) }, supportingContent = { Text("Go to Parent Directory") }, leadingContent = { Icon(Icons.Default.KeyboardArrowUp, contentDescription = null, tint = folderIconColor) })
-=======
                         ListItem(selected = false, onClick = onNavigateUp, headlineContent = { Text("..", fontWeight = FontWeight.Bold) }, supportingContent = { Text(stringResource(R.string.file_picker_parent_dir)) }, leadingContent = { Icon(Icons.Default.KeyboardArrowUp, contentDescription = null, tint = folderIconColor) })
->>>>>>> 1162dbf (Restore project)
                     }
                     items(state.files) { file ->
                         val isPlaylist = file.name.lowercase().let { it.endsWith(".m3u") || it.endsWith(".m3u8") || it.endsWith(".pls") || it.endsWith(".txt") }
@@ -1882,13 +1704,8 @@ fun TvFilePicker(
                     Spacer(modifier = Modifier.height(16.dp))
                     Surface(colors = SurfaceDefaults.colors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)), shape = MaterialTheme.shapes.medium, modifier = Modifier.fillMaxWidth()) {
                         Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-<<<<<<< HEAD
-                            Column(modifier = Modifier.weight(1f)) { Text("Export filename:", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary); Text(state.suggestedFileName, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold) }
-                            Button(onClick = { onSelected(File(state.currentPath)) }, colors = ButtonDefaults.colors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary)) { Text("SAVE HERE") }
-=======
                             Column(modifier = Modifier.weight(1f)) { Text(stringResource(R.string.file_picker_file_label), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary); Text(state.suggestedFileName, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold) }
                             Button(onClick = { onSelected(File(state.currentPath)) }, colors = ButtonDefaults.colors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary)) { Text(stringResource(R.string.file_picker_save_here)) }
->>>>>>> 1162dbf (Restore project)
                         }
                     }
                 }
@@ -2009,11 +1826,7 @@ fun SplashScreen() {
             Text(text = "Pure Radio", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.ExtraBold, color = Color(0xFFFBC02D),
                 modifier = Modifier.graphicsLayer { alpha = titleAlpha.value; translationY = titleOffset.value })
             Spacer(modifier = Modifier.height(8.dp))
-<<<<<<< HEAD
-            Text(text = "Thousands of stations, free", style = MaterialTheme.typography.bodyMedium, color = Color(0xFF8D6E63),
-=======
             Text(text = androidx.compose.ui.res.stringResource(R.string.splash_tagline), style = MaterialTheme.typography.bodyMedium, color = Color(0xFF8D6E63),
->>>>>>> 1162dbf (Restore project)
                 modifier = Modifier.graphicsLayer { alpha = subAlpha.value })
         }
     }
@@ -2136,16 +1949,10 @@ fun BitrateFilters(selectedBitrates: Set<BitrateFilter>, onToggleFilter: (Bitrat
     val context = LocalContext.current
     val isTv = (context as? MainActivity)?.isTv() == true
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 8.dp)) {
-<<<<<<< HEAD
-        Text("Filter: ", style = MaterialTheme.typography.labelLarge)
-        BitrateFilter.entries.forEach { filter ->
-            val label = when (filter) { BitrateFilter.Low -> "Low"; BitrateFilter.High -> "High"; BitrateFilter.FLAC -> "FLAC" }
-=======
         Text(androidx.compose.ui.res.stringResource(R.string.filter_label), style = MaterialTheme.typography.labelLarge)
         BitrateFilter.entries.forEach { filter ->
             val labelRes = when (filter) { BitrateFilter.Low -> R.string.filter_low; BitrateFilter.High -> R.string.filter_high; BitrateFilter.FLAC -> R.string.filter_flac }
             val label = androidx.compose.ui.res.stringResource(labelRes)
->>>>>>> 1162dbf (Restore project)
             val isSelected = selectedBitrates.contains(filter)
             if (isTv) {
                 Button(onClick = { onToggleFilter(filter) }, modifier = Modifier.padding(horizontal = 4.dp),

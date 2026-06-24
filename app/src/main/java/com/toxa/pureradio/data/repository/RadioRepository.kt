@@ -7,24 +7,6 @@ import com.toxa.pureradio.network.Tag
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
-<<<<<<< HEAD
-class RadioRepository {
-    private val retrofit = Retrofit.Builder()
-        .baseUrl("https://de1.api.radio-browser.info/") // Using one of the mirrors
-        .addConverterFactory(GsonConverterFactory.create())
-        .build()
-
-    private val service = retrofit.create(RadioBrowserService::class.java)
-
-    suspend fun getTopStations(limit: Int = 100, hideBroken: Boolean = false): List<Station> {
-        return try {
-            service.getTopStations(limit = limit, hideBroken = hideBroken)
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
-
-=======
 /**
  * Repository for Radio Browser API.
  *
@@ -60,7 +42,6 @@ class RadioRepository {
      * result. Falls back to [default] if all mirrors fail or return empty.
      */
     private suspend fun <T> withFallback(default: T, block: suspend (RadioBrowserService) -> T): T {
-        var lastException: Exception? = null
         for (service in services) {
             try {
                 val result = block(service)
@@ -68,7 +49,7 @@ class RadioRepository {
                 if (result is List<*> && result.isEmpty()) continue
                 return result
             } catch (e: Exception) {
-                lastException = e
+                // Keep trying next mirror
             }
         }
         // If all mirrors returned empty lists (not exceptions) that is still valid.
@@ -85,7 +66,6 @@ class RadioRepository {
             service.getTopStations(limit = limit, hideBroken = hideBroken)
         }
 
->>>>>>> 1162dbf (Restore project)
     suspend fun searchStations(
         query: String? = null,
         tag: String? = null,
@@ -93,20 +73,6 @@ class RadioRepository {
         limit: Int = 100,
         offset: Int = 0,
         hideBroken: Boolean = false
-<<<<<<< HEAD
-    ): List<Station> {
-        return try {
-            val results = service.searchStations(
-                name = query,
-                tag = tag,
-                country = country,
-                limit = limit,
-                offset = offset,
-                hideBroken = hideBroken
-            )
-            
-            val combined = if (query != null && tag == null) {
-=======
     ): List<Station> = withFallback(emptyList()) { service ->
         val results = service.searchStations(
             name = query,
@@ -119,7 +85,6 @@ class RadioRepository {
 
         val combined = when {
             query != null && tag == null -> {
->>>>>>> 1162dbf (Restore project)
                 val byTag = service.searchStations(
                     tag = query,
                     country = country,
@@ -128,12 +93,8 @@ class RadioRepository {
                     hideBroken = hideBroken
                 )
                 (results + byTag).distinctBy { it.stationUuid }
-<<<<<<< HEAD
-            } else if (tag != null && query == null) {
-=======
             }
             tag != null && query == null -> {
->>>>>>> 1162dbf (Restore project)
                 val byName = service.searchStations(
                     name = tag,
                     country = country,
@@ -142,49 +103,6 @@ class RadioRepository {
                     hideBroken = hideBroken
                 )
                 (results + byName).distinctBy { it.stationUuid }
-<<<<<<< HEAD
-            } else {
-                results
-            }
-            
-            combined
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
-
-    suspend fun getStats(): com.toxa.pureradio.network.ServerStats? {
-        return try {
-            service.getStats()
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    suspend fun getTags(limit: Int = 500): List<Tag> {
-        return try {
-            service.getTags(limit = limit)
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
-
-    suspend fun getCountries(): List<Country> {
-        return try {
-            service.getCountries()
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
-
-    suspend fun getStationsByUuid(uuids: String): List<Station> {
-        return try {
-            service.getStationsByUuid(uuids)
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
-=======
             }
             else -> results
         }
@@ -203,5 +121,9 @@ class RadioRepository {
 
     suspend fun getStationsByUuid(uuids: String): List<Station> =
         withFallback(emptyList()) { service -> service.getStationsByUuid(uuids) }
->>>>>>> 1162dbf (Restore project)
+
+    suspend fun getStation(uuid: String): Station? {
+        val list = getStationsByUuid(uuid)
+        return list.firstOrNull()
+    }
 }

@@ -36,10 +36,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.guava.future
 
 enum class PlayerAction { Next, Previous }
-<<<<<<< HEAD
-const val CMD_PLAY_STATION = "play_station"
-=======
->>>>>>> 1162dbf (Restore project)
 
 class PlaybackService : MediaLibraryService() {
 
@@ -47,11 +43,7 @@ class PlaybackService : MediaLibraryService() {
         private val _playerAction = MutableSharedFlow<PlayerAction>(replay = 1, extraBufferCapacity = 1)
         val playerAction: SharedFlow<PlayerAction> = _playerAction.asSharedFlow()
         fun sendPlayerAction(action: PlayerAction) { _playerAction.tryEmit(action) }
-<<<<<<< HEAD
-        private const val CMD_PLAY_STATION = "play_station"
-=======
         const val CMD_PLAY_STATION = "play_station"
->>>>>>> 1162dbf (Restore project)
     }
 
     private var mediaLibrarySession: MediaLibrarySession? = null
@@ -156,6 +148,7 @@ class PlaybackService : MediaLibraryService() {
                     .setMediaMetadata(MediaMetadata.Builder()
                         .setIsBrowsable(true)
                         .setIsPlayable(false)
+                        .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
                         .setTitle("Pure Radio")
                         .build())
                     .build()
@@ -206,8 +199,77 @@ class PlaybackService : MediaLibraryService() {
                         val items = stations.map { createPlayableItem(it) }
                         LibraryResult.ofItemList(ImmutableList.copyOf(items), params)
                     } else {
-                        Futures.immediateFuture(LibraryResult.ofItemList(ImmutableList.of<MediaItem>(), params))
+                        serviceScope.future {
+                            val station = repository.getStation(parentId)
+                            if (station != null) {
+                                LibraryResult.ofItemList(ImmutableList.of(createPlayableItem(station)), params)
+                            } else {
+                                LibraryResult.ofItemList(ImmutableList.of<MediaItem>(), params)
+                            }
+                        }
                     }
+                }
+            }
+
+            override fun onGetItem(
+                session: MediaLibrarySession,
+                browser: MediaSession.ControllerInfo,
+                mediaId: String
+            ): ListenableFuture<LibraryResult<MediaItem>> {
+                return serviceScope.future {
+                    val station = repository.getStation(mediaId)
+                    if (station != null) {
+                        LibraryResult.ofItem(createPlayableItem(station), null)
+                    } else {
+                        val item = when (mediaId) {
+                            "root" -> MediaItem.Builder()
+                                .setMediaId("root")
+                                .setMediaMetadata(MediaMetadata.Builder()
+                                    .setIsBrowsable(true)
+                                    .setIsPlayable(false)
+                                    .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
+                                    .setTitle("Pure Radio")
+                                    .build())
+                                .build()
+                            "popular" -> createBrowsableItem("popular", "Popular Stations")
+                            "favourites" -> createBrowsableItem("favourites", "Favourites")
+                            "genres" -> createBrowsableItem("genres", "Genres")
+                            else -> null
+                        }
+                        if (item != null) {
+                            LibraryResult.ofItem(item, null)
+                        } else {
+                            LibraryResult.ofError(LibraryResult.RESULT_ERROR_BAD_VALUE)
+                        }
+                    }
+                }
+            }
+
+            override fun onSearch(
+                session: MediaLibrarySession,
+                browser: MediaSession.ControllerInfo,
+                query: String,
+                params: LibraryParams?
+            ): ListenableFuture<LibraryResult<Void>> {
+                serviceScope.launch {
+                    val stations = repository.searchStations(query = query, limit = 50)
+                    session.notifySearchResultChanged(browser, query, stations.size, params)
+                }
+                return Futures.immediateFuture(LibraryResult.ofVoid())
+            }
+
+            override fun onGetSearchResult(
+                session: MediaLibrarySession,
+                browser: MediaSession.ControllerInfo,
+                query: String,
+                page: Int,
+                pageSize: Int,
+                params: LibraryParams?
+            ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+                return serviceScope.future {
+                    val stations = repository.searchStations(query = query, limit = pageSize, offset = page * pageSize)
+                    val items = stations.map { createPlayableItem(it) }
+                    LibraryResult.ofItemList(ImmutableList.copyOf(items), params)
                 }
             }
         }).build()
@@ -219,6 +281,7 @@ class PlaybackService : MediaLibraryService() {
             .setMediaMetadata(MediaMetadata.Builder()
                 .setIsBrowsable(true)
                 .setIsPlayable(false)
+                .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
                 .setTitle(title)
                 .build())
             .build()
@@ -236,6 +299,7 @@ class PlaybackService : MediaLibraryService() {
             .setMediaMetadata(MediaMetadata.Builder()
                 .setIsBrowsable(false)
                 .setIsPlayable(true)
+                .setMediaType(MediaMetadata.MEDIA_TYPE_RADIO_STATION)
                 .setTitle(station.name)
                 .setArtist(station.tags)
                 .setArtworkUri(artworkUri)

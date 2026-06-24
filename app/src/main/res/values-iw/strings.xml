@@ -82,8 +82,6 @@
     <string name="clear_desc">ניקוי</string>
     <string name="favorite_desc">מועדף</string>
     <string name="open_desc">פתיחה</string>
-<<<<<<< HEAD
-=======
 
     <!-- Loading / Empty states -->
     <string name="searching_for_waves">מחפשים גלים…</string>
