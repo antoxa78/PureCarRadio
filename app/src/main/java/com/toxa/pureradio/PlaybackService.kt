@@ -33,6 +33,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.guava.future
 import java.util.concurrent.ConcurrentHashMap
@@ -120,6 +121,38 @@ class PlaybackService : MediaLibraryService() {
         val player = InterceptingPlayer(playerBuilder.build())
 
         mediaLibrarySession = MediaLibrarySession.Builder(this, player, object : MediaLibrarySession.Callback {
+
+            override fun onConnect(
+                session: MediaSession,
+                controller: MediaSession.ControllerInfo
+            ): MediaSession.ConnectionResult {
+                val pkg = controller.packageName
+                val isAutomotive = pkg == "com.android.car.media" || pkg == "com.android.car.carlauncher"
+                    || controller.connectionHints.getBoolean("android.media.extra.IS_CAR_UI", false)
+                if (isAutomotive && player.mediaItemCount == 0) {
+                    serviceScope.launch {
+                        delay(500)
+                        val prefs = getSharedPreferences("pure_radio_prefs", MODE_PRIVATE)
+                        val json = prefs.getString("last_station_json", null)
+                        if (json != null) {
+                            try {
+                                val station = com.google.gson.Gson().fromJson(json, Station::class.java)
+                                val mediaItem = createPlayableItem(station)
+                                player.stop()
+                                player.clearMediaItems()
+                                player.setMediaItem(mediaItem)
+                                player.prepare()
+                                player.play()
+                            } catch (_: Exception) {}
+                        }
+                    }
+                }
+                return MediaSession.ConnectionResult.accept(
+                    MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS,
+                    MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS
+                )
+            }
+
             override fun onCustomCommand(
                 session: MediaSession,
                 controller: MediaSession.ControllerInfo,
@@ -148,6 +181,8 @@ class PlaybackService : MediaLibraryService() {
                     player.setMediaItem(mediaItem)
                     player.prepare()
                     player.play()
+                    val lastStationJson = com.google.gson.Gson().toJson(station)
+                    getSharedPreferences("pure_radio_prefs", MODE_PRIVATE).edit().putString("last_station_json", lastStationJson).apply()
                     return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
                 }
                 return super.onCustomCommand(session, controller, customCommand, args)

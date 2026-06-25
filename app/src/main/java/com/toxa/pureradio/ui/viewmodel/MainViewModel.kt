@@ -1706,6 +1706,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         addToRecent(finalStation)
         prefs.edit().putString("last_station_uuid", finalStation.stationUuid).apply()
+        prefs.edit().putString("last_station_json", com.google.gson.Gson().toJson(finalStation)).apply()
         _currentStation.value = finalStation
         _error.value = null
         _mediaMetadata.value = null
