@@ -122,10 +122,10 @@ class PlaybackService : MediaLibraryService() {
 
         mediaLibrarySession = MediaLibrarySession.Builder(this, player, object : MediaLibrarySession.Callback {
 
-            override fun onConnect(
+            override fun onPostConnect(
                 session: MediaSession,
                 controller: MediaSession.ControllerInfo
-            ): MediaSession.ConnectionResult {
+            ) {
                 val pkg = controller.packageName
                 val isAutomotive = pkg == "com.android.car.media" || pkg == "com.android.car.carlauncher"
                     || controller.connectionHints.getBoolean("android.media.extra.IS_CAR_UI", false)
@@ -147,10 +147,6 @@ class PlaybackService : MediaLibraryService() {
                         }
                     }
                 }
-                return MediaSession.ConnectionResult.accept(
-                    MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS,
-                    MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS
-                )
             }
 
             override fun onCustomCommand(
