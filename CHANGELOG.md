@@ -2,6 +2,40 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.0] - 2026-06-25
+
+### Added
+- **Stream Resilience**: Custom ExoPlayer `LoadControl` with 30-60s buffer for radio streaming stability
+- **Auto-Reconnect**: Retries same station 3x with backoff (2s, 4s, 6s) before falling back to next station
+- **HTTP Timeouts**: 15s connect / 30s read timeouts on data source for faster failure detection
+- **New App Icon**: Replaced vector icon with custom PNG launcher icon across all densities
+
+### Fixed
+- **Car Display Connection**: Retry `MediaController` binding up to 3x (fixes "connection error" on slow systems)
+- **Car Display Selection**: Station cache eliminates redundant API calls in `onGetItem` (fixes "unable to select")
+- **HLS Detection**: Properly detects `.m3u`/`.m3u8` extensions and codec substrings (fixes silent playback failures)
+- **Crash**: Duplicate `FocusRequester` in `StationGrid` removed
+- **Crash**: `ConcurrentModificationException` in `stationCache`/`faviconCache` — switched to `ConcurrentHashMap`
+- **ANR**: Removed `runBlocking` network call on main thread during favicon fetch
+- **Memory Leak**: Capped station cache at 500 entries with LRU eviction
+- **Memory Leak**: Old `MediaController` futures cancelled on retry/reconnection
+- **Export**: M3U files now use UTF-8 encoding (fixes corruption with non-Latin station names)
+- **Race Condition**: `loadMoreStations` guard moved inside coroutine
+- **UX**: Back from drawer closes it instead of quitting app
+- **UX**: Error banner replaces full-screen error when content is available
+- **Phone**: Long-press favorite toggle works on non-TV devices
+- **File Picker**: Export "save here" uses correct filename path
+- **UI**: Sort buttons use localized strings
+- **UI**: `getGenreColor` floor raised to 80 (no near-black colors)
+- **UI**: Empty genre grid shows "No genres found" message
+
+## [1.4.2] - 2026-06-14
+
+### Fixed
+- **UI Responsiveness**: Improved focus handling on TV screens when navigating back from deep-dive categories.
+- **Resource Management**: Optimized favicon caching logic to prevent potential memory spikes during long browsing sessions.
+- **Auto-Update Logic**: Corrected a minor issue where the database update interval could reset after a manual update.
+
 ## [1.4.1] - 2026-06-14
 
 ### Fixed

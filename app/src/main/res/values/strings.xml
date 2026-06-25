@@ -216,5 +216,6 @@
     <string name="error_permission_already_requested">Storage permission already requested</string>
     <string name="error_all_files_access_granted">All Files Access already granted</string>
 
->>>>>>> 1162dbf (Restore project)
+    <string name="sort_name">Name</string>
+    <string name="sort_count">Count</string>
 </resources>

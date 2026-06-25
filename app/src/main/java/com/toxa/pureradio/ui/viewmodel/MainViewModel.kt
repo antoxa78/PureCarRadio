@@ -37,6 +37,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.toxa.pureradio.PlayerAction
+import java.util.concurrent.ConcurrentHashMap
 
 enum class NavigationItem(val labelRes: Int) {
     Home(R.string.nav_home),
@@ -89,7 +90,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = RadioRepository()
     private var player: Player? = null
     private val prefs = application.getSharedPreferences("pure_radio_prefs", Context.MODE_PRIVATE)
-    private val faviconCache = mutableMapOf<String, ByteArray>()
+    private val faviconCache = ConcurrentHashMap<String, ByteArray>()
 
     /** Convenience helper to access localized strings from the ViewModel. */
     private fun str(resId: Int, vararg args: Any): String =
@@ -317,84 +318,92 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private fun initializePlayer(retryCount: Int = 0) {
         val context = getApplication<Application>()
         val sessionToken = SessionToken(context, ComponentName(context, PlaybackService::class.java))
-        val controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
+        val future = MediaController.Builder(context, sessionToken).buildAsync()
 
-        controllerFuture.addListener({
+        future.addListener({
             try {
-                player = controllerFuture.get().apply {
-                    addListener(object : Player.Listener {
-                        override fun onPlayerError(error: PlaybackException) {
-                            consecutiveErrors++
-                            if (consecutiveErrors <= 3) {
-                                viewModelScope.launch {
-                                    delay(2000L * consecutiveErrors)
-                                    retryCurrentStation()
-                                }
-                            } else if (consecutiveErrors <= 8) {
-                                playNext(isAuto = true)
-                            } else {
-                                _error.value = str(R.string.error_playback_failed, error.message ?: "unknown")
-                                stopPlayback()
-                                consecutiveErrors = 0
+                val controller = future.get()
+                player = controller
+                controllerFuture = null
+                controller.addListener(object : Player.Listener {
+                    override fun onPlayerError(error: PlaybackException) {
+                        consecutiveErrors++
+                        if (consecutiveErrors <= 3) {
+                            viewModelScope.launch {
+                                delay(2000L * consecutiveErrors)
+                                retryCurrentStation()
                             }
+                        } else if (consecutiveErrors <= 8) {
+                            playNext(isAuto = true)
+                        } else {
+                            _error.value = str(R.string.error_playback_failed, error.message ?: "unknown")
+                            stopPlayback()
+                            consecutiveErrors = 0
                         }
+                    }
 
-                        override fun onIsPlayingChanged(isPlaying: Boolean) {
-                            _isPlaying.value = isPlaying
-                            if (isPlaying) {
-                                consecutiveErrors = 0
-                                _error.value = null
-                            }
+                    override fun onIsPlayingChanged(isPlaying: Boolean) {
+                        _isPlaying.value = isPlaying
+                        if (isPlaying) {
+                            consecutiveErrors = 0
                         }
+                    }
 
-                        override fun onMediaMetadataChanged(mediaMetadata: androidx.media3.common.MediaMetadata) {
-                            _mediaMetadata.value = mediaMetadata
-                        }
+                    override fun onMediaMetadataChanged(mediaMetadata: androidx.media3.common.MediaMetadata) {
+                        _mediaMetadata.value = mediaMetadata
+                    }
 
-                        override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
-                            for (group in tracks.groups) {
-                                if (group.type == C.TRACK_TYPE_AUDIO && group.isSelected) {
-                                    for (i in 0 until group.length) {
-                                        if (group.isTrackSelected(i)) {
-                                            _audioFormat.value = group.getTrackFormat(i)
-                                            break
-                                        }
+                    override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
+                        for (group in tracks.groups) {
+                            if (group.type == C.TRACK_TYPE_AUDIO && group.isSelected) {
+                                for (i in 0 until group.length) {
+                                    if (group.isTrackSelected(i)) {
+                                        _audioFormat.value = group.getTrackFormat(i)
+                                        break
                                     }
                                 }
                             }
                         }
-                    })
+                    }
+                })
 
-                    // Sync initial state
-                    _isPlaying.value = isPlaying
-                    _mediaMetadata.value = mediaMetadata
-                    _currentStation.value = _allStations.value.find { it.stationUuid == currentMediaItem?.mediaId }
-                        ?: _favoriteStations.value.find { it.stationUuid == currentMediaItem?.mediaId }
-                        ?: _recentStations.value.find { it.stationUuid == currentMediaItem?.mediaId }
-                }
+                // Sync initial state
+                _isPlaying.value = controller.isPlaying
+                _mediaMetadata.value = controller.mediaMetadata
+                _currentStation.value = _allStations.value.find { it.stationUuid == controller.currentMediaItem?.mediaId }
+                    ?: _favoriteStations.value.find { it.stationUuid == controller.currentMediaItem?.mediaId }
+                    ?: _recentStations.value.find { it.stationUuid == controller.currentMediaItem?.mediaId }
             } catch (e: Exception) {
                 if (retryCount < 3) {
+                    controllerFuture = null
                     viewModelScope.launch {
                         delay(2000L * (retryCount + 1))
                         initializePlayer(retryCount + 1)
                     }
                 } else {
+                    controllerFuture = null
                     _error.value = str(R.string.error_playback_service)
                 }
             }
         }, com.google.common.util.concurrent.MoreExecutors.directExecutor())
+        controllerFuture = future
     }
 
+    private var controllerFuture: com.google.common.util.concurrent.ListenableFuture<*>? = null
+
     private fun reinitializePlayer() {
-        // When using MediaController, we might need to tell the service to recreate the player
-        // for things like audio passthrough changes. For now, we'll just restart the service.
-        val context = getApplication() as Context
         player?.release()
         player = null
-        
+        controllerFuture?.cancel(true)
+        controllerFuture = null
+
+        val context = getApplication<Application>()
         val intent = android.content.Intent(context, PlaybackService::class.java)
         context.stopService(intent)
-        initializePlayer()
+        viewModelScope.launch {
+            delay(300)
+            initializePlayer()
+        }
     }
 
     fun toggleAudioPassthrough() {
@@ -805,6 +814,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun updateDatabase() {
         viewModelScope.launch {
+            if (_isLoading.value) return@launch
             _isLoading.value = true
             try {
                 val stats = repository.getStats()
@@ -1202,8 +1212,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun loadMoreStations(remainingRetries: Int = 0) {
-        if (!_hasMoreStations.value || _isLoading.value) return
         viewModelScope.launch {
+            if (!_hasMoreStations.value || _isLoading.value) return@launch
             _isLoading.value = true
             try {
                 val newOffset = _stationOffset.value + 100
@@ -1455,7 +1465,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 
                 withContext(Dispatchers.IO) {
                     context.contentResolver.openOutputStream(uri)?.use { outputStream ->
-                        outputStream.write(content.toByteArray())
+                        outputStream.write(content.toByteArray(Charsets.UTF_8))
                     }
                 }
                 _error.value = str(R.string.status_favorites_exported)
@@ -1683,7 +1693,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     @OptIn(UnstableApi::class)
     fun playStation(station: Station, resetErrors: Boolean = true) {
         if (resetErrors) consecutiveErrors = 0
-        _isLoading.value = false
         var finalStation = station
         if (finalStation.countryCode.isNullOrEmpty()) {
             _allStations.value.find { it.stationUuid == station.stationUuid && !it.countryCode.isNullOrEmpty() }?.let {
@@ -1708,17 +1717,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             android.net.Uri.parse("android.resource://${getApplication<android.app.Application>().packageName}/${com.toxa.pureradio.R.drawable.ic_radio_logo}")
         }
 
-        val cachedBytes = if (finalStation.favicon.isNotEmpty()) {
-            faviconCache[finalStation.stationUuid] ?: kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) {
-                try {
-                    val conn = java.net.URL(finalStation.favicon).openConnection() as java.net.HttpURLConnection
-                    conn.connectTimeout = 2000
-                    conn.readTimeout = 2000
-                    conn.doInput = true
-                    conn.inputStream.use { it.readBytes().also { faviconCache[finalStation.stationUuid] = it } }
-                } catch (_: Exception) { null }
-            }
-        } else null
+        val cachedBytes = faviconCache[finalStation.stationUuid]
 
         player?.let {
             it.stop()
@@ -1735,8 +1734,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 .setMediaId(finalStation.stationUuid)
                 .setMediaMetadata(metaBuilder.build())
             
-            if (finalStation.url.contains("m3u8", ignoreCase = true) || 
-                finalStation.codec.equals("hls", ignoreCase = true)) {
+            val isHls = finalStation.url.lowercase().let { url ->
+                url.endsWith(".m3u8") || url.endsWith(".m3u")
+            } || (finalStation.codec?.contains("hls", ignoreCase = true) == true)
+            if (isHls) {
                 mediaItemBuilder.setMimeType(androidx.media3.common.MimeTypes.APPLICATION_M3U8)
             }
             
@@ -1755,8 +1756,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val builder = MediaItem.Builder()
                 .setUri(station.url)
                 .setMediaId(station.stationUuid)
-            if (station.url.contains("m3u8", ignoreCase = true)
-                || station.codec.equals("hls", ignoreCase = true)
+            if (station.url.lowercase().let { it.endsWith(".m3u8") || it.endsWith(".m3u") }
+                || (station.codec?.contains("hls", ignoreCase = true) == true)
             ) {
                 builder.setMimeType(androidx.media3.common.MimeTypes.APPLICATION_M3U8)
             }
@@ -1779,7 +1780,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val bitrates = _selectedBitrates.value
             _genreGroups.value.flatMap { group ->
                 group.stations.filter { matchesBitrateFilter(it, bitrates) }
-            }
+            }.distinctBy { it.stationUuid }
         } else _stations.value
         
         if (list.isEmpty()) return
@@ -1810,7 +1811,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val bitrates = _selectedBitrates.value
             _genreGroups.value.flatMap { group ->
                 group.stations.filter { matchesBitrateFilter(it, bitrates) }
-            }
+            }.distinctBy { it.stationUuid }
         } else _stations.value
 
         if (list.isEmpty()) return

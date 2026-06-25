@@ -338,11 +338,7 @@ fun TvMainScreen(viewModel: MainViewModel) {
 
     BackHandler {
         if (isDrawerOpen) {
-            if (quitConfirmationEnabled) {
-                showExitDialog = true
-            } else {
-                exitProcess(0)
-            }
+            drawerState.setValue(androidx.tv.material3.DrawerValue.Closed)
         } else {
             when {
                 pendingImportStations != null -> viewModel.cancelRestore()
@@ -649,7 +645,7 @@ fun TvMainScreen(viewModel: MainViewModel) {
                                                             containerColor = MaterialTheme.colorScheme.primary,
                                                             contentColor = MaterialTheme.colorScheme.onPrimary
                                                         ) else ButtonDefaults.colors()
-                                                    ) { Text(if (mode == GenreSortMode.Name) "Name" else "Count") }
+                                                    ) { Text(if (mode == GenreSortMode.Name) androidx.compose.ui.res.stringResource(R.string.sort_name) else androidx.compose.ui.res.stringResource(R.string.sort_count)) }
                                                 }
                                             }
                                             Box(modifier = Modifier.weight(1f)) {
@@ -838,6 +834,11 @@ fun TvMainScreen(viewModel: MainViewModel) {
                     }
                 }
             }
+        } else {
+            LaunchedEffect(station) {
+                viewModel.toggleFavorite(station)
+                stationToFavorite = null
+            }
         }
     }
 
@@ -966,7 +967,9 @@ fun GenreGroupGrid(groups: List<GenreGroup>, autoFocus: Boolean = true, onGroupC
         }
     }
     if (groups.isEmpty()) {
-        Box(modifier = Modifier.fillMaxSize().then(if (isTv) Modifier.focusRequester(focusRequester).focusable() else Modifier))
+        Box(modifier = Modifier.fillMaxSize().then(if (isTv) Modifier.focusRequester(focusRequester).focusable() else Modifier), contentAlignment = Alignment.Center) {
+            Text(stringResource(R.string.no_genres_found), style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     } else {
         LazyVerticalGrid(
             columns = GridCells.Fixed(if (isTv) 5 else 2),
@@ -1023,7 +1026,7 @@ fun StationGrid(
     }
 
     Box(
-        modifier = Modifier.fillMaxSize().then(if (isTv) Modifier.focusRequester(focusRequester) else Modifier)
+        modifier = Modifier.fillMaxSize()
     ) {
         if (stations.isNotEmpty()) {
             LazyVerticalGrid(
@@ -1405,7 +1408,7 @@ fun TvHomeGenresSettings(viewModel: MainViewModel, visibleGenres: Set<String>, f
                 GenreSortMode.entries.forEach { mode ->
                     Button(onClick = { viewModel.setGenreSortMode(mode) }, modifier = Modifier.padding(horizontal = 4.dp),
                         colors = if (genreSortMode == mode) ButtonDefaults.colors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary) else ButtonDefaults.colors()
-                    ) { Text(mode.name) }
+                    ) { Text(if (mode == GenreSortMode.Name) stringResource(R.string.sort_name) else stringResource(R.string.sort_count)) }
                 }
             }
             Spacer(modifier = Modifier.height(24.dp))
@@ -1714,7 +1717,7 @@ fun TvFilePicker(
                     Surface(colors = SurfaceDefaults.colors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)), shape = MaterialTheme.shapes.medium, modifier = Modifier.fillMaxWidth()) {
                         Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
                             Column(modifier = Modifier.weight(1f)) { Text(stringResource(R.string.file_picker_file_label), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary); Text(state.suggestedFileName, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold) }
-                            Button(onClick = { onSelected(File(state.currentPath)) }, colors = ButtonDefaults.colors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary)) { Text(stringResource(R.string.file_picker_save_here)) }
+                            Button(onClick = { onSelected(File(state.currentPath, state.suggestedFileName)) }, colors = ButtonDefaults.colors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary)) { Text(stringResource(R.string.file_picker_save_here)) }
                         }
                     }
                 }
@@ -1897,7 +1900,10 @@ fun StationCardContent(station: Station, isFavorite: Boolean, isCurrent: Boolean
 
 fun getGenreColor(genre: String): Color {
     val hash = genre.hashCode()
-    return Color((Math.abs(hash) % 100) + 20, (Math.abs(hash shr 8) % 100) + 20, (Math.abs(hash shr 16) % 100) + 20)
+    val r = ((Math.abs(hash) % 80) + 80) / 255f
+    val g = ((Math.abs(hash shr 8) % 80) + 80) / 255f
+    val b = ((Math.abs(hash shr 16) % 80) + 80) / 255f
+    return Color(r, g, b)
 }
 
 fun getGenreImageUrl(genre: String): String {

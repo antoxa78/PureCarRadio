@@ -35,6 +35,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.guava.future
+import java.util.concurrent.ConcurrentHashMap
 
 enum class PlayerAction { Next, Previous }
 
@@ -49,7 +50,7 @@ class PlaybackService : MediaLibraryService() {
 
     private var mediaLibrarySession: MediaLibrarySession? = null
     private val repository = RadioRepository()
-    private val stationCache = mutableMapOf<String, Station>()
+    private val stationCache = ConcurrentHashMap<String, Station>()
     private val serviceJob = SupervisorJob()
     private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
 
@@ -187,38 +188,60 @@ class PlaybackService : MediaLibraryService() {
                         Futures.immediateFuture(LibraryResult.ofItemList(ImmutableList.copyOf(items), params))
                     }
                     "popular" -> serviceScope.future {
-                        val stations = repository.getTopStations(limit = 20)
-                        val items = stations.map { createPlayableItem(it) }
-                        LibraryResult.ofItemList(ImmutableList.copyOf(items), params)
+                        try {
+                            val stations = repository.getTopStations(limit = 20)
+                            val items = stations.map { createPlayableItem(it) }
+                            LibraryResult.ofItemList(ImmutableList.copyOf(items), params)
+                        } catch (e: Exception) {
+                            LibraryResult.ofError(LibraryResult.RESULT_ERROR_NOT_SUPPORTED)
+                        }
                     }
                     "genres" -> serviceScope.future {
-                        val tags = repository.getTags(limit = 30)
-                        val items = tags.map { tag ->
-                            createBrowsableItem("genre_${tag.name}", tag.name)
+                        try {
+                            val tags = repository.getTags(limit = 30)
+                            val items = tags.map { tag ->
+                                createBrowsableItem("genre_${tag.name}", tag.name)
+                            }
+                            LibraryResult.ofItemList(ImmutableList.copyOf(items), params)
+                        } catch (e: Exception) {
+                            LibraryResult.ofError(LibraryResult.RESULT_ERROR_NOT_SUPPORTED)
                         }
-                        LibraryResult.ofItemList(ImmutableList.copyOf(items), params)
                     }
                     "favourites" -> serviceScope.future {
-                        val prefs = getSharedPreferences("pure_radio_prefs", MODE_PRIVATE)
-                        val json = prefs.getString("favorite_stations_json", null)
-                        val items = if (json != null) {
-                            val stations = com.google.gson.Gson().fromJson<List<Station>>(json, object : com.google.gson.reflect.TypeToken<List<Station>>() {}.type)
-                            stations.map { createPlayableItem(it) }
-                        } else emptyList()
-                        LibraryResult.ofItemList(ImmutableList.copyOf(items), params)
+                        try {
+                            val prefs = getSharedPreferences("pure_radio_prefs", MODE_PRIVATE)
+                            val json = prefs.getString("favorite_stations_json", null)
+                            val items = if (json != null) {
+                                val stations = try {
+                                    com.google.gson.Gson().fromJson<List<Station>>(json, object : com.google.gson.reflect.TypeToken<List<Station>>() {}.type)
+                                } catch (e: Exception) { emptyList() }
+                                stations.map { createPlayableItem(it) }
+                            } else emptyList()
+                            LibraryResult.ofItemList(ImmutableList.copyOf(items), params)
+                        } catch (e: Exception) {
+                            LibraryResult.ofError(LibraryResult.RESULT_ERROR_NOT_SUPPORTED)
+                        }
                     }
                     else -> if (parentId.startsWith("genre_")) serviceScope.future {
-                        val genre = parentId.removePrefix("genre_")
-                        val stations = repository.searchStations(tag = genre, limit = 50)
-                        val items = stations.map { createPlayableItem(it) }
-                        LibraryResult.ofItemList(ImmutableList.copyOf(items), params)
+                        try {
+                            val genre = parentId.removePrefix("genre_")
+                            val stations = repository.searchStations(tag = genre, limit = 50)
+                            val items = stations.map { createPlayableItem(it) }
+                            LibraryResult.ofItemList(ImmutableList.copyOf(items), params)
+                        } catch (e: Exception) {
+                            LibraryResult.ofError(LibraryResult.RESULT_ERROR_NOT_SUPPORTED)
+                        }
                     } else {
                         serviceScope.future {
-                            val station = repository.getStation(parentId)
-                            if (station != null) {
-                                LibraryResult.ofItemList(ImmutableList.of(createPlayableItem(station)), params)
-                            } else {
-                                LibraryResult.ofItemList(ImmutableList.of<MediaItem>(), params)
+                            try {
+                                val station = repository.getStation(parentId)
+                                if (station != null) {
+                                    LibraryResult.ofItemList(ImmutableList.of(createPlayableItem(station)), params)
+                                } else {
+                                    LibraryResult.ofItemList(ImmutableList.of<MediaItem>(), params)
+                                }
+                            } catch (e: Exception) {
+                                LibraryResult.ofError(LibraryResult.RESULT_ERROR_NOT_SUPPORTED)
                             }
                         }
                     }
@@ -235,31 +258,35 @@ class PlaybackService : MediaLibraryService() {
                     return Futures.immediateFuture(LibraryResult.ofItem(createPlayableItem(cachedStation), null))
                 }
                 return serviceScope.future {
-                    val station = repository.getStation(mediaId)
-                    if (station != null) {
-                        stationCache[mediaId] = station
-                        LibraryResult.ofItem(createPlayableItem(station), null)
-                    } else {
-                        val item = when (mediaId) {
-                            "root" -> MediaItem.Builder()
-                                .setMediaId("root")
-                                .setMediaMetadata(MediaMetadata.Builder()
-                                    .setIsBrowsable(true)
-                                    .setIsPlayable(false)
-                                    .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
-                                    .setTitle("Pure Radio")
-                                    .build())
-                                .build()
-                            "popular" -> createBrowsableItem("popular", "Popular Stations")
-                            "favourites" -> createBrowsableItem("favourites", "Favourites")
-                            "genres" -> createBrowsableItem("genres", "Genres")
-                            else -> null
-                        }
-                        if (item != null) {
-                            LibraryResult.ofItem(item, null)
+                    try {
+                        val station = repository.getStation(mediaId)
+                        if (station != null) {
+                            stationCache.put(mediaId, station)
+                            LibraryResult.ofItem(createPlayableItem(station), null)
                         } else {
-                            LibraryResult.ofError(LibraryResult.RESULT_ERROR_BAD_VALUE)
+                            val item = when (mediaId) {
+                                "root" -> MediaItem.Builder()
+                                    .setMediaId("root")
+                                    .setMediaMetadata(MediaMetadata.Builder()
+                                        .setIsBrowsable(true)
+                                        .setIsPlayable(false)
+                                        .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
+                                        .setTitle("Pure Radio")
+                                        .build())
+                                    .build()
+                                "popular" -> createBrowsableItem("popular", "Popular Stations")
+                                "favourites" -> createBrowsableItem("favourites", "Favourites")
+                                "genres" -> createBrowsableItem("genres", "Genres")
+                                else -> null
+                            }
+                            if (item != null) {
+                                LibraryResult.ofItem(item, null)
+                            } else {
+                                LibraryResult.ofError(LibraryResult.RESULT_ERROR_BAD_VALUE)
+                            }
                         }
+                    } catch (e: Exception) {
+                        LibraryResult.ofError(LibraryResult.RESULT_ERROR_NOT_SUPPORTED)
                     }
                 }
             }
@@ -271,8 +298,10 @@ class PlaybackService : MediaLibraryService() {
                 params: LibraryParams?
             ): ListenableFuture<LibraryResult<Void>> {
                 serviceScope.launch {
-                    val stations = repository.searchStations(query = query, limit = 50)
-                    session.notifySearchResultChanged(browser, query, stations.size, params)
+                    try {
+                        val stations = repository.searchStations(query = query, limit = 50)
+                        session.notifySearchResultChanged(browser, query, stations.size, params)
+                    } catch (_: Exception) {}
                 }
                 return Futures.immediateFuture(LibraryResult.ofVoid())
             }
@@ -285,10 +314,16 @@ class PlaybackService : MediaLibraryService() {
                 pageSize: Int,
                 params: LibraryParams?
             ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+                val safePage = page.coerceAtLeast(0)
+                val safePageSize = pageSize.coerceIn(1, 200)
                 return serviceScope.future {
-                    val stations = repository.searchStations(query = query, limit = pageSize, offset = page * pageSize)
-                    val items = stations.map { createPlayableItem(it) }
-                    LibraryResult.ofItemList(ImmutableList.copyOf(items), params)
+                    try {
+                        val stations = repository.searchStations(query = query, limit = safePageSize, offset = safePage * safePageSize)
+                        val items = stations.map { createPlayableItem(it) }
+                        LibraryResult.ofItemList(ImmutableList.copyOf(items), params)
+                    } catch (e: Exception) {
+                        LibraryResult.ofError(LibraryResult.RESULT_ERROR_NOT_SUPPORTED)
+                    }
                 }
             }
         }).build()
@@ -306,16 +341,27 @@ class PlaybackService : MediaLibraryService() {
             .build()
     }
 
-    private fun createPlayableItem(station: Station, isHls: Boolean = false): MediaItem {
+    private fun cacheStation(station: Station) {
+        if (stationCache.size >= 500) {
+            stationCache.keys.take(100).forEach { stationCache.remove(it) }
+        }
         stationCache[station.stationUuid] = station
+    }
+
+    private fun createPlayableItem(station: Station, isHls: Boolean = false): MediaItem {
+        cacheStation(station)
         val artworkUri = if (station.favicon.isNotEmpty()) {
             android.net.Uri.parse(station.favicon)
         } else {
-            android.net.Uri.parse("android.resource://${getPackageName()}/${com.toxa.pureradio.R.drawable.ic_radio_logo}")
+            android.net.Uri.Builder()
+                .scheme(android.content.ContentResolver.SCHEME_ANDROID_RESOURCE)
+                .authority(packageName ?: "com.toxa.pureradio")
+                .appendPath(com.toxa.pureradio.R.drawable.ic_radio_logo.toString())
+                .build()
         }
         val isHlsStream = isHls
-                || station.url.contains("m3u8", ignoreCase = true)
-                || station.codec.equals("hls", ignoreCase = true)
+                || station.url.lowercase().let { it.endsWith(".m3u8") || it.endsWith(".m3u") }
+                || (station.codec?.contains("hls", ignoreCase = true) == true)
         val builder = MediaItem.Builder()
             .setMediaId(station.stationUuid)
             .setUri(station.url)
@@ -338,20 +384,19 @@ class PlaybackService : MediaLibraryService() {
     }
 
     override fun onTaskRemoved(rootIntent: android.content.Intent?) {
-        val player = mediaLibrarySession?.player
-        if (player?.playWhenReady == true && player.mediaItemCount > 0) {
+        val p = mediaLibrarySession?.player
+        if (p != null && p.playWhenReady && p.mediaItemCount > 0) {
             return
         }
         stopSelf()
     }
 
     override fun onDestroy() {
-        serviceJob.cancel()
         mediaLibrarySession?.run {
-            player.release()
             release()
             mediaLibrarySession = null
         }
+        serviceJob.cancel()
         super.onDestroy()
     }
 }
