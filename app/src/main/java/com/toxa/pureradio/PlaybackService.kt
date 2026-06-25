@@ -12,6 +12,7 @@ import androidx.media3.common.MimeTypes
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.datasource.DefaultDataSource
@@ -48,6 +49,7 @@ class PlaybackService : MediaLibraryService() {
 
     private var mediaLibrarySession: MediaLibrarySession? = null
     private val repository = RadioRepository()
+    private val stationCache = mutableMapOf<String, Station>()
     private val serviceJob = SupervisorJob()
     private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
 
@@ -80,6 +82,8 @@ class PlaybackService : MediaLibraryService() {
         val httpDataSourceFactory = DefaultHttpDataSource.Factory()
             .setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
             .setAllowCrossProtocolRedirects(true)
+            .setConnectTimeoutMs(15000)
+            .setReadTimeoutMs(30000)
             .setDefaultRequestProperties(mapOf("Icy-MetaData" to "1"))
         
         val dataSourceFactory = DefaultDataSource.Factory(this, httpDataSourceFactory)
@@ -90,10 +94,20 @@ class PlaybackService : MediaLibraryService() {
         val prefs = getSharedPreferences("pure_radio_prefs", MODE_PRIVATE)
         val audioPassthrough = prefs.getBoolean("audio_passthrough", false)
 
+        val loadControl = DefaultLoadControl.Builder()
+            .setBufferDurationsMs(
+                /* minBufferMs */ 30_000,
+                /* maxBufferMs */ 60_000,
+                /* bufferForPlaybackMs */ 5_000,
+                /* bufferForPlaybackAfterRebufferMs */ 10_000
+            )
+            .build()
+
         val playerBuilder = ExoPlayer.Builder(this)
             .setMediaSourceFactory(mediaSourceFactory)
             .setAudioAttributes(audioAttributes, true)
             .setHandleAudioBecomingNoisy(true)
+            .setLoadControl(loadControl)
 
         if (audioPassthrough) {
             val renderersFactory = DefaultRenderersFactory(this)
@@ -216,9 +230,14 @@ class PlaybackService : MediaLibraryService() {
                 browser: MediaSession.ControllerInfo,
                 mediaId: String
             ): ListenableFuture<LibraryResult<MediaItem>> {
+                val cachedStation = stationCache[mediaId]
+                if (cachedStation != null) {
+                    return Futures.immediateFuture(LibraryResult.ofItem(createPlayableItem(cachedStation), null))
+                }
                 return serviceScope.future {
                     val station = repository.getStation(mediaId)
                     if (station != null) {
+                        stationCache[mediaId] = station
                         LibraryResult.ofItem(createPlayableItem(station), null)
                     } else {
                         val item = when (mediaId) {
@@ -288,11 +307,15 @@ class PlaybackService : MediaLibraryService() {
     }
 
     private fun createPlayableItem(station: Station, isHls: Boolean = false): MediaItem {
+        stationCache[station.stationUuid] = station
         val artworkUri = if (station.favicon.isNotEmpty()) {
             android.net.Uri.parse(station.favicon)
         } else {
             android.net.Uri.parse("android.resource://${getPackageName()}/${com.toxa.pureradio.R.drawable.ic_radio_logo}")
         }
+        val isHlsStream = isHls
+                || station.url.contains("m3u8", ignoreCase = true)
+                || station.codec.equals("hls", ignoreCase = true)
         val builder = MediaItem.Builder()
             .setMediaId(station.stationUuid)
             .setUri(station.url)
@@ -304,7 +327,7 @@ class PlaybackService : MediaLibraryService() {
                 .setArtist(station.tags)
                 .setArtworkUri(artworkUri)
                 .build())
-        if (isHls) {
+        if (isHlsStream) {
             builder.setMimeType(MimeTypes.APPLICATION_M3U8)
         }
         return builder.build()

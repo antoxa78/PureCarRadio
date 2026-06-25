@@ -506,9 +506,18 @@ fun TvMainScreen(viewModel: MainViewModel) {
                 }
 
                 Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                    if (error != null) {
+                    val hasContent = stations.isNotEmpty() || genreGroups.isNotEmpty() || tags.isNotEmpty() || countries.isNotEmpty()
+                    if (error != null && !hasContent) {
                         Text(text = error!!, style = MaterialTheme.typography.headlineMedium)
                     } else {
+                        if (error != null) {
+                            Text(
+                                text = error!!,
+                                modifier = Modifier.align(Alignment.TopCenter).padding(8.dp),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
                         when (selectedNavItem) {
                             NavigationItem.Home -> {
                                 if (genreGroups.isNotEmpty()) {

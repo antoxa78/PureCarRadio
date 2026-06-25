@@ -314,18 +314,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     @OptIn(UnstableApi::class)
-    private fun initializePlayer() {
-        val context = getApplication() as Context
+    private fun initializePlayer(retryCount: Int = 0) {
+        val context = getApplication<Application>()
         val sessionToken = SessionToken(context, ComponentName(context, PlaybackService::class.java))
         val controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
-        
+
         controllerFuture.addListener({
             try {
                 player = controllerFuture.get().apply {
                     addListener(object : Player.Listener {
                         override fun onPlayerError(error: PlaybackException) {
                             consecutiveErrors++
-                            if (consecutiveErrors < 5) {
+                            if (consecutiveErrors <= 3) {
+                                viewModelScope.launch {
+                                    delay(2000L * consecutiveErrors)
+                                    retryCurrentStation()
+                                }
+                            } else if (consecutiveErrors <= 8) {
                                 playNext(isAuto = true)
                             } else {
                                 _error.value = str(R.string.error_playback_failed, error.message ?: "unknown")
@@ -359,7 +364,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             }
                         }
                     })
-                    
+
                     // Sync initial state
                     _isPlaying.value = isPlaying
                     _mediaMetadata.value = mediaMetadata
@@ -368,7 +373,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         ?: _recentStations.value.find { it.stationUuid == currentMediaItem?.mediaId }
                 }
             } catch (e: Exception) {
-                _error.value = str(R.string.error_playback_service)
+                if (retryCount < 3) {
+                    viewModelScope.launch {
+                        delay(2000L * (retryCount + 1))
+                        initializePlayer(retryCount + 1)
+                    }
+                } else {
+                    _error.value = str(R.string.error_playback_service)
+                }
             }
         }, com.google.common.util.concurrent.MoreExecutors.directExecutor())
     }
@@ -1732,6 +1744,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             it.prepare()
             it.play()
             _isPlaying.value = true
+        }
+    }
+
+    private fun retryCurrentStation() {
+        val station = _currentStation.value ?: return
+        player?.let { player ->
+            player.stop()
+            player.clearMediaItems()
+            val builder = MediaItem.Builder()
+                .setUri(station.url)
+                .setMediaId(station.stationUuid)
+            if (station.url.contains("m3u8", ignoreCase = true)
+                || station.codec.equals("hls", ignoreCase = true)
+            ) {
+                builder.setMimeType(androidx.media3.common.MimeTypes.APPLICATION_M3U8)
+            }
+            player.setMediaItem(builder.build())
+            player.prepare()
+            player.play()
         }
     }
 
