@@ -7,19 +7,19 @@ import androidx.compose.material3.darkColorScheme
 import com.toxa.pureradio.ui.viewmodel.AppTheme
 
 private val RetroGoldColorScheme = darkColorScheme(
-    primary = RetroGold,
-    secondary = Amber,
-    tertiary = WoodBrown,
+    primary = BluePrimary,
+    secondary = BlueSecondary,
+    tertiary = BlueTertiary,
     background = Black,
     surface = DarkGrey,
     surfaceVariant = SurfaceGrey,
-    onPrimary = Black,
-    onSecondary = Black,
+    onPrimary = White,
+    onSecondary = White,
     onTertiary = White,
     onBackground = White,
     onSurface = White,
-    primaryContainer = DarkWood,
-    onPrimaryContainer = RetroGold
+    primaryContainer = BlueDark,
+    onPrimaryContainer = BluePrimary
 )
 
 private val BlueNeonColorScheme = darkColorScheme(

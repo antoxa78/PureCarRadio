@@ -169,6 +169,7 @@ import androidx.compose.material3.ListItem as PhoneListItem
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.tv.material3.Button
 import androidx.tv.material3.Card
@@ -469,7 +470,23 @@ fun PhoneTopBar(
     var menuExpanded by remember { mutableStateOf(false) }
 
     TopAppBar(
-        title = { PhoneText("Pure Radio") },
+        title = { 
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    painter = androidx.compose.ui.res.painterResource(R.drawable.ic_radio_logo),
+                    contentDescription = null,
+                    modifier = Modifier.size(32.dp),
+                    tint = Color.Unspecified
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                PhoneText(
+                    text = "PURE RADIO",
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 1.5.sp,
+                    style = PhoneMaterialTheme.typography.titleLarge
+                )
+            }
+        },
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = PhoneMaterialTheme.colorScheme.surface
         ),

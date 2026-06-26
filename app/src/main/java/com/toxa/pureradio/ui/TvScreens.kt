@@ -108,6 +108,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.media3.common.util.UnstableApi
 import androidx.tv.material3.Button
@@ -179,11 +180,11 @@ fun TvMainLayout(isPip: Boolean, showSplash: Boolean, viewModel: MainViewModel) 
                         .background(
                             Brush.radialGradient(
                                 colors = listOf(
-                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
                                     MaterialTheme.colorScheme.background
                                 ),
                                 center = androidx.compose.ui.geometry.Offset(x = 1000f, y = 0f),
-                                radius = 2000f
+                                radius = 2500f
                             )
                         )
                 )
@@ -1039,7 +1040,7 @@ fun StationGrid(
                         station = station,
                         isFavorite = favorites.contains(station.stationUuid),
                         isCurrent = currentStation?.stationUuid == station.stationUuid,
-                        onClick = { viewModel.playStation(station) },
+                        onClick = { viewModel.playStation(station, stations) },
                         onLongClick = { onLongClick(station) },
                         modifier = if (isTv && index == 0) Modifier.focusRequester(focusRequester) else Modifier
                     )
@@ -1074,10 +1075,23 @@ fun TvStationCard(
         onClick = onClick,
         onLongClick = onLongClick,
         modifier = modifier.padding(8.dp).height(180.dp),
-        scale = CardDefaults.scale(focusedScale = 1.1f),
-        glow = CardDefaults.glow(focusedGlow = Glow(elevationColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), elevation = 12.dp)),
-        border = CardDefaults.border(focusedBorder = androidx.tv.material3.Border(border = androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary), shape = MaterialTheme.shapes.medium)),
-        colors = CardDefaults.colors(containerColor = if (isCurrent) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+        scale = CardDefaults.scale(focusedScale = 1.15f),
+        glow = CardDefaults.glow(
+            focusedGlow = Glow(
+                elevationColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                elevation = 20.dp
+            )
+        ),
+        border = CardDefaults.border(
+            focusedBorder = androidx.tv.material3.Border(
+                border = androidx.compose.foundation.BorderStroke(4.dp, MaterialTheme.colorScheme.primary),
+                shape = MaterialTheme.shapes.medium
+            )
+        ),
+        colors = CardDefaults.colors(
+            containerColor = if (isCurrent) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f) 
+                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+        )
     ) { StationCardContent(station, isFavorite, isCurrent) }
 }
 
@@ -1741,105 +1755,261 @@ fun TvNowPlayingBar(
     onNext: () -> Unit,
     onPrevious: () -> Unit
 ) {
-    Surface(modifier = Modifier.fillMaxWidth().height(115.dp),
-        colors = SurfaceDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f)), shape = RectangleShape
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(115.dp),
+        colors = SurfaceDefaults.colors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.98f)
+        ),
+        shape = RectangleShape,
+        border = androidx.tv.material3.Border(
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
+            shape = RectangleShape
+        )
     ) {
-        Row(modifier = Modifier.padding(horizontal = 24.dp).fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
-            Row(modifier = Modifier.weight(1.2f), verticalAlignment = Alignment.CenterVertically) {
-                Surface(shape = MaterialTheme.shapes.small, modifier = Modifier.size(60.dp), colors = SurfaceDefaults.colors(containerColor = Color.White.copy(alpha = 0.1f))) {
-                    AsyncImage(model = if (station.favicon.isNotEmpty()) station.favicon else R.drawable.ic_radio_logo, contentDescription = null, modifier = Modifier.fillMaxSize().padding(8.dp), contentScale = ContentScale.Fit)
+        Row(
+            modifier = Modifier
+                .padding(horizontal = 32.dp)
+                .fillMaxSize(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(modifier = Modifier.weight(1.5f), verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    shape = MaterialTheme.shapes.medium,
+                    modifier = Modifier.size(68.dp),
+                    colors = SurfaceDefaults.colors(containerColor = Color.White.copy(alpha = 0.15f))
+                ) {
+                    AsyncImage(
+                        model = if (station.favicon.isNotEmpty()) station.favicon else R.drawable.ic_radio_logo,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize().padding(10.dp),
+                        contentScale = ContentScale.Fit
+                    )
                 }
-                Spacer(modifier = Modifier.width(16.dp))
+                Spacer(modifier = Modifier.width(20.dp))
                 Column {
                     val technicalInfo = audioFormat?.let { format ->
                         listOfNotNull(
                             format.sampleMimeType?.removePrefix("audio/")?.uppercase()?.replace("MPEG", "MP3")?.replace("MP4A-LATM", "AAC") ?: station.codec.orEmpty().uppercase(),
                             if (format.bitrate > 0) "${format.bitrate / 1000}k" else "${station.bitrate}k",
-                            if (format.sampleRate > 0) "${format.sampleRate / 1000}kHz" else "",
-                            when (format.channelCount) { 1 -> "Mono"; 2 -> "Stereo"; in 3..8 -> "${format.channelCount}ch"; else -> "" }
+                            if (format.sampleRate > 0) "${format.sampleRate / 1000}kHz" else ""
                         ).joinToString(" ")
                     } ?: "${station.bitrate}k"
-                    Surface(shape = MaterialTheme.shapes.extraSmall, colors = SurfaceDefaults.colors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)), modifier = Modifier.padding(bottom = 4.dp)) {
-                        Text(text = technicalInfo, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.ExtraBold, modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp))
+                    
+                    Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        colors = SurfaceDefaults.colors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
+                        modifier = Modifier.padding(bottom = 6.dp)
+                    ) {
+                        Text(
+                            text = technicalInfo,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.ExtraBold,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                        )
                     }
                     val displayTitle = if (!mediaMetadata?.title.isNullOrEmpty()) mediaMetadata?.title.toString() else station.name
-                    val displaySubtitle = if (!mediaMetadata?.artist.isNullOrEmpty()) mediaMetadata?.artist.toString() else station.country
-                    Text(text = displayTitle, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Bold)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (mediaMetadata?.artist.isNullOrEmpty()) {
-                            val code = station.countryCode?.trim()?.lowercase()
-                            if (!code.isNullOrEmpty() && code.length == 2) {
-                                AsyncImage(model = "https://flagcdn.com/w40/$code.png", contentDescription = null, modifier = Modifier.size(24.dp).padding(end = 8.dp), contentScale = ContentScale.Fit)
-                            }
-                        }
-                        Text(text = displaySubtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        if (!mediaMetadata?.title.isNullOrEmpty()) {
-                            Text(text = " \u2022 ${station.name}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        }
-                    }
+                    Text(
+                        text = displayTitle,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.ExtraBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = station.name,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
-            Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+            
+            Row(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 val timeStr = String.format(Locale.getDefault(), "%02d:%02d", (playbackTime / 1000) / 60, (playbackTime / 1000) % 60)
-                Text(text = timeStr, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, modifier = Modifier.padding(end = 16.dp))
-                Card(onClick = onPrevious, modifier = Modifier.padding(horizontal = 4.dp)) { Icon(Icons.Default.SkipPrevious, contentDescription = stringResource(R.string.previous_desc), modifier = Modifier.padding(10.dp).size(24.dp)) }
-                Card(onClick = onTogglePlay, modifier = Modifier.padding(horizontal = 4.dp), colors = CardDefaults.colors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary)) {
-                    Icon(if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, contentDescription = if (isPlaying) stringResource(R.string.pause_desc) else stringResource(R.string.play_desc), modifier = Modifier.padding(12.dp).size(28.dp))
-                }
-                Card(onClick = onNext, modifier = Modifier.padding(horizontal = 4.dp)) { Icon(Icons.Default.SkipNext, contentDescription = stringResource(R.string.next_desc), modifier = Modifier.padding(10.dp).size(24.dp)) }
-                Spacer(modifier = Modifier.width(8.dp))
-                Card(onClick = onToggleFavorite, modifier = Modifier.padding(horizontal = 4.dp)) {
-                    Icon(if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder, contentDescription = stringResource(R.string.favorite_desc), modifier = Modifier.padding(10.dp).size(24.dp), tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
-                }
+                Text(
+                    text = timeStr,
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Black,
+                    modifier = Modifier.padding(end = 24.dp)
+                )
+                
+                TvPlayerButton(icon = Icons.Default.SkipPrevious, onClick = onPrevious)
+                TvPlayerButton(
+                    icon = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    onClick = onTogglePlay,
+                    isPrimary = true
+                )
+                TvPlayerButton(icon = Icons.Default.SkipNext, onClick = onNext)
+                
+                Spacer(modifier = Modifier.width(16.dp))
+                
+                TvPlayerButton(
+                    icon = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                    onClick = onToggleFavorite,
+                    tint = if (isFavorite) MaterialTheme.colorScheme.primary else null
+                )
             }
-            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) { WaveformAnalyzer(isPlaying = isPlaying) }
+            
+            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
+                WaveformAnalyzer(isPlaying = isPlaying)
+            }
         }
         if (playbackDuration > 0) {
-            LinearProgressIndicator(progress = { playbackTime.toFloat() / playbackDuration.toFloat() }, modifier = Modifier.fillMaxWidth().height(2.dp).align(Alignment.BottomCenter), color = MaterialTheme.colorScheme.primary, trackColor = Color.Transparent)
+            LinearProgressIndicator(
+                progress = { playbackTime.toFloat() / playbackDuration.toFloat() },
+                modifier = Modifier.fillMaxWidth().height(3.dp).align(Alignment.BottomCenter),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = Color.Transparent
+            )
         }
+    }
+}
+
+@OptIn(ExperimentalTvMaterial3Api::class)
+@Composable
+private fun TvPlayerButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit,
+    isPrimary: Boolean = false,
+    tint: Color? = null
+) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.padding(horizontal = 6.dp),
+        scale = CardDefaults.scale(focusedScale = 1.2f),
+        colors = CardDefaults.colors(
+            containerColor = if (isPrimary) MaterialTheme.colorScheme.primary 
+                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+            contentColor = if (isPrimary) MaterialTheme.colorScheme.onPrimary 
+                          else MaterialTheme.colorScheme.onSurface
+        ),
+        glow = CardDefaults.glow(focusedGlow = Glow(
+            elevationColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+            elevation = 10.dp
+        ))
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            modifier = Modifier.padding(if (isPrimary) 12.dp else 10.dp).size(if (isPrimary) 32.dp else 26.dp),
+            tint = tint ?: androidx.compose.ui.graphics.Color.Unspecified
+        )
     }
 }
 
 @Composable
 fun SplashScreen() {
     val iconAlpha = remember { androidx.compose.animation.core.Animatable(0f) }
-    val iconScale = remember { androidx.compose.animation.core.Animatable(0.6f) }
+    val iconScale = remember { androidx.compose.animation.core.Animatable(0.4f) }
     val glowAlpha = remember { androidx.compose.animation.core.Animatable(0f) }
-    val titleOffset = remember { androidx.compose.animation.core.Animatable(40f) }
     val titleAlpha = remember { androidx.compose.animation.core.Animatable(0f) }
-    val subAlpha = remember { androidx.compose.animation.core.Animatable(0f) }
+    val titleScale = remember { androidx.compose.animation.core.Animatable(0.8f) }
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
-    val pulseGlow = infiniteTransition.animateFloat(initialValue = 0.3f, targetValue = 0.8f,
-        animationSpec = infiniteRepeatable(tween(1200), RepeatMode.Reverse), label = "pulse")
+    val pulseGlow = infiniteTransition.animateFloat(
+        initialValue = 0.4f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(1500), RepeatMode.Reverse),
+        label = "pulse"
+    )
 
     LaunchedEffect(Unit) {
-        iconAlpha.animateTo(1f, animationSpec = tween(400))
-        iconScale.animateTo(1f, animationSpec = tween(500, easing = FastOutLinearInEasing))
-        glowAlpha.animateTo(1f, animationSpec = tween(700))
-        titleOffset.animateTo(0f, animationSpec = tween(500, easing = FastOutLinearInEasing))
-        titleAlpha.animateTo(1f, animationSpec = tween(300))
-        delay(100)
-        subAlpha.animateTo(1f, animationSpec = tween(400))
+        launch {
+            iconAlpha.animateTo(1f, animationSpec = tween(600))
+        }
+        launch {
+            iconScale.animateTo(1f, animationSpec = tween(800, easing = FastOutLinearInEasing))
+        }
+        launch {
+            delay(300)
+            glowAlpha.animateTo(1f, animationSpec = tween(1000))
+        }
+        launch {
+            delay(500)
+            titleAlpha.animateTo(1f, animationSpec = tween(600))
+            titleScale.animateTo(1f, animationSpec = tween(600, easing = FastOutLinearInEasing))
+        }
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF1a1a1a)), contentAlignment = Alignment.Center) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.radialGradient(
+                    colors = listOf(Color(0xFF003D9E), Color(0xFF001A3D)),
+                    center = androidx.compose.ui.geometry.Offset(x = 500f, y = 500f),
+                    radius = 1500f
+                )
+            ),
+        contentAlignment = Alignment.Center
+    ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Box(contentAlignment = Alignment.Center) {
-                Box(modifier = Modifier.size(220.dp).graphicsLayer { alpha = glowAlpha.value * pulseGlow.value }.background(Color(0xFFFBC02D).copy(alpha = 0.08f), CircleShape))
-                Box(modifier = Modifier.size(160.dp).graphicsLayer { alpha = glowAlpha.value * pulseGlow.value * 0.5f }.background(Color(0xFFFBC02D).copy(alpha = 0.05f), CircleShape))
+                // Background Glow Layers
+                Canvas(modifier = Modifier.size(300.dp)) {
+                    drawCircle(
+                        color = Color.White,
+                        radius = size.minDimension / 2 * pulseGlow.value,
+                        alpha = 0.05f * glowAlpha.value
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .size(200.dp)
+                        .graphicsLayer { 
+                            alpha = 0.15f * glowAlpha.value * pulseGlow.value
+                            scaleX = 1f + 0.1f * pulseGlow.value
+                            scaleY = 1f + 0.1f * pulseGlow.value
+                        }
+                        .background(Color.White, CircleShape)
+                )
+                
                 Icon(
                     painter = androidx.compose.ui.res.painterResource(R.drawable.ic_radio_logo),
                     contentDescription = "Pure Radio",
-                    modifier = Modifier.size(130.dp).graphicsLayer { alpha = iconAlpha.value; scaleX = iconScale.value; scaleY = iconScale.value },
+                    modifier = Modifier
+                        .size(160.dp)
+                        .graphicsLayer { 
+                            alpha = iconAlpha.value
+                            scaleX = iconScale.value
+                            scaleY = iconScale.value
+                        },
                     tint = Color.Unspecified
                 )
             }
-            Spacer(modifier = Modifier.height(32.dp))
-            Text(text = "Pure Radio", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.ExtraBold, color = Color(0xFFFBC02D),
-                modifier = Modifier.graphicsLayer { alpha = titleAlpha.value; translationY = titleOffset.value })
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(text = androidx.compose.ui.res.stringResource(R.string.splash_tagline), style = MaterialTheme.typography.bodyMedium, color = Color(0xFF8D6E63),
-                modifier = Modifier.graphicsLayer { alpha = subAlpha.value })
+            Spacer(modifier = Modifier.height(48.dp))
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.graphicsLayer { 
+                    alpha = titleAlpha.value
+                    scaleX = titleScale.value
+                    scaleY = titleScale.value
+                }
+            ) {
+                Text(
+                    text = "Pure Radio",
+                    style = MaterialTheme.typography.displayMedium,
+                    fontWeight = FontWeight.Black,
+                    color = Color.White,
+                    letterSpacing = 4.sp
+                )
+                Text(
+                    text = androidx.compose.ui.res.stringResource(R.string.splash_tagline).uppercase(),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = Color.White.copy(alpha = 0.6f),
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 2.sp,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
         }
     }
 }
@@ -1900,9 +2070,9 @@ fun StationCardContent(station: Station, isFavorite: Boolean, isCurrent: Boolean
 
 fun getGenreColor(genre: String): Color {
     val hash = genre.hashCode()
-    val r = ((Math.abs(hash) % 80) + 80) / 255f
-    val g = ((Math.abs(hash shr 8) % 80) + 80) / 255f
-    val b = ((Math.abs(hash shr 16) % 80) + 80) / 255f
+    val r = ((Math.abs(hash) % 50) + 10) / 255f
+    val g = ((Math.abs(hash shr 8) % 70) + 20) / 255f
+    val b = ((Math.abs(hash shr 16) % 100) + 100) / 255f
     return Color(r, g, b)
 }
 

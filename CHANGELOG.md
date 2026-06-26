@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.1] - 2026-06-26
+
+### Added
+- **Native Playlist Support**: Full integration with Media3 native playlists. Skip (Next/Previous) now works flawlessly on car displays, Bluetooth speakers, and notification controls.
+- **Enhanced Car Library**: Expanded car display menu to include "Recent", "Countries", and a mirrored "Home Screen" category for personalized browsing.
+- **Native Car Search**: Enabled native system search support for Android Auto and Automotive head units.
+- **Redesigned Branding**: New high-contrast "Vibrant Blue" application icon and theme, replacing the previous gold/wood design.
+- **Polished UI**: Implementation of floating rounded "Now Playing" bars and improved typography for better readability.
+
+### Fixed
+- **Selection Bug**: Resolved an issue where stations could not be selected from certain UI categories due to missing flags.
+- **Contextual Playlists**: Selecting a station from a car's browser now automatically loads the rest of that category into the background playlist.
+- **Service Stability**: Moved transition and error handling logic to the background service for consistent control even when the phone UI is closed.
+- **Icon Alignment**: Fixed centering issues for adaptive launcher icons and TV banners.
+
 ## [1.5.0] - 2026-06-25
 
 ### Added

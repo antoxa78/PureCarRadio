@@ -294,21 +294,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             delay(1500)
             if (_resumeLastStation.value && _currentStation.value == null) {
                 val uuid = prefs.getString("last_station_uuid", null)
-                if (uuid != null) {
-                    val station = _allStations.value.find { it.stationUuid == uuid }
-                        ?: _favoriteStations.value.find { it.stationUuid == uuid }
-                        ?: _recentStations.value.find { it.stationUuid == uuid }
-                    if (station != null) {
+                val lastJson = prefs.getString("last_station_json", null)
+                if (uuid != null && lastJson != null) {
+                    try {
+                        val station = com.google.gson.Gson().fromJson(lastJson, Station::class.java)
                         playStation(station)
-                    }
-                }
-            }
-        }
-        viewModelScope.launch {
-            PlaybackService.playerAction.collect { action ->
-                when (action) {
-                    PlayerAction.Next -> playNext()
-                    PlayerAction.Previous -> playPrevious()
+                    } catch (_: Exception) {}
                 }
             }
         }
@@ -327,30 +318,39 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 controllerFuture = null
                 controller.addListener(object : Player.Listener {
                     override fun onPlayerError(error: PlaybackException) {
-                        consecutiveErrors++
-                        if (consecutiveErrors <= 3) {
-                            viewModelScope.launch {
-                                delay(2000L * consecutiveErrors)
-                                retryCurrentStation()
-                            }
-                        } else if (consecutiveErrors <= 8) {
-                            playNext(isAuto = true)
-                        } else {
-                            _error.value = str(R.string.error_playback_failed, error.message ?: "unknown")
-                            stopPlayback()
-                            consecutiveErrors = 0
-                        }
+                        // Service handles auto-skip now, we just update UI if needed
+                        _error.value = str(R.string.error_playback_failed, error.message ?: "unknown")
                     }
 
                     override fun onIsPlayingChanged(isPlaying: Boolean) {
                         _isPlaying.value = isPlaying
-                        if (isPlaying) {
-                            consecutiveErrors = 0
-                        }
                     }
 
-                    override fun onMediaMetadataChanged(mediaMetadata: androidx.media3.common.MediaMetadata) {
-                        _mediaMetadata.value = mediaMetadata
+                    override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                        val metadata = mediaItem?.mediaMetadata
+                        _mediaMetadata.value = metadata
+                        
+                        val stationJson = metadata?.extras?.getString("station_full_json")
+                        if (stationJson != null) {
+                            try {
+                                val station = com.google.gson.Gson().fromJson(stationJson, Station::class.java)
+                                _currentStation.value = station
+                                addToRecent(station)
+                            } catch (_: Exception) {}
+                        } else if (mediaItem != null) {
+                            // Fallback: Resolve station from ID if JSON is missing
+                            val rawId = mediaItem.mediaId
+                            val uuid = if (rawId.contains("|station:")) rawId.split("|")[1].removePrefix("station:") else rawId
+                            
+                            val station = _allStations.value.find { it.stationUuid == uuid }
+                                ?: _favoriteStations.value.find { it.stationUuid == uuid }
+                                ?: _recentStations.value.find { it.stationUuid == uuid }
+                            
+                            if (station != null) {
+                                _currentStation.value = station
+                                addToRecent(station)
+                            }
+                        }
                     }
 
                     override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
@@ -370,9 +370,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 // Sync initial state
                 _isPlaying.value = controller.isPlaying
                 _mediaMetadata.value = controller.mediaMetadata
-                _currentStation.value = _allStations.value.find { it.stationUuid == controller.currentMediaItem?.mediaId }
-                    ?: _favoriteStations.value.find { it.stationUuid == controller.currentMediaItem?.mediaId }
-                    ?: _recentStations.value.find { it.stationUuid == controller.currentMediaItem?.mediaId }
+                val currentId = controller.currentMediaItem?.mediaId
+                val currentUuid = if (currentId?.contains("|station:") == true) currentId.split("|")[1].removePrefix("station:") else currentId
+                
+                _currentStation.value = _allStations.value.find { it.stationUuid == currentUuid }
+                    ?: _favoriteStations.value.find { it.stationUuid == currentUuid }
+                    ?: _recentStations.value.find { it.stationUuid == currentUuid }
+                
+                // If still null, try to resolve from the media item metadata
+                if (_currentStation.value == null && controller.currentMediaItem != null) {
+                    val stationJson = controller.currentMediaItem?.mediaMetadata?.extras?.getString("station_full_json")
+                    if (stationJson != null) {
+                        try {
+                            val station = com.google.gson.Gson().fromJson(stationJson, Station::class.java)
+                            _currentStation.value = station
+                        } catch (_: Exception) {}
+                    }
+                }
             } catch (e: Exception) {
                 if (retryCount < 3) {
                     controllerFuture = null
@@ -1691,9 +1705,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     @OptIn(UnstableApi::class)
-    fun playStation(station: Station, resetErrors: Boolean = true) {
-        if (resetErrors) consecutiveErrors = 0
+    fun playStation(station: Station, playlist: List<Station>? = null) {
+        consecutiveErrors = 0
         var finalStation = station
+        
+        // Contextual parent detection for playlist resolution
+        val parentId = when (selectedNavItem.value) {
+            NavigationItem.Popular -> "popular"
+            NavigationItem.Favourites -> "favourites"
+            NavigationItem.Genres -> selectedTag.value?.let { "genre_${it.name}" }
+            NavigationItem.Countries -> selectedCountry.value?.let { "country_${it.name}" }
+            else -> null
+        }
+
         if (finalStation.countryCode.isNullOrEmpty()) {
             _allStations.value.find { it.stationUuid == station.stationUuid && !it.countryCode.isNullOrEmpty() }?.let {
                 finalStation = it
@@ -1722,27 +1746,80 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         player?.let {
             it.stop()
-            it.clearMediaItems()
-            val metaBuilder = androidx.media3.common.MediaMetadata.Builder()
-                .setTitle(finalStation.name)
-                .setArtist(finalStation.tags)
-                .setArtworkUri(artworkUri)
-            if (cachedBytes != null) {
-                metaBuilder.setArtworkData(cachedBytes, androidx.media3.common.MediaMetadata.PICTURE_TYPE_OTHER)
+            if (playlist != null && playlist.isNotEmpty()) {
+                val mediaItems = playlist.map { s -> 
+                    val artUri = if (s.favicon.isNotEmpty()) {
+                        android.net.Uri.parse(s.favicon)
+                    } else {
+                        android.net.Uri.parse("android.resource://${getApplication<android.app.Application>().packageName}/${com.toxa.pureradio.R.drawable.ic_radio_logo}")
+                    }
+                    
+                    val sJson = com.google.gson.Gson().toJson(s)
+                    val sExtras = android.os.Bundle().apply {
+                        putString("station_full_json", sJson)
+                    }
+
+                    val sId = if (parentId != null) "$parentId|station:${s.stationUuid}" else s.stationUuid
+
+                    val builder = MediaItem.Builder()
+                        .setUri(s.url)
+                        .setMediaId(sId)
+                        .setMediaMetadata(androidx.media3.common.MediaMetadata.Builder()
+                            .setTitle(s.name)
+                            .setArtist(s.tags)
+                            .setArtworkUri(artUri)
+                            .setExtras(sExtras)
+                            .setIsBrowsable(false)
+                            .setIsPlayable(true)
+                            .setMediaType(androidx.media3.common.MediaMetadata.MEDIA_TYPE_RADIO_STATION)
+                            .build())
+                    
+                    val isHls = s.url.lowercase().let { url ->
+                        url.endsWith(".m3u8") || url.endsWith(".m3u")
+                    } || (s.codec?.contains("hls", ignoreCase = true) == true)
+                    if (isHls) {
+                        builder.setMimeType(androidx.media3.common.MimeTypes.APPLICATION_M3U8)
+                    }
+                    builder.build()
+                }
+                val startIndex = playlist.indexOfFirst { it.stationUuid == finalStation.stationUuid }.coerceAtLeast(0)
+                it.setMediaItems(mediaItems, startIndex, 0L)
+            } else {
+                val sJson = com.google.gson.Gson().toJson(finalStation)
+                val sExtras = android.os.Bundle().apply {
+                    putString("station_full_json", sJson)
+                }
+
+                val metaBuilder = androidx.media3.common.MediaMetadata.Builder()
+                    .setTitle(finalStation.name)
+                    .setArtist(finalStation.tags)
+                    .setArtworkUri(artworkUri)
+                    .setExtras(sExtras)
+                    .setIsBrowsable(false)
+                    .setIsPlayable(true)
+                    .setMediaType(androidx.media3.common.MediaMetadata.MEDIA_TYPE_RADIO_STATION)
+
+                if (cachedBytes != null) {
+                    metaBuilder.setArtworkData(cachedBytes, androidx.media3.common.MediaMetadata.PICTURE_TYPE_OTHER)
+                }
+                
+                val sId = if (parentId != null) "$parentId|station:${finalStation.stationUuid}" else finalStation.stationUuid
+                
+                val mediaItemBuilder = MediaItem.Builder()
+                    .setUri(finalStation.url)
+                    .setMediaId(sId)
+                    .setMediaMetadata(metaBuilder.build())
+                
+                val isHls = finalStation.url.lowercase().let { url ->
+                    url.endsWith(".m3u8") || url.endsWith(".m3u")
+                } || (finalStation.codec?.contains("hls", ignoreCase = true) == true)
+                if (isHls) {
+                    mediaItemBuilder.setMimeType(androidx.media3.common.MimeTypes.APPLICATION_M3U8)
+                }
+                
+                it.setMediaItem(mediaItemBuilder.build())
             }
-            val mediaItemBuilder = MediaItem.Builder()
-                .setUri(finalStation.url)
-                .setMediaId(finalStation.stationUuid)
-                .setMediaMetadata(metaBuilder.build())
-            
-            val isHls = finalStation.url.lowercase().let { url ->
-                url.endsWith(".m3u8") || url.endsWith(".m3u")
-            } || (finalStation.codec?.contains("hls", ignoreCase = true) == true)
-            if (isHls) {
-                mediaItemBuilder.setMimeType(androidx.media3.common.MimeTypes.APPLICATION_M3U8)
-            }
-            
-            it.setMediaItem(mediaItemBuilder.build())
+
             it.prepare()
             it.play()
             _isPlaying.value = true
@@ -1769,57 +1846,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun playNext(isAuto: Boolean = false) {
-        val current = _currentStation.value ?: return
-        val activeList = _stations.value
-        val indexInActive = activeList.indexOfFirst { it.stationUuid == current.stationUuid }
-        
-        val list = if (indexInActive != -1) activeList
-        else if (_selectedNavItem.value == NavigationItem.Home && 
-                 _visibleGenres.value.isNotEmpty() && 
-                 _selectedTag.value == null && 
-                 _selectedCountry.value == null) {
-            val bitrates = _selectedBitrates.value
-            _genreGroups.value.flatMap { group ->
-                group.stations.filter { matchesBitrateFilter(it, bitrates) }
-            }.distinctBy { it.stationUuid }
-        } else _stations.value
-        
-        if (list.isEmpty()) return
-
-        if (list.size == 1 && list[0].stationUuid == current.stationUuid) {
-            _error.value = str(R.string.error_station_unavailable)
-            stopPlayback()
-            return
-        }
-
-        val index = list.indexOfFirst { it.stationUuid == current.stationUuid }
-        if (index != -1) {
-            val nextIndex = (index + 1) % list.size
-            playStation(list[nextIndex], !isAuto)
+        player?.let {
+            if (it.hasNextMediaItem()) {
+                it.seekToNextMediaItem()
+            } else {
+                it.seekToDefaultPosition(0)
+            }
         }
     }
 
     fun playPrevious() {
-        val current = _currentStation.value ?: return
-        val activeList = _stations.value
-        val indexInActive = activeList.indexOfFirst { it.stationUuid == current.stationUuid }
-        
-        val list = if (indexInActive != -1) activeList
-        else if (_selectedNavItem.value == NavigationItem.Home && 
-                 _visibleGenres.value.isNotEmpty() && 
-                 _selectedTag.value == null && 
-                 _selectedCountry.value == null) {
-            val bitrates = _selectedBitrates.value
-            _genreGroups.value.flatMap { group ->
-                group.stations.filter { matchesBitrateFilter(it, bitrates) }
-            }.distinctBy { it.stationUuid }
-        } else _stations.value
-
-        if (list.isEmpty()) return
-        val index = list.indexOfFirst { it.stationUuid == current.stationUuid }
-        if (index != -1) {
-            val prevIndex = if (index - 1 < 0) list.size - 1 else index - 1
-            playStation(list[prevIndex])
+        player?.let {
+            if (it.hasPreviousMediaItem()) {
+                it.seekToPreviousMediaItem()
+            } else {
+                it.seekToDefaultPosition(it.mediaItemCount - 1)
+            }
         }
     }
 

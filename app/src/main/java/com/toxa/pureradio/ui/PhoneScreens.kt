@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -84,6 +85,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
@@ -117,6 +119,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.media3.common.util.UnstableApi
@@ -497,16 +500,19 @@ fun PhoneHomeScreen(
         val isDeepDive = selectedTag != null || selectedCountry != null
 
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = if (isDeepDive) FontWeight.Bold else FontWeight.Medium,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = if (isDeepDive) FontWeight.Black else FontWeight.ExtraBold,
                 modifier = Modifier.weight(1f),
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
+                letterSpacing = if (isDeepDive) 0.sp else 1.sp
             )
         }
 
@@ -601,7 +607,7 @@ fun PhoneStationGrid(
                 station = station,
                 isFavorite = favorites.contains(station.stationUuid),
                 isCurrent = currentStation?.stationUuid == station.stationUuid,
-                onClick = { viewModel.playStation(station) },
+                onClick = { viewModel.playStation(station, stations) },
                 onLongClick = { onLongClick(station) }
             )
         }
@@ -641,26 +647,30 @@ fun PhoneStationCard(
                 onClick = onClick,
                 onLongClick = onLongClick
             ),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isCurrent) MaterialTheme.colorScheme.primaryContainer
-                            else MaterialTheme.colorScheme.surfaceVariant
-        )
+            containerColor = if (isCurrent) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+        ),
+        border = if (isCurrent) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
             modifier = Modifier.padding(12.dp).fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Box(contentAlignment = Alignment.Center) {
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(top = 4.dp)) {
                 Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.size(72.dp),
-                    color = Color.White.copy(alpha = 0.05f)
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.size(80.dp),
+                    color = Color.White.copy(alpha = 0.08f),
+                    shadowElevation = 4.dp
                 ) {
                     AsyncImage(
                         model = if (station.favicon.isNotEmpty()) station.favicon else R.drawable.ic_radio_logo,
                         contentDescription = null,
-                        modifier = Modifier.fillMaxSize().padding(8.dp),
+                        modifier = Modifier.fillMaxSize().padding(12.dp),
                         contentScale = ContentScale.Fit,
                         error = coil.compose.rememberAsyncImagePainter(R.drawable.ic_radio_logo)
                     )
@@ -668,9 +678,14 @@ fun PhoneStationCard(
                 val code = station.countryCode?.trim()?.lowercase()
                 if (!code.isNullOrEmpty() && code.length == 2) {
                     AsyncImage(
-                        model = "https://flagcdn.com/w40/$code.png",
+                        model = "https://flagcdn.com/w80/$code.png",
                         contentDescription = null,
-                        modifier = Modifier.size(18.dp).align(Alignment.TopStart),
+                        modifier = Modifier
+                            .size(24.dp)
+                            .align(Alignment.TopStart)
+                            .offset(x = (-8).dp, y = (-8).dp)
+                            .background(Color.Black.copy(alpha = 0.2f), CircleShape)
+                            .padding(2.dp),
                         contentScale = ContentScale.Fit
                     )
                 }
@@ -678,41 +693,56 @@ fun PhoneStationCard(
                     Icon(
                         Icons.Default.Favorite,
                         contentDescription = null,
-                        modifier = Modifier.size(16.dp).align(Alignment.TopEnd),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
-                if (isCurrent) {
-                    Icon(
-                        Icons.Default.GraphicEq,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp).align(Alignment.BottomEnd),
+                        modifier = Modifier
+                            .size(18.dp)
+                            .align(Alignment.TopEnd)
+                            .offset(x = 8.dp, y = (-8).dp),
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = station.name,
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
-                textAlign = TextAlign.Center
-            )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    Icons.Default.Favorite,
-                    contentDescription = null,
-                    modifier = Modifier.size(12.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
+            
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = station.votes.toString(),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    text = station.name,
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    fontWeight = if (isCurrent) FontWeight.ExtraBold else FontWeight.Bold,
+                    textAlign = TextAlign.Center
                 )
+                if (isCurrent) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.GraphicEq,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "LIVE",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                } else {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.Favorite,
+                            contentDescription = null,
+                            modifier = Modifier.size(12.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = station.votes.toString(),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        )
+                    }
+                }
             }
         }
     }
@@ -760,7 +790,9 @@ fun PhoneGenreGroupCard(group: GenreGroup, onClick: () -> Unit, onLongClick: (()
                 onClick = onClick,
                 onLongClick = onLongClick
             ),
-        colors = CardDefaults.cardColors(containerColor = getPhoneGenreColor(group.genreName))
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = getPhoneGenreColor(group.genreName)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             AsyncImage(
@@ -768,35 +800,44 @@ fun PhoneGenreGroupCard(group: GenreGroup, onClick: () -> Unit, onLongClick: (()
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
-                alpha = 0.3f
+                alpha = 0.45f
             )
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
                         Brush.verticalGradient(
-                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f))
+                            colors = listOf(
+                                Color.Black.copy(alpha = 0.1f),
+                                Color.Black.copy(alpha = 0.8f)
+                            )
                         )
                     )
             )
             Column(
-                modifier = Modifier.fillMaxSize().padding(12.dp),
+                modifier = Modifier.fillMaxSize().padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+                verticalArrangement = Arrangement.Bottom
             ) {
                 Text(
                     text = group.genreName,
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.Black,
                     color = Color.White,
                     textAlign = TextAlign.Center
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "${group.filteredCount} / ${group.totalStations}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.White.copy(alpha = 0.8f)
-                )
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
+                ) {
+                    Text(
+                        text = "${group.filteredCount} / ${group.totalStations}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                    )
+                }
             }
         }
     }
@@ -804,9 +845,9 @@ fun PhoneGenreGroupCard(group: GenreGroup, onClick: () -> Unit, onLongClick: (()
 
 fun getPhoneGenreColor(genre: String): Color {
     val hash = genre.hashCode()
-    val r = (Math.abs(hash) % 100) + 20
-    val g = (Math.abs(hash shr 8) % 100) + 20
-    val b = (Math.abs(hash shr 16) % 100) + 20
+    val r = (Math.abs(hash) % 60) + 10
+    val g = (Math.abs(hash shr 8) % 80) + 20
+    val b = (Math.abs(hash shr 16) % 120) + 80
     return Color(r, g, b)
 }
 
@@ -856,9 +897,10 @@ fun PhoneStationListScreen(
     Column(modifier = Modifier.fillMaxSize()) {
         Text(
             text = title,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Black,
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
+            letterSpacing = 1.sp
         )
         Box(modifier = Modifier.weight(1f)) {
             PhoneStationGrid(
@@ -1055,7 +1097,9 @@ fun PhoneGenresScreen(
     if (selectedTag != null) {
         Column(modifier = Modifier.fillMaxSize()) {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = { viewModel.selectTag(null) }) {
@@ -1063,8 +1107,8 @@ fun PhoneGenresScreen(
                 }
                 Text(
                     text = selectedTag.name.lowercase().split(" ").joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } },
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Black,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -1919,78 +1963,69 @@ fun PhoneNowPlayingBar(viewModel: MainViewModel, onClick: () -> Unit = {}) {
     val isPlaying by viewModel.isPlaying.collectAsState()
     val mediaMetadata by viewModel.mediaMetadata.collectAsState()
     val playbackTime by viewModel.playbackTime.collectAsState()
-    val playbackDuration by viewModel.playbackDuration.collectAsState()
-    val audioFormat by viewModel.audioFormat.collectAsState()
 
     currentStation?.let { station ->
         Surface(
-            tonalElevation = 8.dp,
-            shadowElevation = 8.dp,
+            tonalElevation = 12.dp,
+            shadowElevation = 12.dp,
             modifier = Modifier
+                .padding(horizontal = 12.dp, vertical = 8.dp)
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .clickable { onClick() }
+                .height(72.dp)
+                .clickable { onClick() },
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surfaceColorAtElevation(8.dp),
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
         ) {
             Row(
                 modifier = Modifier
-                    .padding(horizontal = 8.dp)
-                    .fillMaxWidth()
-                    .height(64.dp),
+                    .padding(horizontal = 12.dp)
+                    .fillMaxSize(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                AsyncImage(
-                    model = if (station.favicon.isNotEmpty()) station.favicon else R.drawable.ic_radio_logo,
-                    contentDescription = null,
-                    modifier = Modifier.size(48.dp).padding(4.dp),
-                    contentScale = ContentScale.Fit
-                )
-                Column(modifier = Modifier.weight(1f).padding(horizontal = 8.dp)) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.size(48.dp),
+                    color = Color.White.copy(alpha = 0.1f)
+                ) {
+                    AsyncImage(
+                        model = if (station.favicon.isNotEmpty()) station.favicon else R.drawable.ic_radio_logo,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize().padding(6.dp),
+                        contentScale = ContentScale.Fit
+                    )
+                }
+                Column(modifier = Modifier.weight(1f).padding(horizontal = 12.dp)) {
                     val title = if (!mediaMetadata?.title.isNullOrEmpty()) mediaMetadata?.title.toString() else station.name
                     Text(
                         text = title,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = station.name,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false)
-                        )
-                        if (!mediaMetadata?.artist.isNullOrEmpty()) {
-                            Text(
-                                text = " \u2022 ${mediaMetadata?.artist}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-                }
-                val timeMinutes = (playbackTime / 1000) / 60
-                val timeSeconds = (playbackTime / 1000) % 60
-                Text(
-                    text = String.format(Locale.getDefault(), "%02d:%02d", timeMinutes, timeSeconds),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                IconButton(onClick = { viewModel.playPrevious() }) {
-                    Icon(Icons.Default.SkipPrevious, contentDescription = stringResource(R.string.previous_desc))
-                }
-                IconButton(onClick = { viewModel.togglePlayPause() }) {
-                    Icon(
-                        if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = if (isPlaying) stringResource(R.string.pause_desc) else stringResource(R.string.play_desc),
-                        tint = MaterialTheme.colorScheme.primary
+                    Text(
+                        text = station.name,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
-                IconButton(onClick = { viewModel.playNext() }) {
-                    Icon(Icons.Default.SkipNext, contentDescription = stringResource(R.string.next_desc))
+                
+                IconButton(
+                    onClick = { viewModel.togglePlayPause() },
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
+                ) {
+                    Icon(
+                        if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(28.dp)
+                    )
                 }
             }
         }

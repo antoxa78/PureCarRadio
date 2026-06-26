@@ -6,66 +6,57 @@
 
     <!-- Background -->
     <path
-        android:fillColor="#1A1614"
+        android:fillColor="#0056D2"
         android:pathData="M0,0h320v180h-320z"/>
 
-    <!-- Decorative Wood Panel Side -->
-    <path
-        android:fillColor="#3E2723"
-        android:pathData="M0,0h40v180h-40z"/>
-    <path
-        android:fillColor="#3E2723"
-        android:pathData="M280,0h40v180h-40z"/>
-
-    <!-- Radio Logo Scaled and Centered -->
+    <!-- Radio Icon Group Centered -->
     <group
         android:translateX="115"
         android:translateY="45"
-        android:scaleX="3.75"
-        android:scaleY="3.75">
-        <!-- Wood Body -->
+        android:scaleX="0.9"
+        android:scaleY="0.9">
+
+        <!-- Antenna -->
         <path
-            android:fillColor="#5D4037"
-            android:pathData="M2,6c0,-1.1 0.9,-2 2,-2h16c1.1,0 2,0.9 2,2v12c0,1.1 -0.9,2 -2,2h-16c-1.1,0 -2,-0.9 -2,-2v-12z"/>
-        <!-- Top rounded edge -->
+            android:fillColor="#FFFFFF"
+            android:pathData="M70,5l2,2L28,32l-2,-2z"/>
         <path
-            android:fillColor="#4E342E"
-            android:pathData="M2,6c0,-1.1 0.9,-2 2,-2h16c1.1,0 2,0.9 2,2v2h-20v-2z"/>
-        <!-- Speaker Grill -->
+            android:fillColor="#FFFFFF"
+            android:pathData="M72,7m-3,0a3,3 0,1 1,6 0a3,3 0,1 1,-6 0"/>
+
+        <!-- Radio Body -->
         <path
-            android:fillColor="#8D6E63"
-            android:pathData="M4,7h9v10h-9z"/>
-        <!-- Grill Lines -->
+            android:fillColor="#FFFFFF"
+            android:pathData="M5,30h90c2.8,0 5,2.2 5,5v55c0,2.8 -2.2,5 -5,5h-90c-2.8,0 -5,-2.2 -5,-5v-55c0,-2.8 2.2,-5 5,-5z"/>
+
+        <!-- Tuning Display -->
         <path
-            android:fillColor="#5D4037"
-            android:pathData="M5,8h7v0.5h-7zM5,10h7v0.5h-7zM5,12h7v0.5h-7zM5,14h7v0.5h-7zM5,16h7v0.5h-7z"/>
-        <!-- Tuning Dial -->
+            android:fillColor="#0056D2"
+            android:pathData="M10,40h80v15h-80z"
+            android:alpha="0.1"/>
+
+        <!-- Red Needle -->
         <path
-            android:fillColor="#FFF9C4"
-            android:pathData="M14.5,8h5.5v5h-5.5z"/>
-        <!-- Dial Numbers area -->
+            android:fillColor="#FF3D00"
+            android:pathData="M48,40h4v15h-4z"/>
+
+        <!-- Grill/Lines -->
         <path
-            android:fillColor="#FBC02D"
-            android:pathData="M15,9h4.5v3h-4.5z"/>
-        <!-- Tuning Needle -->
+            android:fillColor="#0056D2"
+            android:pathData="M10,65h35v4h-35zM10,75h35v4h-35zM10,85h35v4h-35z"/>
+
+        <!-- Large Dial -->
         <path
-            android:fillColor="#D32F2F"
-            android:pathData="M17,9h0.5v3h-0.5z"/>
-        <!-- Knobs -->
+            android:fillColor="#0056D2"
+            android:pathData="M70,75m-12,0a12,12 0,1 1,24 0a12,12 0,1 1,-24 0"/>
         <path
-            android:fillColor="#212121"
-            android:pathData="M15,15a1.5,1.5 0,1 0,3 0a1.5,1.5 0,1 0,-3 0z"/>
-        <path
-            android:fillColor="#212121"
-            android:pathData="M18.5,15a1.5,1.5 0,1 0,3 0a1.5,1.5 0,1 0,-3 0z"/>
-        <!-- Feet -->
-        <path
-            android:fillColor="#3E2723"
-            android:pathData="M4,20h2v1h-2zM18,20h2v1h-2z"/>
+            android:fillColor="#FFFFFF"
+            android:pathData="M70,75m-5,0a5,5 0,1 1,10 0a5,5 0,1 1,-5 0"/>
     </group>
 
-    <!-- Subtle Golden Accent -->
+    <!-- Subtle White Bottom Accent -->
     <path
-        android:fillColor="#FBC02D"
+        android:fillColor="#FFFFFF"
+        android:alpha="0.2"
         android:pathData="M40,170h240v1h-240z"/>
 </vector>

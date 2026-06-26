@@ -123,8 +123,8 @@
     <string name="update_every_24h">Every 24 Hours</string>
 
     <!-- Theme descriptions -->
-    <string name="theme_retro_gold">Retro Gold</string>
-    <string name="theme_retro_gold_desc">Classic gold and wood tones</string>
+    <string name="theme_retro_gold">Vibrant Blue</string>
+    <string name="theme_retro_gold_desc">New modern blue design</string>
     <string name="theme_blue_neon">Blue Neon</string>
     <string name="theme_blue_neon_desc">Cool blue neon glow</string>
     <string name="theme_violet">Violet</string>
