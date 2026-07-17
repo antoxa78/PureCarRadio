@@ -102,6 +102,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -145,6 +146,7 @@ import com.toxa.pureradio.ui.viewmodel.MainViewModel
 import com.toxa.pureradio.ui.viewmodel.NavigationItem
 import com.toxa.pureradio.ui.viewmodel.ScreensaverMode
 import com.toxa.pureradio.ui.viewmodel.SearchMode
+import androidx.compose.ui.tooling.preview.Preview
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
@@ -1908,34 +1910,36 @@ private fun TvPlayerButton(
 
 @Composable
 fun SplashScreen() {
-    val iconAlpha = remember { androidx.compose.animation.core.Animatable(0f) }
-    val iconScale = remember { androidx.compose.animation.core.Animatable(0.4f) }
-    val glowAlpha = remember { androidx.compose.animation.core.Animatable(0f) }
-    val titleAlpha = remember { androidx.compose.animation.core.Animatable(0f) }
-    val titleScale = remember { androidx.compose.animation.core.Animatable(0.8f) }
+    val isPreview = LocalInspectionMode.current
+    val iconAlpha = remember { androidx.compose.animation.core.Animatable(if (isPreview) 1f else 0f) }
+    val iconScale = remember { androidx.compose.animation.core.Animatable(if (isPreview) 1f else 0.4f) }
+    val glowAlpha = remember { androidx.compose.animation.core.Animatable(if (isPreview) 1f else 0f) }
+    val titleAlpha = remember { androidx.compose.animation.core.Animatable(if (isPreview) 1f else 0f) }
+    val titleScale = remember { androidx.compose.animation.core.Animatable(if (isPreview) 1f else 0.8f) }
+    
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
-    val pulseGlow = infiniteTransition.animateFloat(
-        initialValue = 0.4f,
+    val pulseGlow by infiniteTransition.animateFloat(
+        initialValue = 0.5f,
         targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(1500), RepeatMode.Reverse),
+        animationSpec = infiniteRepeatable(tween(2000), RepeatMode.Reverse),
         label = "pulse"
     )
 
     LaunchedEffect(Unit) {
         launch {
-            iconAlpha.animateTo(1f, animationSpec = tween(600))
+            iconAlpha.animateTo(1f, animationSpec = tween(800, easing = LinearEasing))
         }
         launch {
-            iconScale.animateTo(1f, animationSpec = tween(800, easing = FastOutLinearInEasing))
+            iconScale.animateTo(1f, animationSpec = tween(1000, easing = FastOutLinearInEasing))
         }
         launch {
-            delay(300)
-            glowAlpha.animateTo(1f, animationSpec = tween(1000))
+            delay(400)
+            glowAlpha.animateTo(1f, animationSpec = tween(1200))
         }
         launch {
-            delay(500)
-            titleAlpha.animateTo(1f, animationSpec = tween(600))
-            titleScale.animateTo(1f, animationSpec = tween(600, easing = FastOutLinearInEasing))
+            delay(600)
+            titleAlpha.animateTo(1f, animationSpec = tween(800))
+            titleScale.animateTo(1f, animationSpec = tween(800, easing = FastOutLinearInEasing))
         }
     }
 
@@ -1944,39 +1948,57 @@ fun SplashScreen() {
             .fillMaxSize()
             .background(
                 Brush.radialGradient(
-                    colors = listOf(Color(0xFF003D9E), Color(0xFF001A3D)),
-                    center = androidx.compose.ui.geometry.Offset(x = 500f, y = 500f),
+                    colors = listOf(
+                        Color(0xFF0D1120),
+                        Color(0xFF040714)
+                    ),
+                    center = androidx.compose.ui.geometry.Offset.Infinite,
                     radius = 1500f
                 )
             ),
         contentAlignment = Alignment.Center
     ) {
+        // Retro Grain/Noise Overlay
+        Canvas(modifier = Modifier.fillMaxSize().graphicsLayer { alpha = 0.03f }) {
+            val random = java.util.Random()
+            for (i in 0..1000) {
+                drawCircle(
+                    color = Color.White,
+                    radius = 1.dp.toPx(),
+                    center = androidx.compose.ui.geometry.Offset(
+                        random.nextFloat() * size.width,
+                        random.nextFloat() * size.height
+                    )
+                )
+            }
+        }
+
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Box(contentAlignment = Alignment.Center) {
-                // Background Glow Layers
-                Canvas(modifier = Modifier.size(300.dp)) {
-                    drawCircle(
-                        color = Color.White,
-                        radius = size.minDimension / 2 * pulseGlow.value,
-                        alpha = 0.05f * glowAlpha.value
-                    )
-                }
+                // Pulsating Background Glow
                 Box(
                     modifier = Modifier
-                        .size(200.dp)
+                        .size(300.dp)
                         .graphicsLayer { 
-                            alpha = 0.15f * glowAlpha.value * pulseGlow.value
-                            scaleX = 1f + 0.1f * pulseGlow.value
-                            scaleY = 1f + 0.1f * pulseGlow.value
+                            alpha = glowAlpha.value * pulseGlow * 0.4f
+                            scaleX = iconScale.value * 1.2f
+                            scaleY = iconScale.value * 1.2f
                         }
-                        .background(Color.White, CircleShape)
+                        .background(
+                            Brush.radialGradient(
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                                    Color.Transparent
+                                )
+                            )
+                        )
                 )
-                
+
                 Icon(
-                    painter = androidx.compose.ui.res.painterResource(R.drawable.ic_radio_logo),
+                    painter = androidx.compose.ui.res.painterResource(R.mipmap.ic_launcher_foreground),
                     contentDescription = "Pure Radio",
                     modifier = Modifier
-                        .size(160.dp)
+                        .size(260.dp)
                         .graphicsLayer { 
                             alpha = iconAlpha.value
                             scaleX = iconScale.value
@@ -1985,7 +2007,9 @@ fun SplashScreen() {
                     tint = Color.Unspecified
                 )
             }
-            Spacer(modifier = Modifier.height(48.dp))
+            
+            Spacer(modifier = Modifier.height(40.dp))
+            
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.graphicsLayer { 
@@ -1995,22 +2019,43 @@ fun SplashScreen() {
                 }
             ) {
                 Text(
-                    text = "Pure Radio",
+                    text = "PURE RADIO",
                     style = MaterialTheme.typography.displayMedium,
                     fontWeight = FontWeight.Black,
                     color = Color.White,
-                    letterSpacing = 4.sp
+                    letterSpacing = 8.sp,
+                    modifier = Modifier.graphicsLayer {
+                        shadowElevation = 10f
+                    }
                 )
-                Text(
-                    text = androidx.compose.ui.res.stringResource(R.string.splash_tagline).uppercase(),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = Color.White.copy(alpha = 0.6f),
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 2.sp,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
+                
+                Box(
+                    modifier = Modifier
+                        .padding(top = 12.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(4.dp)
+                        )
+                ) {
+                    Text(
+                        text = androidx.compose.ui.res.stringResource(R.string.splash_tagline).uppercase(),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 3.sp,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                    )
+                }
             }
         }
+    }
+}
+
+@Preview(device = "id:tv_1080p", showBackground = true)
+@Composable
+fun SplashScreenPreview() {
+    MaterialTheme {
+        SplashScreen()
     }
 }
 

@@ -5,7 +5,8 @@ All notable changes to this project will be documented in this file.
 ## [1.5.1] - 2026-07-17
 
 ### Added
-- **Universal Branding Update**: New high-contrast application icon, splash screen, and placeholder assets for a unified "Pure Radio" design.
+- **Enhanced Splash Screen**: New custom splash screen with radial gradients, a pulsating logo glow, and a retro grain texture for a more premium experience.
+- **Universal Branding Update**: New high-contrast application icon and placeholder assets for a unified "Pure Radio" design.
 - **Native Playlist Support**: Full integration with Media3 native playlists. Skip (Next/Previous) now works flawlessly on car displays, Bluetooth speakers, and notification controls.
 - **Enhanced Car Library**: Expanded car display menu to include "Recent", "Countries", and a mirrored "Home Screen" category for personalized browsing.
 - **Native Car Search**: Enabled native system search support for Android Auto and Automotive head units.

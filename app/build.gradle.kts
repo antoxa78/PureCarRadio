@@ -11,7 +11,7 @@ android {
         applicationId = "com.toxa.pureradio"
         minSdk = 29
         targetSdk = 36
-        versionCode = 14
+        versionCode = 15
         versionName = "1.5.1"
 
         buildConfigField("Long", "BUILD_TIME", "${System.currentTimeMillis()}L")
@@ -54,6 +54,7 @@ android {
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.core.splashscreen)
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
