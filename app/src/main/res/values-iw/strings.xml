@@ -17,6 +17,8 @@
     <string name="settings_home_genres">תוכן בעמוד הבית</string>
     <string name="settings_quit_confirmation">אישור יציאה</string>
     <string name="settings_playback">השמעה</string>
+    <string name="settings_waveform">אנליזה של גלי קול</string>
+    <string name="settings_waveform_desc">בחרו סגנון ויזואליזציה</string>
     <string name="settings_screensaver">שומר מסך</string>
     <string name="settings_audio_passthrough">העברת שמע</string>
     <string name="settings_resume_last">המשך תחנה אחרונה</string>
@@ -125,6 +127,8 @@
     <!-- Theme names/descriptions -->
     <string name="theme_retro_gold">זהב רטרו</string>
     <string name="theme_retro_gold_desc">קלאסי: זהב ועץ</string>
+    <string name="theme_vibrant_blue">כחול תוסס</string>
+    <string name="theme_vibrant_blue_desc">עיצוב כחול מודרני</string>
     <string name="theme_blue_neon">ניאון כחול</string>
     <string name="theme_blue_neon_desc">זוהר ניאון כחול</string>
     <string name="theme_violet">סגול</string>
@@ -174,8 +178,10 @@
     <!-- Screensaver hint -->
     <string name="press_any_key_to_return">לחצו על מקש כלשהו לחזרה</string>
 
-    <!-- Splash -->
     <string name="splash_tagline">אלפי תחנות, בחינם</string>
 
->>>>>>> 1162dbf (Restore project)
+    <string name="waveform_type_classic">פסים קלאסיים</string>
+    <string name="waveform_type_mirrored">פסים במראה</string>
+    <string name="waveform_type_dots">פסים נקודתיים</string>
+    <string name="waveform_type_dots_hold">נקודות עם החזקת שיא</string>
 </resources>

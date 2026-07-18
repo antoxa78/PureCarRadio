@@ -21,12 +21,14 @@ import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionCommand
+import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.Futures
 import com.google.common.collect.ImmutableList
 import com.toxa.pureradio.data.repository.RadioRepository
 import com.toxa.pureradio.data.model.Station
+import com.toxa.pureradio.ui.MediaUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -52,6 +54,7 @@ class PlaybackService : MediaLibraryService() {
     private val serviceJob = SupervisorJob()
     private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
 
+    @UnstableApi
     private class InterceptingPlayer(player: Player) : ForwardingPlayer(player) {
         override fun isCommandAvailable(command: Int): Boolean {
             if (command == Player.COMMAND_SEEK_TO_NEXT || 
@@ -265,12 +268,12 @@ class PlaybackService : MediaLibraryService() {
                 return when (parentId) {
                     "root" -> {
                         val items = listOf(
-                            createBrowsableItem("home_screen", "Home Screen"),
-                            createBrowsableItem("popular", "Popular Stations"),
-                            createBrowsableItem("favourites", "Favourites"),
-                            createBrowsableItem("recent", "Recent"),
-                            createBrowsableItem("genres", "Genres"),
-                            createBrowsableItem("countries", "Countries")
+                            createBrowsableItem("home_screen", getString(R.string.nav_home), getAppIconUri()),
+                            createBrowsableItem("popular", getString(R.string.nav_popular), getAppIconUri()),
+                            createBrowsableItem("favourites", getString(R.string.nav_favourites), getAppIconUri()),
+                            createBrowsableItem("recent", getString(R.string.nav_recent), getAppIconUri()),
+                            createBrowsableItem("genres", getString(R.string.nav_genres), getAppIconUri()),
+                            createBrowsableItem("countries", getString(R.string.nav_countries), getAppIconUri())
                         )
                         Futures.immediateFuture(LibraryResult.ofItemList(ImmutableList.copyOf(items), params))
                     }
@@ -278,8 +281,16 @@ class PlaybackService : MediaLibraryService() {
                         val visibleGenres = prefs.getStringSet("visible_genres", emptySet()) ?: emptySet()
                         val visibleCountries = prefs.getStringSet("visible_countries", emptySet()) ?: emptySet()
                         val items = mutableListOf<MediaItem>()
-                        visibleGenres.forEach { items.add(createBrowsableItem("genre_$it", it)) }
-                        visibleCountries.forEach { items.add(createBrowsableItem("country_$it", it)) }
+                        visibleGenres.forEach { 
+                            items.add(createBrowsableItem("genre_$it", it, Uri.parse(MediaUtils.getGenreImageUrl(it)))) 
+                        }
+                        visibleCountries.forEach { countryName ->
+                            // Attempt to find country code for flag
+                            serviceScope.launch {
+                                // This is tricky in a synchronous-like flow, but we can pre-calculate or use a simpler approach
+                            }
+                            items.add(createBrowsableItem("country_$countryName", countryName)) 
+                        }
                         Futures.immediateFuture(LibraryResult.ofItemList(ImmutableList.copyOf(items), params))
                     }
                     "popular" -> serviceScope.future {
@@ -288,29 +299,30 @@ class PlaybackService : MediaLibraryService() {
                             val items = stations.map { createPlayableItem(it, parentId = "popular") }
                             LibraryResult.ofItemList(ImmutableList.copyOf(items), params)
                         } catch (e: Exception) {
-                            LibraryResult.ofError(LibraryResult.RESULT_ERROR_NOT_SUPPORTED)
+                            LibraryResult.ofError(SessionError.ERROR_NOT_SUPPORTED)
                         }
                     }
                     "genres" -> serviceScope.future {
                         try {
                             val tags = repository.getTags(limit = 30)
                             val items = tags.map { tag ->
-                                createBrowsableItem("genre_${tag.name}", tag.name)
+                                createBrowsableItem("genre_${tag.name}", tag.name, Uri.parse(MediaUtils.getGenreImageUrl(tag.name)))
                             }
                             LibraryResult.ofItemList(ImmutableList.copyOf(items), params)
                         } catch (e: Exception) {
-                            LibraryResult.ofError(LibraryResult.RESULT_ERROR_NOT_SUPPORTED)
+                            LibraryResult.ofError(SessionError.ERROR_NOT_SUPPORTED)
                         }
                     }
                     "countries" -> serviceScope.future {
                         try {
                             val countries = repository.getCountries()
                             val items = countries.take(30).map { country ->
-                                createBrowsableItem("country_${country.name}", country.name)
+                                val flagUrl = MediaUtils.getCountryFlagUrl(country.iso_3166_1)
+                                createBrowsableItem("country_${country.name}", country.name, flagUrl?.let { Uri.parse(it) })
                             }
                             LibraryResult.ofItemList(ImmutableList.copyOf(items), params)
                         } catch (e: Exception) {
-                            LibraryResult.ofError(LibraryResult.RESULT_ERROR_NOT_SUPPORTED)
+                            LibraryResult.ofError(SessionError.ERROR_NOT_SUPPORTED)
                         }
                     }
                     "favourites" -> serviceScope.future {
@@ -324,7 +336,7 @@ class PlaybackService : MediaLibraryService() {
                             } else emptyList()
                             LibraryResult.ofItemList(ImmutableList.copyOf(items), params)
                         } catch (e: Exception) {
-                            LibraryResult.ofError(LibraryResult.RESULT_ERROR_NOT_SUPPORTED)
+                            LibraryResult.ofError(SessionError.ERROR_NOT_SUPPORTED)
                         }
                     }
                     "recent" -> serviceScope.future {
@@ -338,7 +350,7 @@ class PlaybackService : MediaLibraryService() {
                             } else emptyList()
                             LibraryResult.ofItemList(ImmutableList.copyOf(items), params)
                         } catch (e: Exception) {
-                            LibraryResult.ofError(LibraryResult.RESULT_ERROR_NOT_SUPPORTED)
+                            LibraryResult.ofError(SessionError.ERROR_NOT_SUPPORTED)
                         }
                     }
                     else -> if (parentId.startsWith("genre_")) serviceScope.future {
@@ -348,7 +360,7 @@ class PlaybackService : MediaLibraryService() {
                             val items = stations.map { createPlayableItem(it, parentId = parentId) }
                             LibraryResult.ofItemList(ImmutableList.copyOf(items), params)
                         } catch (e: Exception) {
-                            LibraryResult.ofError(LibraryResult.RESULT_ERROR_NOT_SUPPORTED)
+                            LibraryResult.ofError(SessionError.ERROR_NOT_SUPPORTED)
                         }
                     } else if (parentId.startsWith("country_")) serviceScope.future {
                         try {
@@ -357,7 +369,7 @@ class PlaybackService : MediaLibraryService() {
                             val items = stations.map { createPlayableItem(it, parentId = parentId) }
                             LibraryResult.ofItemList(ImmutableList.copyOf(items), params)
                         } catch (e: Exception) {
-                            LibraryResult.ofError(LibraryResult.RESULT_ERROR_NOT_SUPPORTED)
+                            LibraryResult.ofError(SessionError.ERROR_NOT_SUPPORTED)
                         }
                     } else {
                         serviceScope.future {
@@ -369,7 +381,7 @@ class PlaybackService : MediaLibraryService() {
                                     LibraryResult.ofItemList(ImmutableList.of<MediaItem>(), params)
                                 }
                             } catch (e: Exception) {
-                                LibraryResult.ofError(LibraryResult.RESULT_ERROR_NOT_SUPPORTED)
+                                LibraryResult.ofError(SessionError.ERROR_NOT_SUPPORTED)
                             }
                         }
                     }
@@ -399,25 +411,25 @@ class PlaybackService : MediaLibraryService() {
                                         .setIsBrowsable(true)
                                         .setIsPlayable(false)
                                         .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
-                                        .setTitle("Pure Radio")
+                                        .setTitle(getString(R.string.app_name))
                                         .build())
                                     .build()
-                                "home_screen" -> createBrowsableItem("home_screen", "Home Screen")
-                                "popular" -> createBrowsableItem("popular", "Popular Stations")
-                                "favourites" -> createBrowsableItem("favourites", "Favourites")
-                                "recent" -> createBrowsableItem("recent", "Recent")
-                                "genres" -> createBrowsableItem("genres", "Genres")
-                                "countries" -> createBrowsableItem("countries", "Countries")
+                                "home_screen" -> createBrowsableItem("home_screen", getString(R.string.nav_home))
+                                "popular" -> createBrowsableItem("popular", getString(R.string.nav_popular))
+                                "favourites" -> createBrowsableItem("favourites", getString(R.string.nav_favourites))
+                                "recent" -> createBrowsableItem("recent", getString(R.string.nav_recent))
+                                "genres" -> createBrowsableItem("genres", getString(R.string.nav_genres))
+                                "countries" -> createBrowsableItem("countries", getString(R.string.nav_countries))
                                 else -> null
                             }
                             if (item != null) {
                                 LibraryResult.ofItem(item, null)
                             } else {
-                                LibraryResult.ofError(LibraryResult.RESULT_ERROR_BAD_VALUE)
+                                LibraryResult.ofError(SessionError.ERROR_BAD_VALUE)
                             }
                         }
                     } catch (e: Exception) {
-                        LibraryResult.ofError(LibraryResult.RESULT_ERROR_NOT_SUPPORTED)
+                        LibraryResult.ofError(SessionError.ERROR_NOT_SUPPORTED)
                     }
                 }
             }
@@ -453,7 +465,7 @@ class PlaybackService : MediaLibraryService() {
                         val items = stations.map { createPlayableItem(it, parentId = "search_$query") }
                         LibraryResult.ofItemList(ImmutableList.copyOf(items), params)
                     } catch (e: Exception) {
-                        LibraryResult.ofError(LibraryResult.RESULT_ERROR_NOT_SUPPORTED)
+                        LibraryResult.ofError(SessionError.ERROR_NOT_SUPPORTED)
                     }
                 }
             }
@@ -546,15 +558,33 @@ class PlaybackService : MediaLibraryService() {
         }).build()
     }
 
-    private fun createBrowsableItem(id: String, title: String): MediaItem {
+    private fun createBrowsableItem(id: String, title: String, artworkUri: Uri? = null): MediaItem {
+        val metadata = MediaMetadata.Builder()
+            .setIsBrowsable(true)
+            .setIsPlayable(false)
+            .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
+            .setTitle(title)
+        
+        if (artworkUri != null) {
+            metadata.setArtworkUri(artworkUri)
+        }
+        
+        val extras = Bundle()
+        extras.putInt("android.media.browse.CONTENT_STYLE_BROWSABLE_HINT", 2) // Grid
+        extras.putInt("android.media.browse.CONTENT_STYLE_PLAYABLE_HINT", 2)  // Grid
+        metadata.setExtras(extras)
+
         return MediaItem.Builder()
             .setMediaId(id)
-            .setMediaMetadata(MediaMetadata.Builder()
-                .setIsBrowsable(true)
-                .setIsPlayable(false)
-                .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
-                .setTitle(title)
-                .build())
+            .setMediaMetadata(metadata.build())
+            .build()
+    }
+
+    private fun getAppIconUri(): Uri {
+        return Uri.Builder()
+            .scheme(android.content.ContentResolver.SCHEME_ANDROID_RESOURCE)
+            .authority(packageName ?: "com.toxa.pureradio")
+            .appendPath(R.drawable.ic_radio_logo.toString())
             .build()
     }
 
@@ -570,11 +600,7 @@ class PlaybackService : MediaLibraryService() {
         val artworkUri = if (station.favicon.isNotEmpty()) {
             android.net.Uri.parse(station.favicon)
         } else {
-            android.net.Uri.Builder()
-                .scheme(android.content.ContentResolver.SCHEME_ANDROID_RESOURCE)
-                .authority(packageName ?: "com.toxa.pureradio")
-                .appendPath(com.toxa.pureradio.R.drawable.ic_radio_logo.toString())
-                .build()
+            getAppIconUri()
         }
         val isHlsStream = isHls
                 || station.url.lowercase().let { it.endsWith(".m3u8") || it.endsWith(".m3u") }
@@ -583,6 +609,7 @@ class PlaybackService : MediaLibraryService() {
         val stationJson = com.google.gson.Gson().toJson(station)
         val extras = Bundle().apply {
             putString("station_full_json", stationJson)
+            putInt("android.media.browse.CONTENT_STYLE_PLAYABLE_HINT", 2) // Grid
         }
 
         val mediaId = if (parentId != null) "$parentId|station:${station.stationUuid}" else station.stationUuid

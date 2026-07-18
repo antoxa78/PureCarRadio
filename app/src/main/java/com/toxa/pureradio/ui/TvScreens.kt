@@ -524,18 +524,18 @@ fun TvMainScreen(viewModel: MainViewModel) {
                                         key("home_groups") {
                                             GenreGroupGrid(
                                                 groups = genreGroups,
-                                                onGroupClick = { name ->
-                                                    val group = genreGroups.find { it.genreName == name }
-                                                    if (group?.isCountry == true) {
-                                                        val country = countries.find { it.name == name }
-                                                            ?: Country(name = name, iso_3166_1 = "", stationcount = 0)
-                                                        viewModel.selectCountry(country)
-                                                    } else {
-                                                        val tag = tags.find { it.name == name }
-                                                            ?: Tag(name = name, stationcount = group?.totalStations ?: 0)
-                                                        viewModel.selectTag(tag)
-                                                    }
-                                                },
+                onGroupClick = { name ->
+                    val group = genreGroups.find { it.genreName == name }
+                    if (group?.isCountry == true) {
+                        val country = countries.find { it.name == name }
+                            ?: Country(name = name, iso_3166_1 = "", stationcount = 0)
+                        viewModel.selectCountry(country)
+                    } else {
+                        val tag = tags.find { it.name == name }
+                            ?: Tag(name = name, stationcount = group?.totalStations ?: 0)
+                        viewModel.selectTag(tag)
+                    }
+                },
                         onGroupLongClick = { name ->
                             val group = genreGroups.find { it.genreName == name }
                             if (group != null) {
@@ -759,6 +759,7 @@ fun TvMainScreen(viewModel: MainViewModel) {
 
         currentStation?.let { station ->
             val playbackDuration by viewModel.playbackDuration.collectAsState()
+            val waveformType by viewModel.waveformType.collectAsState()
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.BottomCenter
@@ -771,6 +772,7 @@ fun TvMainScreen(viewModel: MainViewModel) {
                     playbackDuration = playbackDuration,
                     mediaMetadata = mediaMetadata,
                     audioFormat = audioFormat,
+                    waveformType = waveformType,
                     onTogglePlay = { viewModel.togglePlayPause() },
                     onToggleFavorite = { viewModel.toggleFavorite(station) },
                     onNext = { viewModel.playNext() },
@@ -999,7 +1001,7 @@ fun TvGenreGroupCard(group: GenreGroup, onClick: () -> Unit, onLongClick: (() ->
         onLongClick = onLongClick,
         modifier = modifier.padding(8.dp).height(180.dp),
         scale = CardDefaults.scale(focusedScale = 1.1f),
-        glow = CardDefaults.glow(focusedGlow = Glow(elevationColor = getGenreColor(group.genreName).copy(alpha = 0.5f), elevation = 12.dp))
+        glow = CardDefaults.glow(focusedGlow = Glow(elevationColor = MediaUtils.getGenreColor(group.genreName).copy(alpha = 0.5f), elevation = 12.dp))
     ) { GenreGroupCardContent(group) }
 }
 
@@ -1120,8 +1122,8 @@ fun TvTagGrid(tags: List<Tag>, autoFocus: Boolean = true, onTagClick: (Tag) -> U
                     modifier = Modifier.padding(8.dp).height(180.dp).then(if (index == 0) Modifier.focusRequester(focusRequester) else Modifier),
                     scale = CardDefaults.scale(focusedScale = 1.1f)
                 ) {
-                    Box(modifier = Modifier.fillMaxSize().background(getGenreColor(tag.name))) {
-                        AsyncImage(model = getGenreImageUrl(tag.name), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop, alpha = 0.4f)
+                    Box(modifier = Modifier.fillMaxSize().background(MediaUtils.getGenreColor(tag.name))) {
+                        AsyncImage(model = MediaUtils.getGenreImageUrl(tag.name), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop, alpha = 0.4f)
                         Box(modifier = Modifier.fillMaxSize().background(Brush.verticalGradient(colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f)))))
                         Column(modifier = Modifier.fillMaxSize().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                             Text(text = tag.name.lowercase().split(" ").joinToString(" ") { it.replaceFirstChar { char -> char.uppercase() } }, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
@@ -1159,7 +1161,7 @@ fun TvCountryGrid(countries: List<Country>, autoFocus: Boolean = true, onCountry
                     modifier = Modifier.padding(8.dp).height(180.dp).then(if (index == 0) Modifier.focusRequester(focusRequester) else Modifier),
                     scale = CardDefaults.scale(focusedScale = 1.1f)
                 ) {
-                    Box(modifier = Modifier.fillMaxSize().background(getGenreColor(country.name))) {
+                    Box(modifier = Modifier.fillMaxSize().background(MediaUtils.getGenreColor(country.name))) {
                         val flagCode = country.iso_3166_1.lowercase().trim()
                         AsyncImage(model = if (flagCode.isNotEmpty()) "https://flagcdn.com/w160/$flagCode.png" else "https://images.unsplash.com/photo-1526772662000-3f88f10405ff?q=80&w=600&auto=format&fit=crop", contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop, alpha = 0.35f)
                         Box(modifier = Modifier.fillMaxSize().background(Brush.verticalGradient(colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f)))))
@@ -1231,6 +1233,7 @@ fun TvSettingsScreen(
     val quitConfirmationEnabled by viewModel.quitConfirmationEnabled.collectAsState()
     val defaultStartupCategory by viewModel.defaultStartupCategoryFlow.collectAsState()
     val appLanguage by viewModel.appLanguage.collectAsState()
+    val waveformType by viewModel.waveformType.collectAsState()
 
     val subMenuFocusRequester = remember { FocusRequester() }
     val mainMenuFocusRequester = remember { FocusRequester() }
@@ -1247,7 +1250,42 @@ fun TvSettingsScreen(
         "AppTheme" -> TvAppThemeSettings(viewModel, appTheme, subMenuFocusRequester)
         "DefaultCategory" -> TvDefaultCategorySettings(viewModel, defaultStartupCategory, subMenuFocusRequester)
         "AppLanguage" -> TvAppLanguageSettings(viewModel, appLanguage, subMenuFocusRequester)
+        "Waveform" -> TvWaveformSettings(viewModel, waveformType, subMenuFocusRequester)
         else -> TvSettingsMain(viewModel, appTheme, quitConfirmationEnabled, screensaverEnabled, screensaverTimeout, hideBroken, minTagFilter, autoUpdateInterval, audioPassthrough, resumeLastStation, defaultStartupCategory, serverStats, lastUpdate, onImportPlaylist, onExportPlaylist, onPermissionRequest, mainMenuFocusRequester)
+    }
+}
+
+@OptIn(ExperimentalTvMaterial3Api::class)
+@Composable
+fun TvWaveformSettings(viewModel: MainViewModel, currentType: com.toxa.pureradio.ui.viewmodel.WaveformType, subMenuFocusRequester: FocusRequester) {
+    LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 32.dp, end = 32.dp, top = 24.dp, bottom = 170.dp)) {
+        item {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Button(onClick = { viewModel.setSettingsSubMenu(null) }, modifier = Modifier.focusRequester(subMenuFocusRequester)) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back_desc)) }
+                Spacer(modifier = Modifier.width(16.dp))
+                Text(stringResource(R.string.settings_waveform), style = MaterialTheme.typography.headlineMedium)
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+        com.toxa.pureradio.ui.viewmodel.WaveformType.entries.forEach { type ->
+            val labelRes = when (type) {
+                com.toxa.pureradio.ui.viewmodel.WaveformType.Classic -> R.string.waveform_type_classic
+                com.toxa.pureradio.ui.viewmodel.WaveformType.Mirrored -> R.string.waveform_type_mirrored
+                com.toxa.pureradio.ui.viewmodel.WaveformType.BarsDots -> R.string.waveform_type_dots
+                com.toxa.pureradio.ui.viewmodel.WaveformType.BarDotsLevelHold -> R.string.waveform_type_dots_hold
+            }
+            item {
+                ListItem(selected = currentType == type, onClick = { viewModel.setWaveformType(type) },
+                    headlineContent = { Text(stringResource(labelRes)) },
+                    trailingContent = { if (currentType == type) Icon(Icons.Default.GraphicEq, contentDescription = null, tint = MaterialTheme.colorScheme.primary) })
+            }
+        }
+        item {
+            Spacer(modifier = Modifier.height(48.dp))
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                WaveformAnalyzer(isPlaying = true, type = currentType)
+            }
+        }
     }
 }
 
@@ -1265,7 +1303,7 @@ fun TvSettingsMain(viewModel: MainViewModel, appTheme: AppTheme, quitConfirmatio
         item {
             ListItem(selected = false, onClick = { viewModel.setSettingsSubMenu("AppTheme") }, modifier = Modifier.focusRequester(mainMenuFocusRequester),
                 headlineContent = { Text(stringResource(R.string.settings_theme)) },
-                supportingContent = { Text(stringResource(R.string.current_theme, appTheme.name)) },
+                supportingContent = { Text(stringResource(R.string.current_theme, stringResource(appTheme.labelRes))) },
                 leadingContent = { Icon(Icons.Default.TheaterComedy, contentDescription = null) },
                 trailingContent = { Icon(Icons.Default.ChevronRight, contentDescription = null) })
         }
@@ -1286,6 +1324,20 @@ fun TvSettingsMain(viewModel: MainViewModel, appTheme: AppTheme, quitConfirmatio
             ListItem(selected = false, onClick = { viewModel.setSettingsSubMenu("Screensaver") },
                 headlineContent = { Text(stringResource(R.string.settings_screensaver)) }, supportingContent = { Text(if (screensaverEnabled) stringResource(R.string.screensaver_enabled_fmt, screensaverTimeout) else stringResource(R.string.screensaver_disabled)) },
                 leadingContent = { Icon(Icons.Default.MusicVideo, contentDescription = null) },
+                trailingContent = { Icon(Icons.Default.ChevronRight, contentDescription = null) })
+        }
+        item {
+            val waveformType by viewModel.waveformType.collectAsState()
+            val waveformName = when (waveformType) {
+                com.toxa.pureradio.ui.viewmodel.WaveformType.Classic -> stringResource(R.string.waveform_type_classic)
+                com.toxa.pureradio.ui.viewmodel.WaveformType.Mirrored -> stringResource(R.string.waveform_type_mirrored)
+                com.toxa.pureradio.ui.viewmodel.WaveformType.BarsDots -> stringResource(R.string.waveform_type_dots)
+                com.toxa.pureradio.ui.viewmodel.WaveformType.BarDotsLevelHold -> stringResource(R.string.waveform_type_dots_hold)
+            }
+            ListItem(selected = false, onClick = { viewModel.setSettingsSubMenu("Waveform") },
+                headlineContent = { Text(stringResource(R.string.settings_waveform)) },
+                supportingContent = { Text(stringResource(R.string.current_value, waveformName)) },
+                leadingContent = { Icon(Icons.Default.GraphicEq, contentDescription = null) },
                 trailingContent = { Icon(Icons.Default.ChevronRight, contentDescription = null) })
             Spacer(modifier = Modifier.height(16.dp))
         }
@@ -1522,10 +1574,8 @@ fun TvAppThemeSettings(viewModel: MainViewModel, appTheme: AppTheme, subMenuFocu
             Spacer(modifier = Modifier.height(24.dp))
         }
         items(AppTheme.entries) { theme ->
-            val labelRes = when (theme) { AppTheme.RetroGold -> R.string.theme_retro_gold; AppTheme.BlueNeon -> R.string.theme_blue_neon; AppTheme.Violet -> R.string.theme_violet; AppTheme.Monochrome -> R.string.theme_monochrome; AppTheme.Forest -> R.string.theme_forest; AppTheme.Contrast -> R.string.theme_contrast; AppTheme.Black -> R.string.theme_black }
-            val descRes = when (theme) { AppTheme.RetroGold -> R.string.theme_retro_gold_desc; AppTheme.BlueNeon -> R.string.theme_blue_neon_desc; AppTheme.Violet -> R.string.theme_violet_desc; AppTheme.Monochrome -> R.string.theme_monochrome_desc; AppTheme.Forest -> R.string.theme_forest_desc; AppTheme.Contrast -> R.string.theme_contrast_desc; AppTheme.Black -> R.string.theme_black_desc }
             ListItem(selected = appTheme == theme, onClick = { viewModel.setAppTheme(theme) },
-                headlineContent = { Text(stringResource(labelRes)) }, supportingContent = { Text(stringResource(descRes)) },
+                headlineContent = { Text(stringResource(theme.labelRes)) }, supportingContent = { Text(stringResource(theme.descRes)) },
                 trailingContent = { if (appTheme == theme) Icon(Icons.Default.GraphicEq, contentDescription = null, tint = MaterialTheme.colorScheme.primary) })
         }
     }
@@ -1676,7 +1726,8 @@ fun TvScreensaver(viewModel: MainViewModel) {
                         val timeStr = String.format(Locale.getDefault(), "%02d:%02d", (playbackTime / 1000) / 60, (playbackTime / 1000) % 60)
                         Text(text = if (isPlaying) "Playing \u2022 $timeStr" else "Paused \u2022 $timeStr", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f), modifier = Modifier.padding(top = 8.dp))
                         Spacer(modifier = Modifier.height(24.dp))
-                        WaveformAnalyzer(isPlaying = isPlaying)
+                        val waveformType by viewModel.waveformType.collectAsState()
+                        WaveformAnalyzer(isPlaying = isPlaying, type = waveformType)
                     }
                 }
                 Text(text = androidx.compose.ui.res.stringResource(R.string.press_any_key_to_return), style = MaterialTheme.typography.labelMedium, color = Color.Gray.copy(alpha = 0.5f), modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 32.dp))
@@ -1752,6 +1803,7 @@ fun TvNowPlayingBar(
     playbackDuration: Long,
     mediaMetadata: androidx.media3.common.MediaMetadata?,
     audioFormat: androidx.media3.common.Format?,
+    waveformType: com.toxa.pureradio.ui.viewmodel.WaveformType,
     onTogglePlay: () -> Unit,
     onToggleFavorite: () -> Unit,
     onNext: () -> Unit,
@@ -1862,7 +1914,7 @@ fun TvNowPlayingBar(
             }
             
             Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
-                WaveformAnalyzer(isPlaying = isPlaying)
+                WaveformAnalyzer(isPlaying = isPlaying, type = waveformType)
             }
         }
         if (playbackDuration > 0) {
@@ -2070,7 +2122,7 @@ fun GenreGroupCard(group: GenreGroup, onClick: () -> Unit, onLongClick: (() -> U
 @Composable
 fun GenreGroupCardContent(group: GenreGroup) {
     Box(modifier = Modifier.fillMaxSize()) {
-        AsyncImage(model = getGenreImageUrl(group.genreName), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop, alpha = 0.4f)
+        AsyncImage(model = MediaUtils.getGenreImageUrl(group.genreName), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop, alpha = 0.4f)
         Box(modifier = Modifier.fillMaxSize().background(Brush.verticalGradient(colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f)))))
         Column(modifier = Modifier.fillMaxSize().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             Text(text = group.genreName, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = Color.White, textAlign = TextAlign.Center)
@@ -2113,66 +2165,9 @@ fun StationCardContent(station: Station, isFavorite: Boolean, isCurrent: Boolean
     }
 }
 
-fun getGenreColor(genre: String): Color {
-    val hash = genre.hashCode()
-    val r = ((Math.abs(hash) % 50) + 10) / 255f
-    val g = ((Math.abs(hash shr 8) % 70) + 20) / 255f
-    val b = ((Math.abs(hash shr 16) % 100) + 100) / 255f
-    return Color(r, g, b)
-}
+fun getGenreColor(genre: String): Color = MediaUtils.getGenreColor(genre)
 
-fun getGenreImageUrl(genre: String): String {
-    val g = genre.lowercase().trim()
-    return when {
-        g.contains("heavy metal") -> "https://images.unsplash.com/photo-1541614101331-1a5a3a194e90?q=80&w=600&auto=format&fit=crop"
-        g.contains("metal") -> "https://images.unsplash.com/photo-1598387181032-a3103a2db5b3?q=80&w=600&auto=format&fit=crop"
-        g.contains("punk") -> "https://images.unsplash.com/photo-1583790155708-360d8a5563c0?q=80&w=600&auto=format&fit=crop"
-        g.contains("hard rock") -> "https://images.unsplash.com/photo-1521334885634-9552f1055677?q=80&w=600&auto=format&fit=crop"
-        g.contains("classic rock") -> "https://images.unsplash.com/photo-1459749411177-042180ce673c?q=80&w=600&auto=format&fit=crop"
-        g.contains("rock") -> "https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?q=80&w=600&auto=format&fit=crop"
-        g.contains("alternative") || g.contains("indie") -> "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?q=80&w=600&auto=format&fit=crop"
-        g.contains("synthpop") -> "https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=600&auto=format&fit=crop"
-        g.contains("pop") || g.contains("hits") || g.contains("top") || g.contains("chart") -> "https://images.unsplash.com/photo-1514525253361-bee8a187449a?q=80&w=600&auto=format&fit=crop"
-        g.contains("smooth jazz") -> "https://images.unsplash.com/photo-1525994886773-080587e161c3?q=80&w=600&auto=format&fit=crop"
-        g.contains("jazz") -> "https://images.unsplash.com/photo-1511192336575-5a79af67a629?q=80&w=600&auto=format&fit=crop"
-        g.contains("blues") -> "https://images.unsplash.com/photo-1553034545-31a386996173?q=80&w=600&auto=format&fit=crop"
-        g.contains("soul") -> "https://images.unsplash.com/photo-1460723237483-7a6dc9d0b212?q=80&w=600&auto=format&fit=crop"
-        g.contains("funk") || g.contains("disco") -> "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?q=80&w=600&auto=format&fit=crop"
-        g.contains("orchestra") || g.contains("symphony") -> "https://images.unsplash.com/photo-1465847899035-1379e576ee5d?q=80&w=600&auto=format&fit=crop"
-        g.contains("classical") || g.contains("classic") -> "https://images.unsplash.com/photo-1507838596018-b943e1dd13a9?q=80&w=600&auto=format&fit=crop"
-        g.contains("opera") -> "https://images.unsplash.com/photo-1520529125433-21950920427e?q=80&w=600&auto=format&fit=crop"
-        g.contains("techno") -> "https://images.unsplash.com/photo-1571266028243-3716f02d2d2e?q=80&w=600&auto=format&fit=crop"
-        g.contains("deep house") -> "https://images.unsplash.com/photo-1493225255756-d9584f8606e9?q=80&w=600&auto=format&fit=crop"
-        g.contains("house") -> "https://images.unsplash.com/photo-1557683316-973673baf926?q=80&w=600&auto=format&fit=crop"
-        g.contains("trance") -> "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=600&auto=format&fit=crop"
-        g.contains("psytrance") -> "https://images.unsplash.com/photo-1520092352425-9fae9f057c9a?q=80&w=600&auto=format&fit=crop"
-        g.contains("electro") || g.contains("edm") -> "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=600&auto=format&fit=crop"
-        g.contains("ambient") || g.contains("lofi") -> "https://images.unsplash.com/photo-1516280440614-37939bbacd81?q=80&w=600&auto=format&fit=crop"
-        g.contains("chillout") || g.contains("chill") -> "https://images.unsplash.com/photo-1519681393784-d120267933ba?q=80&w=600&auto=format&fit=crop"
-        g.contains("lounge") -> "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=80&w=600&auto=format&fit=crop"
-        g.contains("country") -> "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?q=80&w=600&auto=format&fit=crop"
-        g.contains("bluegrass") -> "https://images.unsplash.com/photo-1525201548942-d8b8c09ec8d1?q=80&w=600&auto=format&fit=crop"
-        g.contains("folk") -> "https://images.unsplash.com/photo-1468164016595-6108e4c60c8b?q=80&w=600&auto=format&fit=crop"
-        g.contains("hip hop") -> "https://images.unsplash.com/photo-1520262454473-a1a82276a574?q=80&w=600&auto=format&fit=crop"
-        g.contains("rap") || g.contains("urban") || g.contains("r&b") -> "https://images.unsplash.com/photo-1524368535928-5b5e00ddc76b?q=80&w=600&auto=format&fit=crop"
-        g.contains("reggae") -> "https://images.unsplash.com/photo-1510915228340-29c85a43dcfe?q=80&w=600&auto=format&fit=crop"
-        g.contains("ska") -> "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=600&auto=format&fit=crop"
-        g.contains("world") -> "https://images.unsplash.com/photo-1526218626217-dc65a29bb444?q=80&w=600&auto=format&fit=crop"
-        g.contains("latin") -> "https://images.unsplash.com/photo-1525994886773-080587e161c3?q=80&w=600&auto=format&fit=crop"
-        g.contains("80s") -> "https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=600&auto=format&fit=crop"
-        g.contains("90s") -> "https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?q=80&w=600&auto=format&fit=crop"
-        g.contains("70s") -> "https://images.unsplash.com/photo-1516062423079-7ca13cdc7f5a?q=80&w=600&auto=format&fit=crop"
-        g.contains("60s") || g.contains("oldies") || g.contains("retro") -> "https://images.unsplash.com/photo-1484755560615-a4c64e99529b?q=80&w=600&auto=format&fit=crop"
-        g.contains("soundtrack") || g.contains("movie") || g.contains("film") -> "https://images.unsplash.com/photo-1485846234645-a62644f84728?q=80&w=600&auto=format&fit=crop"
-        g.contains("meditation") || g.contains("spiritual") || g.contains("religious") -> "https://images.unsplash.com/photo-1506126613408-eca07ce68773?q=80&w=600&auto=format&fit=crop"
-        g.contains("news") || g.contains("talk") || g.contains("info") -> "https://images.unsplash.com/photo-1472289065668-ce650ac443d2?q=80&w=600&auto=format&fit=crop"
-        g.contains("sport") -> "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=600&auto=format&fit=crop"
-        g.contains("comedy") -> "https://images.unsplash.com/photo-1527224857830-43a7acc85260?q=80&w=600&auto=format&fit=crop"
-        g.contains("christmas") || g.contains("xmas") -> "https://images.unsplash.com/photo-1543589077-47d81606c1bf?q=80&w=600&auto=format&fit=crop"
-        g.contains("kids") || g.contains("children") -> "https://images.unsplash.com/photo-1516627145497-ae6968895b74?q=80&w=600&auto=format&fit=crop"
-        else -> "https://images.unsplash.com/photo-1453090927415-5f45085b65c0?q=80&w=600&auto=format&fit=crop"
-    }
-}
+fun getGenreImageUrl(genre: String): String = MediaUtils.getGenreImageUrl(genre)
 
 @Composable
 fun BitrateFilters(selectedBitrates: Set<BitrateFilter>, onToggleFilter: (BitrateFilter) -> Unit) {

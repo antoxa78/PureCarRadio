@@ -17,6 +17,8 @@
     <string name="settings_home_genres">Home Screen Curation</string>
     <string name="settings_quit_confirmation">Quit Confirmation</string>
     <string name="settings_playback">Playback</string>
+    <string name="settings_waveform">Waveform Analyzer</string>
+    <string name="settings_waveform_desc">Select visualization style</string>
     <string name="settings_screensaver">Ambient &amp; Screensaver</string>
     <string name="settings_audio_passthrough">Audio Passthrough</string>
     <string name="settings_resume_last">Resume Last Station</string>
@@ -123,8 +125,10 @@
     <string name="update_every_24h">Every 24 Hours</string>
 
     <!-- Theme descriptions -->
-    <string name="theme_retro_gold">Vibrant Blue</string>
-    <string name="theme_retro_gold_desc">New modern blue design</string>
+    <string name="theme_retro_gold">Retro Gold</string>
+    <string name="theme_retro_gold_desc">Classic: gold and wood</string>
+    <string name="theme_vibrant_blue">Vibrant Blue</string>
+    <string name="theme_vibrant_blue_desc">Modern blue design</string>
     <string name="theme_blue_neon">Blue Neon</string>
     <string name="theme_blue_neon_desc">Cool blue neon glow</string>
     <string name="theme_violet">Violet</string>
@@ -218,4 +222,9 @@
 
     <string name="sort_name">Name</string>
     <string name="sort_count">Count</string>
+
+    <string name="waveform_type_classic">Classic Bars</string>
+    <string name="waveform_type_mirrored">Mirrored Bars</string>
+    <string name="waveform_type_dots">Bars Dots</string>
+    <string name="waveform_type_dots_hold">Dots with Peak Hold</string>
 </resources>

@@ -82,8 +82,19 @@ enum class SearchMode {
     Name, Tag
 }
 
-enum class AppTheme {
-    RetroGold, BlueNeon, Violet, Monochrome, Forest, Contrast, Black
+enum class AppTheme(val labelRes: Int, val descRes: Int) {
+    RetroGold(R.string.theme_retro_gold, R.string.theme_retro_gold_desc),
+    VibrantBlue(R.string.theme_vibrant_blue, R.string.theme_vibrant_blue_desc),
+    BlueNeon(R.string.theme_blue_neon, R.string.theme_blue_neon_desc),
+    Violet(R.string.theme_violet, R.string.theme_violet_desc),
+    Monochrome(R.string.theme_monochrome, R.string.theme_monochrome_desc),
+    Forest(R.string.theme_forest, R.string.theme_forest_desc),
+    Contrast(R.string.theme_contrast, R.string.theme_contrast_desc),
+    Black(R.string.theme_black, R.string.theme_black_desc)
+}
+
+enum class WaveformType {
+    Classic, Mirrored, BarsDots, BarDotsLevelHold
 }
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -268,6 +279,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _resumeLastStation = MutableStateFlow(prefs.getBoolean("resume_last_station", false))
     val resumeLastStation: StateFlow<Boolean> = _resumeLastStation
+
+    private val _waveformType = MutableStateFlow(prefs.getString("waveform_type", WaveformType.Classic.name)?.let {
+        try { WaveformType.valueOf(it) } catch (e: Exception) { WaveformType.Classic }
+    } ?: WaveformType.Classic)
+    val waveformType: StateFlow<WaveformType> = _waveformType
 
     private var lastInteractionTime = System.currentTimeMillis()
     private var consecutiveErrors = 0
@@ -952,6 +968,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setResumeLastStation(enabled: Boolean) {
         _resumeLastStation.value = enabled
         prefs.edit().putBoolean("resume_last_station", enabled).apply()
+    }
+
+    fun setWaveformType(type: WaveformType) {
+        _waveformType.value = type
+        prefs.edit().putString("waveform_type", type.name).apply()
     }
 
     fun setDefaultStartupCategory(category: NavigationItem) {

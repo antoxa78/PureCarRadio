@@ -17,6 +17,8 @@
     <string name="settings_home_genres">Подборка на главной</string>
     <string name="settings_quit_confirmation">Подтверждение выхода</string>
     <string name="settings_playback">Воспроизведение</string>
+    <string name="settings_waveform">Анализатор волн</string>
+    <string name="settings_waveform_desc">Выберите стиль визуализации</string>
     <string name="settings_screensaver">Заставка</string>
     <string name="settings_audio_passthrough">Пропуск аудио</string>
     <string name="settings_resume_last">Продолжить последнюю</string>
@@ -125,6 +127,8 @@
     <!-- Theme names/descriptions -->
     <string name="theme_retro_gold">Ретро Золото</string>
     <string name="theme_retro_gold_desc">Классика: золото и дерево</string>
+    <string name="theme_vibrant_blue">Ярко-синий</string>
+    <string name="theme_vibrant_blue_desc">Современный синий дизайн</string>
     <string name="theme_blue_neon">Синий неон</string>
     <string name="theme_blue_neon_desc">Неоновое синее свечение</string>
     <string name="theme_violet">Фиолетовый</string>
@@ -195,8 +199,10 @@
     <string name="error_export_failed">Ошибка экспорта: %s</string>
     <string name="status_favorites_exported_to">Избранное экспортировано в \'%s\'</string>
 
-    <!-- Splash -->
     <string name="splash_tagline">Тысячи станций бесплатно</string>
 
->>>>>>> 1162dbf (Restore project)
+    <string name="waveform_type_classic">Классические полосы</string>
+    <string name="waveform_type_mirrored">Зеркальные полосы</string>
+    <string name="waveform_type_dots">Точечные полосы</string>
+    <string name="waveform_type_dots_hold">Точки с удержанием пика</string>
 </resources>

@@ -98,6 +98,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
@@ -791,12 +792,12 @@ fun PhoneGenreGroupCard(group: GenreGroup, onClick: () -> Unit, onLongClick: (()
                 onLongClick = onLongClick
             ),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = getPhoneGenreColor(group.genreName)),
+        colors = CardDefaults.cardColors(containerColor = MediaUtils.getGenreColor(group.genreName)),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             AsyncImage(
-                model = getPhoneGenreImageUrl(group.genreName),
+                model = MediaUtils.getGenreImageUrl(group.genreName),
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
@@ -843,46 +844,9 @@ fun PhoneGenreGroupCard(group: GenreGroup, onClick: () -> Unit, onLongClick: (()
     }
 }
 
-fun getPhoneGenreColor(genre: String): Color {
-    val hash = genre.hashCode()
-    val r = (Math.abs(hash) % 60) + 10
-    val g = (Math.abs(hash shr 8) % 80) + 20
-    val b = (Math.abs(hash shr 16) % 120) + 80
-    return Color(r, g, b)
-}
+fun getPhoneGenreColor(genre: String): Color = MediaUtils.getGenreColor(genre)
 
-fun getPhoneGenreImageUrl(genre: String): String {
-    val g = genre.lowercase().trim()
-    return when {
-        g.contains("rock") || g.contains("metal") || g.contains("punk") ->
-            "https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?q=80&w=600&auto=format&fit=crop"
-        g.contains("pop") || g.contains("hits") || g.contains("top") ->
-            "https://images.unsplash.com/photo-1514525253361-bee8a187449a?q=80&w=600&auto=format&fit=crop"
-        g.contains("jazz") || g.contains("blues") || g.contains("soul") ->
-            "https://images.unsplash.com/photo-1511192336575-5a79af67a629?q=80&w=600&auto=format&fit=crop"
-        g.contains("classical") || g.contains("orchestra") || g.contains("opera") ->
-            "https://images.unsplash.com/photo-1507838596018-b943e1dd13a9?q=80&w=600&auto=format&fit=crop"
-        g.contains("electronic") || g.contains("techno") || g.contains("house") || g.contains("edm") ->
-            "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=600&auto=format&fit=crop"
-        g.contains("ambient") || g.contains("chill") || g.contains("lounge") ->
-            "https://images.unsplash.com/photo-1516280440614-37939bbacd81?q=80&w=600&auto=format&fit=crop"
-        g.contains("country") || g.contains("folk") ->
-            "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?q=80&w=600&auto=format&fit=crop"
-        g.contains("hip") || g.contains("rap") || g.contains("r&b") ->
-            "https://images.unsplash.com/photo-1520262454473-a1a82276a574?q=80&w=600&auto=format&fit=crop"
-        g.contains("reggae") || g.contains("ska") ->
-            "https://images.unsplash.com/photo-1510915228340-29c85a43dcfe?q=80&w=600&auto=format&fit=crop"
-        g.contains("news") || g.contains("talk") ->
-            "https://images.unsplash.com/photo-1472289065668-ce650ac443d2?q=80&w=600&auto=format&fit=crop"
-        g.contains("80s") || g.contains("90s") || g.contains("70s") || g.contains("retro") ->
-            "https://images.unsplash.com/photo-1484755560615-a4c64e99529b?q=80&w=600&auto=format&fit=crop"
-        g.contains("soundtrack") || g.contains("movie") ->
-            "https://images.unsplash.com/photo-1485846234645-a62644f84728?q=80&w=600&auto=format&fit=crop"
-        g.contains("latin") || g.contains("world") ->
-            "https://images.unsplash.com/photo-1526218626217-dc65a29bb444?q=80&w=600&auto=format&fit=crop"
-        else -> "https://images.unsplash.com/photo-1453090927415-5f45085b65c0?q=80&w=600&auto=format&fit=crop"
-    }
-}
+fun getPhoneGenreImageUrl(genre: String): String = MediaUtils.getGenreImageUrl(genre)
 
 @Composable
 fun PhoneStationListScreen(
@@ -1199,11 +1163,11 @@ fun PhoneTagGrid(
                         onClick = { onTagClick(tag) },
                         onLongClick = { onTagLongClick?.invoke(tag) }
                     ),
-                colors = CardDefaults.cardColors(containerColor = getPhoneGenreColor(tag.name))
+                colors = CardDefaults.cardColors(containerColor = MediaUtils.getGenreColor(tag.name))
             ) {
                 Box(modifier = Modifier.fillMaxSize()) {
                     AsyncImage(
-                        model = getPhoneGenreImageUrl(tag.name),
+                        model = MediaUtils.getGenreImageUrl(tag.name),
                         contentDescription = null,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop,
@@ -1431,6 +1395,7 @@ fun PhoneSettingsScreen(
         "AppTheme" -> PhoneAppThemeSettings(viewModel, appTheme)
         "DefaultCategory" -> PhoneDefaultCategorySettings(viewModel, defaultStartupCategory)
         "AppLanguage" -> PhoneAppLanguageSettings(viewModel)
+        "Waveform" -> PhoneWaveformSettings(viewModel)
         else -> PhoneSettingsMain(
             viewModel, appTheme, quitConfirmationEnabled, screensaverEnabled, screensaverTimeout,
             hideBroken, minTagFilter, autoUpdateInterval, audioPassthrough, resumeLastStation,
@@ -1438,6 +1403,48 @@ fun PhoneSettingsScreen(
             serverStats, lastUpdate,
             onImportPlaylist, onExportPlaylist, onPermissionRequest
         )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PhoneWaveformSettings(viewModel: MainViewModel) {
+    val currentType by viewModel.waveformType.collectAsState()
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.settings_waveform)) },
+                navigationIcon = {
+                    IconButton(onClick = { viewModel.setSettingsSubMenu(null) }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
+            items(com.toxa.pureradio.ui.viewmodel.WaveformType.entries) { type ->
+                val labelRes = when (type) {
+                    com.toxa.pureradio.ui.viewmodel.WaveformType.Classic -> R.string.waveform_type_classic
+                    com.toxa.pureradio.ui.viewmodel.WaveformType.Mirrored -> R.string.waveform_type_mirrored
+                    com.toxa.pureradio.ui.viewmodel.WaveformType.BarsDots -> R.string.waveform_type_dots
+                    com.toxa.pureradio.ui.viewmodel.WaveformType.BarDotsLevelHold -> R.string.waveform_type_dots_hold
+                }
+                ListItem(
+                    headlineContent = { Text(stringResource(labelRes)) },
+                    trailingContent = {
+                        RadioButton(selected = currentType == type, onClick = { viewModel.setWaveformType(type) })
+                    },
+                    modifier = Modifier.clickable { viewModel.setWaveformType(type) }
+                )
+            }
+            item {
+                Spacer(modifier = Modifier.height(48.dp))
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    WaveformAnalyzer(isPlaying = true, type = currentType)
+                }
+            }
+        }
     }
 }
 
@@ -1467,7 +1474,7 @@ fun PhoneSettingsMain(
         item {
             ListItem(
                 headlineContent = { Text(stringResource(R.string.settings_theme)) },
-                supportingContent = { Text(stringResource(R.string.current_theme, appTheme.name)) },
+                supportingContent = { Text(stringResource(R.string.current_theme, stringResource(appTheme.labelRes))) },
                 leadingContent = { Icon(Icons.Default.TheaterComedy, contentDescription = null) },
                 trailingContent = { Icon(Icons.Default.ChevronRight, contentDescription = null) },
                 modifier = Modifier.clickable { viewModel.setSettingsSubMenu("AppTheme") }
@@ -1521,6 +1528,22 @@ fun PhoneSettingsMain(
                 leadingContent = { Icon(Icons.Default.MusicVideo, contentDescription = null) },
                 trailingContent = { Icon(Icons.Default.ChevronRight, contentDescription = null) },
                 modifier = Modifier.clickable { viewModel.setSettingsSubMenu("Screensaver") }
+            )
+        }
+        item {
+            val waveformType by viewModel.waveformType.collectAsState()
+            val waveformName = when (waveformType) {
+                com.toxa.pureradio.ui.viewmodel.WaveformType.Classic -> stringResource(R.string.waveform_type_classic)
+                com.toxa.pureradio.ui.viewmodel.WaveformType.Mirrored -> stringResource(R.string.waveform_type_mirrored)
+                com.toxa.pureradio.ui.viewmodel.WaveformType.BarsDots -> stringResource(R.string.waveform_type_dots)
+                com.toxa.pureradio.ui.viewmodel.WaveformType.BarDotsLevelHold -> stringResource(R.string.waveform_type_dots_hold)
+            }
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_waveform)) },
+                supportingContent = { Text(stringResource(R.string.current_value, waveformName)) },
+                leadingContent = { Icon(Icons.Default.GraphicEq, contentDescription = null) },
+                trailingContent = { Icon(Icons.Default.ChevronRight, contentDescription = null) },
+                modifier = Modifier.clickable { viewModel.setSettingsSubMenu("Waveform") }
             )
         }
         item {
@@ -1862,27 +1885,9 @@ fun PhoneAppThemeSettings(viewModel: MainViewModel, appTheme: AppTheme) {
             }
         }
         items(AppTheme.entries) { theme ->
-            val labelRes = when (theme) {
-                AppTheme.RetroGold -> R.string.theme_retro_gold
-                AppTheme.BlueNeon -> R.string.theme_blue_neon
-                AppTheme.Violet -> R.string.theme_violet
-                AppTheme.Monochrome -> R.string.theme_monochrome
-                AppTheme.Forest -> R.string.theme_forest
-                AppTheme.Contrast -> R.string.theme_contrast
-                AppTheme.Black -> R.string.theme_black
-            }
-            val descRes = when (theme) {
-                AppTheme.RetroGold -> R.string.theme_retro_gold_desc
-                AppTheme.BlueNeon -> R.string.theme_blue_neon_desc
-                AppTheme.Violet -> R.string.theme_violet_desc
-                AppTheme.Monochrome -> R.string.theme_monochrome_desc
-                AppTheme.Forest -> R.string.theme_forest_desc
-                AppTheme.Contrast -> R.string.theme_contrast_desc
-                AppTheme.Black -> R.string.theme_black_desc
-            }
             ListItem(
-                headlineContent = { Text(stringResource(labelRes)) },
-                supportingContent = { Text(stringResource(descRes)) },
+                headlineContent = { Text(stringResource(theme.labelRes)) },
+                supportingContent = { Text(stringResource(theme.descRes)) },
                 trailingContent = {
                     if (appTheme == theme) {
                         Icon(Icons.Default.GraphicEq, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
@@ -1924,7 +1929,11 @@ fun PhoneAppLanguageSettings(viewModel: MainViewModel) {
 }
 
 @Composable
-fun WaveformAnalyzer(isPlaying: Boolean, modifier: Modifier = Modifier) {
+fun WaveformAnalyzer(
+    isPlaying: Boolean,
+    modifier: Modifier = Modifier,
+    type: com.toxa.pureradio.ui.viewmodel.WaveformType = com.toxa.pureradio.ui.viewmodel.WaveformType.Classic
+) {
     val infiniteTransition = rememberInfiniteTransition(label = "Waveform")
     val barCount = 40
     Row(
@@ -1933,8 +1942,6 @@ fun WaveformAnalyzer(isPlaying: Boolean, modifier: Modifier = Modifier) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         repeat(barCount) { i ->
-            val distanceFromCenter = Math.abs(i - barCount / 2).toFloat()
-            val centerWeight = 1f - (distanceFromCenter / (barCount / 2))
             val duration = remember { (500..1200).random() }
             val delay = remember { (i * 35) % 800 }
             val heightScale by infiniteTransition.animateFloat(
@@ -1942,21 +1949,127 @@ fun WaveformAnalyzer(isPlaying: Boolean, modifier: Modifier = Modifier) {
                 animationSpec = infiniteRepeatable(tween(duration, delay, easing = FastOutLinearInEasing), RepeatMode.Reverse),
                 label = "Height_$i"
             )
+            val distanceFromCenter = Math.abs(i - barCount / 2).toFloat()
+            val centerWeight = 1f - (distanceFromCenter / (barCount / 2))
             val finalHeight = if (isPlaying) (0.1f + 0.9f * heightScale) * (0.2f + 0.8f * centerWeight) else 0.05f
+            
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .fillMaxHeight(finalHeight)
-                    .background(
-                        brush = Brush.verticalGradient(listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f))),
-                        shape = RoundedCornerShape(1.dp)
-                    )
+                    .fillMaxHeight()
+            ) {
+                when (type) {
+                    com.toxa.pureradio.ui.viewmodel.WaveformType.Classic -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .fillMaxHeight(finalHeight)
+                                .align(Alignment.BottomCenter)
+                                .background(
+                                    brush = Brush.verticalGradient(listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f))),
+                                    shape = RoundedCornerShape(1.dp)
+                                )
+                        )
+                    }
+                    com.toxa.pureradio.ui.viewmodel.WaveformType.Mirrored -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .fillMaxHeight(finalHeight)
+                                .align(Alignment.Center)
+                                .background(
+                                    brush = Brush.verticalGradient(
+                                        listOf(
+                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
+                                            MaterialTheme.colorScheme.primary,
+                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+                                        )
+                                    ),
+                                    shape = RoundedCornerShape(1.dp)
+                                )
+                        )
+                    }
+                    com.toxa.pureradio.ui.viewmodel.WaveformType.BarsDots -> {
+                        WaveformDots(finalHeight, isPlaying, holdPeak = false)
+                    }
+                    com.toxa.pureradio.ui.viewmodel.WaveformType.BarDotsLevelHold -> {
+                        WaveformDots(finalHeight, isPlaying, holdPeak = true)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun WaveformDots(heightScale: Float, isPlaying: Boolean, holdPeak: Boolean) {
+    val dotCount = 18
+    val activeDots = (heightScale * dotCount).toInt().coerceAtLeast(1)
+    
+    var peakIndex by remember { mutableIntStateOf(0) }
+    var peakFallDelay by remember { mutableStateOf(0L) }
+    
+    LaunchedEffect(activeDots) {
+        if (activeDots > peakIndex) {
+            peakIndex = activeDots
+            peakFallDelay = 0
+        } else {
+            peakFallDelay = 250
+        }
+    }
+    
+    LaunchedEffect(peakIndex) {
+        if (peakIndex > activeDots) {
+            delay(peakFallDelay)
+            peakIndex = (peakIndex - 1).coerceAtLeast(activeDots)
+        }
+    }
+    
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(1.dp, Alignment.Bottom),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        repeat(dotCount) { i ->
+            val dotIndex = dotCount - 1 - i
+            val isActive = dotIndex < activeDots
+            val isPeak = holdPeak && dotIndex == peakIndex - 1
+            
+            val baseColor = MaterialTheme.colorScheme.primary
+            val color = when {
+                isPeak -> baseColor
+                isActive -> {
+                    val intensity = (dotIndex.toFloat() / dotCount)
+                    baseColor.copy(alpha = 0.4f + (0.6f * (1f - intensity)))
+                }
+                else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
+            }
+            
+            Box(
+                modifier = Modifier
+                    .width(4.dp)
+                    .height(2.dp)
+                    .background(color, RoundedCornerShape(0.5.dp))
             )
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@Preview(showBackground = true, backgroundColor = 0xFF040714)
+@Composable
+fun WaveformAnalyzerPreview() {
+    Column(
+        modifier = Modifier.padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        com.toxa.pureradio.ui.viewmodel.WaveformType.entries.forEach { type ->
+            Text(text = type.name, color = Color.White)
+            WaveformAnalyzer(isPlaying = true, type = type)
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, androidx.media3.common.util.UnstableApi::class)
 @Composable
 fun PhoneNowPlayingBar(viewModel: MainViewModel, onClick: () -> Unit = {}) {
     val currentStation by viewModel.currentStation.collectAsState()
@@ -2138,7 +2251,8 @@ fun PhoneNowPlayingDialog(
                     }
 
                     Spacer(modifier = Modifier.height(24.dp))
-                    WaveformAnalyzer(isPlaying = isPlaying)
+                    val waveformType by viewModel.waveformType.collectAsState()
+                    WaveformAnalyzer(isPlaying = isPlaying, type = waveformType)
                     Spacer(modifier = Modifier.weight(1f))
 
                     if (playbackDuration > 0) {

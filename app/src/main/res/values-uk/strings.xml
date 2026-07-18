@@ -17,6 +17,8 @@
     <string name="settings_home_genres">Добірка на головній</string>
     <string name="settings_quit_confirmation">Підтвердження виходу</string>
     <string name="settings_playback">Відтворення</string>
+    <string name="settings_waveform">Аналізатор хвиль</string>
+    <string name="settings_waveform_desc">Виберіть стиль візуалізації</string>
     <string name="settings_screensaver">Заставка</string>
     <string name="settings_audio_passthrough">Пропуск аудіо</string>
     <string name="settings_resume_last">Продовжити останню</string>
@@ -125,6 +127,8 @@
     <!-- Theme names/descriptions -->
     <string name="theme_retro_gold">Ретро Золото</string>
     <string name="theme_retro_gold_desc">Класика: золото та дерево</string>
+    <string name="theme_vibrant_blue">Яскраво-синій</string>
+    <string name="theme_vibrant_blue_desc">Сучасний синій дизайн</string>
     <string name="theme_blue_neon">Синій неон</string>
     <string name="theme_blue_neon_desc">Неонове синє сяйво</string>
     <string name="theme_violet">Фіолетовий</string>
@@ -174,8 +178,10 @@
     <!-- Screensaver hint -->
     <string name="press_any_key_to_return">Натисніть будь-яку клавішу для повернення</string>
 
-    <!-- Splash -->
     <string name="splash_tagline">Тисячі станцій безкоштовно</string>
 
->>>>>>> 1162dbf (Restore project)
+    <string name="waveform_type_classic">Класичні смуги</string>
+    <string name="waveform_type_mirrored">Дзеркальні смуги</string>
+    <string name="waveform_type_dots">Точкові смуги</string>
+    <string name="waveform_type_dots_hold">Точки з утриманням піку</string>
 </resources>

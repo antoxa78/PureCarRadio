@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.2] - 2026-07-18
+
+### Added
+- **New Theme**: Added "Vibrant Blue" as a dedicated theme option, featuring the modern blue design.
+
+### Changed
+- **Version bump**: `versionCode` 15 → 16, `versionName` 1.5.1 → 1.5.2.
+
+### Fixed
+- **Theme Polish**: Fixed "Retro Gold" theme name and colors (now features actual gold and wood design).
+- **UI Localization**: Settings menu now displays localized theme names (e.g., "Retro Gold") instead of technical enum names.
+
 ## [1.5.1] - 2026-07-17
 
 ### Added
