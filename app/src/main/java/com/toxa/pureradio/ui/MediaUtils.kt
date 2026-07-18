@@ -65,6 +65,18 @@ object MediaUtils {
         }
     }
 
+    fun getCategoryImageUrl(categoryId: String): String {
+        return when (categoryId) {
+            "home_screen" -> "https://images.unsplash.com/photo-1518173946687-a4c8a9b746f5?q=80&w=600&auto=format&fit=crop"
+            "popular" -> "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=600&auto=format&fit=crop"
+            "favourites" -> "https://images.unsplash.com/photo-1499415479124-43c32433a620?q=80&w=600&auto=format&fit=crop"
+            "recent" -> "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?q=80&w=600&auto=format&fit=crop"
+            "genres" -> "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=600&auto=format&fit=crop"
+            "countries" -> "https://images.unsplash.com/photo-1521295121783-8a321d551ad2?q=80&w=600&auto=format&fit=crop"
+            else -> "https://images.unsplash.com/photo-1453090927415-5f45085b65c0?q=80&w=600&auto=format&fit=crop"
+        }
+    }
+
     fun getCountryFlagUrl(code: String?): String? {
         val c = code?.trim()?.lowercase()
         return if (!c.isNullOrEmpty() && c.length == 2) {

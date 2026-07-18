@@ -268,12 +268,12 @@ class PlaybackService : MediaLibraryService() {
                 return when (parentId) {
                     "root" -> {
                         val items = listOf(
-                            createBrowsableItem("home_screen", getString(R.string.nav_home), getAppIconUri()),
-                            createBrowsableItem("popular", getString(R.string.nav_popular), getAppIconUri()),
-                            createBrowsableItem("favourites", getString(R.string.nav_favourites), getAppIconUri()),
-                            createBrowsableItem("recent", getString(R.string.nav_recent), getAppIconUri()),
-                            createBrowsableItem("genres", getString(R.string.nav_genres), getAppIconUri()),
-                            createBrowsableItem("countries", getString(R.string.nav_countries), getAppIconUri())
+                            createBrowsableItem("home_screen", getString(R.string.nav_home), Uri.parse(MediaUtils.getCategoryImageUrl("home_screen"))),
+                            createBrowsableItem("popular", getString(R.string.nav_popular), Uri.parse(MediaUtils.getCategoryImageUrl("popular"))),
+                            createBrowsableItem("favourites", getString(R.string.nav_favourites), Uri.parse(MediaUtils.getCategoryImageUrl("favourites"))),
+                            createBrowsableItem("recent", getString(R.string.nav_recent), Uri.parse(MediaUtils.getCategoryImageUrl("recent"))),
+                            createBrowsableItem("genres", getString(R.string.nav_genres), Uri.parse(MediaUtils.getCategoryImageUrl("genres"))),
+                            createBrowsableItem("countries", getString(R.string.nav_countries), Uri.parse(MediaUtils.getCategoryImageUrl("countries")))
                         )
                         Futures.immediateFuture(LibraryResult.ofItemList(ImmutableList.copyOf(items), params))
                     }
@@ -285,30 +285,36 @@ class PlaybackService : MediaLibraryService() {
                             items.add(createBrowsableItem("genre_$it", it, Uri.parse(MediaUtils.getGenreImageUrl(it)))) 
                         }
                         visibleCountries.forEach { countryName ->
-                            // Attempt to find country code for flag
-                            serviceScope.launch {
-                                // This is tricky in a synchronous-like flow, but we can pre-calculate or use a simpler approach
-                            }
-                            items.add(createBrowsableItem("country_$countryName", countryName)) 
+                            items.add(createBrowsableItem("country_$countryName", countryName, Uri.parse(MediaUtils.getCategoryImageUrl("countries")))) 
                         }
                         Futures.immediateFuture(LibraryResult.ofItemList(ImmutableList.copyOf(items), params))
                     }
                     "popular" -> serviceScope.future {
                         try {
-                            val stations = repository.getTopStations(limit = 20)
+                            val stations = repository.getTopStations(limit = 100)
                             val items = stations.map { createPlayableItem(it, parentId = "popular") }
-                            LibraryResult.ofItemList(ImmutableList.copyOf(items), params)
+                            val pagedItems = if (page >= 0 && pageSize >= 1) {
+                                val start = (page * pageSize).coerceAtMost(items.size)
+                                val end = ((page + 1) * pageSize).coerceAtMost(items.size)
+                                items.subList(start, end)
+                            } else items
+                            LibraryResult.ofItemList(ImmutableList.copyOf(pagedItems), params)
                         } catch (e: Exception) {
                             LibraryResult.ofError(SessionError.ERROR_NOT_SUPPORTED)
                         }
                     }
                     "genres" -> serviceScope.future {
                         try {
-                            val tags = repository.getTags(limit = 30)
+                            val tags = repository.getTags(limit = 500)
                             val items = tags.map { tag ->
                                 createBrowsableItem("genre_${tag.name}", tag.name, Uri.parse(MediaUtils.getGenreImageUrl(tag.name)))
                             }
-                            LibraryResult.ofItemList(ImmutableList.copyOf(items), params)
+                            val pagedItems = if (page >= 0 && pageSize >= 1) {
+                                val start = (page * pageSize).coerceAtMost(items.size)
+                                val end = ((page + 1) * pageSize).coerceAtMost(items.size)
+                                items.subList(start, end)
+                            } else items
+                            LibraryResult.ofItemList(ImmutableList.copyOf(pagedItems), params)
                         } catch (e: Exception) {
                             LibraryResult.ofError(SessionError.ERROR_NOT_SUPPORTED)
                         }
@@ -316,11 +322,16 @@ class PlaybackService : MediaLibraryService() {
                     "countries" -> serviceScope.future {
                         try {
                             val countries = repository.getCountries()
-                            val items = countries.take(30).map { country ->
+                            val items = countries.map { country ->
                                 val flagUrl = MediaUtils.getCountryFlagUrl(country.iso_3166_1)
                                 createBrowsableItem("country_${country.name}", country.name, flagUrl?.let { Uri.parse(it) })
                             }
-                            LibraryResult.ofItemList(ImmutableList.copyOf(items), params)
+                            val pagedItems = if (page >= 0 && pageSize >= 1) {
+                                val start = (page * pageSize).coerceAtMost(items.size)
+                                val end = ((page + 1) * pageSize).coerceAtMost(items.size)
+                                items.subList(start, end)
+                            } else items
+                            LibraryResult.ofItemList(ImmutableList.copyOf(pagedItems), params)
                         } catch (e: Exception) {
                             LibraryResult.ofError(SessionError.ERROR_NOT_SUPPORTED)
                         }
@@ -334,7 +345,12 @@ class PlaybackService : MediaLibraryService() {
                                 } catch (e: Exception) { emptyList() }
                                 stations.map { createPlayableItem(it, parentId = "favourites") }
                             } else emptyList()
-                            LibraryResult.ofItemList(ImmutableList.copyOf(items), params)
+                            val pagedItems = if (page >= 0 && pageSize >= 1) {
+                                val start = (page * pageSize).coerceAtMost(items.size)
+                                val end = ((page + 1) * pageSize).coerceAtMost(items.size)
+                                items.subList(start, end)
+                            } else items
+                            LibraryResult.ofItemList(ImmutableList.copyOf(pagedItems), params)
                         } catch (e: Exception) {
                             LibraryResult.ofError(SessionError.ERROR_NOT_SUPPORTED)
                         }
@@ -348,7 +364,12 @@ class PlaybackService : MediaLibraryService() {
                                 } catch (e: Exception) { emptyList() }
                                 stations.map { createPlayableItem(it, parentId = "recent") }
                             } else emptyList()
-                            LibraryResult.ofItemList(ImmutableList.copyOf(items), params)
+                            val pagedItems = if (page >= 0 && pageSize >= 1) {
+                                val start = (page * pageSize).coerceAtMost(items.size)
+                                val end = ((page + 1) * pageSize).coerceAtMost(items.size)
+                                items.subList(start, end)
+                            } else items
+                            LibraryResult.ofItemList(ImmutableList.copyOf(pagedItems), params)
                         } catch (e: Exception) {
                             LibraryResult.ofError(SessionError.ERROR_NOT_SUPPORTED)
                         }
@@ -356,7 +377,9 @@ class PlaybackService : MediaLibraryService() {
                     else -> if (parentId.startsWith("genre_")) serviceScope.future {
                         try {
                             val genre = parentId.removePrefix("genre_")
-                            val stations = repository.searchStations(tag = genre, limit = 50)
+                            val safePageSize = if (pageSize >= 1) pageSize else 50
+                            val offset = if (page >= 0) page * safePageSize else 0
+                            val stations = repository.searchStations(tag = genre, limit = safePageSize, offset = offset)
                             val items = stations.map { createPlayableItem(it, parentId = parentId) }
                             LibraryResult.ofItemList(ImmutableList.copyOf(items), params)
                         } catch (e: Exception) {
@@ -365,7 +388,9 @@ class PlaybackService : MediaLibraryService() {
                     } else if (parentId.startsWith("country_")) serviceScope.future {
                         try {
                             val country = parentId.removePrefix("country_")
-                            val stations = repository.searchStations(country = country, limit = 50)
+                            val safePageSize = if (pageSize >= 1) pageSize else 50
+                            val offset = if (page >= 0) page * safePageSize else 0
+                            val stations = repository.searchStations(country = country, limit = safePageSize, offset = offset)
                             val items = stations.map { createPlayableItem(it, parentId = parentId) }
                             LibraryResult.ofItemList(ImmutableList.copyOf(items), params)
                         } catch (e: Exception) {
@@ -414,12 +439,12 @@ class PlaybackService : MediaLibraryService() {
                                         .setTitle(getString(R.string.app_name))
                                         .build())
                                     .build()
-                                "home_screen" -> createBrowsableItem("home_screen", getString(R.string.nav_home))
-                                "popular" -> createBrowsableItem("popular", getString(R.string.nav_popular))
-                                "favourites" -> createBrowsableItem("favourites", getString(R.string.nav_favourites))
-                                "recent" -> createBrowsableItem("recent", getString(R.string.nav_recent))
-                                "genres" -> createBrowsableItem("genres", getString(R.string.nav_genres))
-                                "countries" -> createBrowsableItem("countries", getString(R.string.nav_countries))
+                                "home_screen" -> createBrowsableItem("home_screen", getString(R.string.nav_home), Uri.parse(MediaUtils.getCategoryImageUrl("home_screen")))
+                                "popular" -> createBrowsableItem("popular", getString(R.string.nav_popular), Uri.parse(MediaUtils.getCategoryImageUrl("popular")))
+                                "favourites" -> createBrowsableItem("favourites", getString(R.string.nav_favourites), Uri.parse(MediaUtils.getCategoryImageUrl("favourites")))
+                                "recent" -> createBrowsableItem("recent", getString(R.string.nav_recent), Uri.parse(MediaUtils.getCategoryImageUrl("recent")))
+                                "genres" -> createBrowsableItem("genres", getString(R.string.nav_genres), Uri.parse(MediaUtils.getCategoryImageUrl("genres")))
+                                "countries" -> createBrowsableItem("countries", getString(R.string.nav_countries), Uri.parse(MediaUtils.getCategoryImageUrl("countries")))
                                 else -> null
                             }
                             if (item != null) {
