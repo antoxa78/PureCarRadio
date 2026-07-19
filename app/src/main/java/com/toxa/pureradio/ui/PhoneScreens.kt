@@ -107,6 +107,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -304,11 +305,6 @@ fun PhoneMainScreen(viewModel: MainViewModel) {
         )
     }
 
-    currentStation?.let { _ ->
-        if (isScreensaverShowing) {
-            PhoneScreensaver(viewModel)
-        }
-    }
 
     viewModel.pendingImportStations.collectAsState().value?.let { pending ->
         var showReplaceConfirm by remember { mutableStateOf(false) }
@@ -1942,8 +1938,9 @@ fun WaveformAnalyzer(
         verticalAlignment = Alignment.CenterVertically
     ) {
         repeat(barCount) { i ->
-            val duration = remember { (500..1200).random() }
-            val delay = remember { (i * 35) % 800 }
+            key(i) {
+                val duration = remember { (500..1200).random() }
+                val delay = remember { (i * 35) % 800 }
             val heightScale by infiniteTransition.animateFloat(
                 initialValue = 0.1f, targetValue = 1f,
                 animationSpec = infiniteRepeatable(tween(duration, delay, easing = FastOutLinearInEasing), RepeatMode.Reverse),
@@ -2000,28 +1997,41 @@ fun WaveformAnalyzer(
         }
     }
 }
+}
 
 @Composable
 fun WaveformDots(heightScale: Float, isPlaying: Boolean, holdPeak: Boolean) {
     val dotCount = 18
-    val activeDots = (heightScale * dotCount).toInt().coerceAtLeast(1)
+    val activeDots = if (isPlaying) (heightScale * dotCount).toInt().coerceIn(0, dotCount) else 0
     
     var peakIndex by remember { mutableIntStateOf(0) }
-    var peakFallDelay by remember { mutableStateOf(0L) }
+    val currentActiveDots by rememberUpdatedState(activeDots)
     
-    LaunchedEffect(activeDots) {
-        if (activeDots > peakIndex) {
+    LaunchedEffect(activeDots, holdPeak) {
+        if (holdPeak && activeDots > peakIndex) {
             peakIndex = activeDots
-            peakFallDelay = 0
-        } else {
-            peakFallDelay = 250
         }
     }
     
-    LaunchedEffect(peakIndex) {
-        if (peakIndex > activeDots) {
-            delay(peakFallDelay)
-            peakIndex = (peakIndex - 1).coerceAtLeast(activeDots)
+    LaunchedEffect(isPlaying, holdPeak) {
+        if (!isPlaying || !holdPeak) {
+            peakIndex = 0
+            return@LaunchedEffect
+        }
+        var holdTimer = 0L
+        while (true) {
+            delay(50) // Tick rate
+            if (peakIndex > currentActiveDots) {
+                if (holdTimer < 250) {
+                    holdTimer += 50
+                } else {
+                    peakIndex = (peakIndex - 1).coerceAtLeast(currentActiveDots)
+                }
+            } else {
+                holdTimer = 0
+                // If the signal rises above the current peak while we are not in "hold" state
+                if (activeDots > peakIndex) peakIndex = activeDots
+            }
         }
     }
     
@@ -2033,14 +2043,15 @@ fun WaveformDots(heightScale: Float, isPlaying: Boolean, holdPeak: Boolean) {
         repeat(dotCount) { i ->
             val dotIndex = dotCount - 1 - i
             val isActive = dotIndex < activeDots
-            val isPeak = holdPeak && dotIndex == peakIndex - 1
+            val isPeak = holdPeak && dotIndex == peakIndex - 1 && peakIndex > 0
             
             val baseColor = MaterialTheme.colorScheme.primary
             val color = when {
                 isPeak -> baseColor
                 isActive -> {
                     val intensity = (dotIndex.toFloat() / dotCount)
-                    baseColor.copy(alpha = 0.4f + (0.6f * (1f - intensity)))
+                    // Brighter at the top (higher index), matching Classic style
+                    baseColor.copy(alpha = 0.4f + (0.6f * intensity))
                 }
                 else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
             }
@@ -2327,8 +2338,8 @@ fun PhoneScreensaver(viewModel: MainViewModel) {
     val isPlaying by viewModel.isPlaying.collectAsState()
     val playbackTime by viewModel.playbackTime.collectAsState()
     val screensaverMode by viewModel.screensaverMode.collectAsState()
-    val audioFormat by viewModel.audioFormat.collectAsState()
     val mediaMetadata by viewModel.mediaMetadata.collectAsState()
+    val waveformType by viewModel.waveformType.collectAsState()
 
     val infiniteTransition = rememberInfiniteTransition(label = "Bounce")
     val xOffset by infiniteTransition.animateFloat(
@@ -2351,7 +2362,7 @@ fun PhoneScreensaver(viewModel: MainViewModel) {
                 currentStation?.let { station ->
                     val displayTitle = if (!mediaMetadata?.title.isNullOrEmpty()) mediaMetadata?.title.toString() else station.name
                     Column(
-                        modifier = Modifier.fillMaxWidth(0.9f),
+                        modifier = Modifier.fillMaxWidth(0.9f).offset(x = (xOffset * 150).dp, y = (yOffset * 300).dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         AsyncImage(
@@ -2376,6 +2387,8 @@ fun PhoneScreensaver(viewModel: MainViewModel) {
                             style = MaterialTheme.typography.bodyMedium,
                             color = Color.Gray
                         )
+                        Spacer(modifier = Modifier.height(24.dp))
+                        WaveformAnalyzer(isPlaying = isPlaying, type = waveformType)
                     }
                 }
                 Text(

@@ -6,13 +6,6 @@ val Black = Color(0xFF0C0908)
 val DarkGrey = Color(0xFF1A1614)
 val SurfaceGrey = Color(0xFF2B2522)
 
-// Radio Retro Palette
-val Amber = Color(0xFFFFB300)
-val DarkAmber = Color(0xFFFFA000)
-val RetroGold = Color(0xFFFBC02D)
-
-val WoodBrown = Color(0xFF5D4037)
-val DarkWood = Color(0xFF3E2723)
 
 val BluePrimary = Color(0xFF0056D2)
 val BlueSecondary = Color(0xFF003D9E)

@@ -125,10 +125,6 @@
     <string name="update_every_24h">Каждые 24 часа</string>
 
     <!-- Theme names/descriptions -->
-    <string name="theme_retro_gold">Ретро Золото</string>
-    <string name="theme_retro_gold_desc">Классика: золото и дерево</string>
-    <string name="theme_vibrant_blue">Ярко-синий</string>
-    <string name="theme_vibrant_blue_desc">Современный синий дизайн</string>
     <string name="theme_blue_neon">Синий неон</string>
     <string name="theme_blue_neon_desc">Неоновое синее свечение</string>
     <string name="theme_violet">Фиолетовый</string>

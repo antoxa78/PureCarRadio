@@ -2,6 +2,9 @@ package com.toxa.pureradio.ui
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -164,6 +167,12 @@ fun TvMainLayout(isPip: Boolean, showSplash: Boolean, viewModel: MainViewModel) 
             .onKeyEvent {
                 viewModel.resetScreensaverTimer()
                 false
+            }
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false)
+                    viewModel.resetScreensaverTimer()
+                }
             },
         shape = RectangleShape,
         colors = SurfaceDefaults.colors(
@@ -191,6 +200,11 @@ fun TvMainLayout(isPip: Boolean, showSplash: Boolean, viewModel: MainViewModel) 
                         )
                 )
                 TvMainScreen(viewModel)
+                
+                val isScreensaverShowing by viewModel.isScreensaverShowing.collectAsState()
+                if (isScreensaverShowing) {
+                    TvScreensaver(viewModel)
+                }
             }
         }
     }
@@ -782,9 +796,6 @@ fun TvMainScreen(viewModel: MainViewModel) {
         }
     }
 
-    if (isScreensaverShowing) {
-        TvScreensaver(viewModel)
-    }
 
     filePickerState?.let { state ->
         TvFilePicker(
@@ -1682,6 +1693,7 @@ fun TvScreensaver(viewModel: MainViewModel) {
     val screensaverMode by viewModel.screensaverMode.collectAsState()
     val audioFormat by viewModel.audioFormat.collectAsState()
     val mediaMetadata by viewModel.mediaMetadata.collectAsState()
+    val waveformType by viewModel.waveformType.collectAsState()
     val focusRequester = remember { FocusRequester() }
 
     val infiniteTransition = rememberInfiniteTransition(label = "Bouncing")
@@ -1726,7 +1738,6 @@ fun TvScreensaver(viewModel: MainViewModel) {
                         val timeStr = String.format(Locale.getDefault(), "%02d:%02d", (playbackTime / 1000) / 60, (playbackTime / 1000) % 60)
                         Text(text = if (isPlaying) "Playing \u2022 $timeStr" else "Paused \u2022 $timeStr", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f), modifier = Modifier.padding(top = 8.dp))
                         Spacer(modifier = Modifier.height(24.dp))
-                        val waveformType by viewModel.waveformType.collectAsState()
                         WaveformAnalyzer(isPlaying = isPlaying, type = waveformType)
                     }
                 }

@@ -83,8 +83,6 @@ enum class SearchMode {
 }
 
 enum class AppTheme(val labelRes: Int, val descRes: Int) {
-    RetroGold(R.string.theme_retro_gold, R.string.theme_retro_gold_desc),
-    VibrantBlue(R.string.theme_vibrant_blue, R.string.theme_vibrant_blue_desc),
     BlueNeon(R.string.theme_blue_neon, R.string.theme_blue_neon_desc),
     Violet(R.string.theme_violet, R.string.theme_violet_desc),
     Monochrome(R.string.theme_monochrome, R.string.theme_monochrome_desc),
@@ -299,9 +297,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         selectNavigationItem(defaultStartupCategory, force = true)
         startPlaybackTimer()
         startScreensaverTimer()
-        checkAutoUpdate()
         refreshFavoriteStations()
         refreshRecentStations()
+        
+        viewModelScope.launch {
+            val isFirstRun = _lastDbUpdate.value == 0L
+            checkAutoUpdate()
+            if (isFirstRun && _selectedNavItem.value == NavigationItem.Home) {
+                loadTopStations()
+            }
+        }
         viewModelScope.launch {
             delay(500)
             _isInitialized.value = true
@@ -464,14 +469,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun checkAutoUpdate() {
+    private suspend fun checkAutoUpdate() {
         val intervalHours = _autoUpdateInterval.value
         if (intervalHours > 0) {
             val lastUpdate = _lastDbUpdate.value
             val now = System.currentTimeMillis()
             val intervalMillis = intervalHours * 60 * 60 * 1000L
             if (now - lastUpdate > intervalMillis) {
-                updateDatabase()
+                performUpdate()
             }
         }
     }
@@ -479,7 +484,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setAutoUpdateInterval(hours: Int) {
         _autoUpdateInterval.value = hours
         prefs.edit().putInt("auto_update_interval", hours).apply()
-        if (hours > 0) checkAutoUpdate()
+        if (hours > 0) viewModelScope.launch { checkAutoUpdate() }
     }
 
     fun toggleScreensaver(enabled: Boolean) {
@@ -842,24 +847,28 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    suspend fun performUpdate() {
+        _isLoading.value = true
+        try {
+            val stats = repository.getStats()
+            if (stats != null) {
+                _serverStats.value = stats
+                _lastDbUpdate.value = System.currentTimeMillis()
+                prefs.edit().putLong("last_db_update", _lastDbUpdate.value).apply()
+            }
+            _tags.value = repository.getTags(limit = 500)
+            _countries.value = repository.getCountries()
+        } catch (e: Exception) {
+            _error.value = str(R.string.error_database_update)
+        } finally {
+            _isLoading.value = false
+        }
+    }
+
     fun updateDatabase() {
         viewModelScope.launch {
             if (_isLoading.value) return@launch
-            _isLoading.value = true
-            try {
-                val stats = repository.getStats()
-                if (stats != null) {
-                    _serverStats.value = stats
-                    _lastDbUpdate.value = System.currentTimeMillis()
-                    prefs.edit().putLong("last_db_update", _lastDbUpdate.value).apply()
-                }
-                _tags.value = repository.getTags(limit = 500)
-                _countries.value = repository.getCountries()
-            } catch (e: Exception) {
-                _error.value = str(R.string.error_database_update)
-            } finally {
-                _isLoading.value = false
-            }
+            performUpdate()
         }
     }
 
@@ -916,7 +925,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun loadVisibleGenres(): Set<String> {
-        return prefs.getStringSet("visible_genres", emptySet()) ?: emptySet()
+        val genres = prefs.getStringSet("visible_genres", emptySet()) ?: emptySet()
+        if (genres.isEmpty() && prefs.getLong("last_db_update", 0) == 0L) {
+            return setOf("Rock", "Pop", "Jazz", "Electronic", "News", "Classical")
+        }
+        return genres
     }
 
     private fun saveVisibleGenres(genres: Set<String>) {
@@ -940,8 +953,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun loadAppTheme(): AppTheme {
-        val name = prefs.getString("app_theme", AppTheme.RetroGold.name) ?: AppTheme.RetroGold.name
-        return try { AppTheme.valueOf(name) } catch (e: Exception) { AppTheme.RetroGold }
+        val name = prefs.getString("app_theme", AppTheme.BlueNeon.name) ?: AppTheme.BlueNeon.name
+        return try { AppTheme.valueOf(name) } catch (e: Exception) { AppTheme.BlueNeon }
     }
 
     fun setAppTheme(theme: AppTheme) {

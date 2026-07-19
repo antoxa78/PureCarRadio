@@ -410,28 +410,37 @@ fun PhoneMainLayout(isPip: Boolean, showSplash: Boolean, viewModel: MainViewMode
         }
     }
 
-    Scaffold(
-        topBar = { PhoneTopBar(selectedNavItem, quitConfirmationEnabled, viewModel, onShowExitDialog = { showExitDialog = true }) },
-        bottomBar = {
-            val currentStation by viewModel.currentStation.collectAsState()
-            if (currentStation != null) {
-                PhoneNowPlayingBar(viewModel, onClick = { showNowPlaying = true })
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false)
+                    viewModel.resetScreensaverTimer()
+                }
             }
-        }
-    ) { padding ->
-        Box(modifier = Modifier.padding(padding)) {
+    ) {
+        Scaffold(
+            topBar = { PhoneTopBar(selectedNavItem, quitConfirmationEnabled, viewModel, onShowExitDialog = { showExitDialog = true }) },
+            bottomBar = {
+                val currentStation by viewModel.currentStation.collectAsState()
+                if (currentStation != null) {
+                    PhoneNowPlayingBar(viewModel, onClick = { showNowPlaying = true })
+                }
+            }
+        ) { padding ->
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .pointerInput(Unit) {
-                        awaitEachGesture {
-                            awaitFirstDown(requireUnconsumed = false)
-                            viewModel.resetScreensaverTimer()
-                        }
-                    }
+                    .padding(padding)
             ) {
                 PhoneMainScreen(viewModel)
             }
+        }
+
+        val isScreensaverShowing by viewModel.isScreensaverShowing.collectAsState()
+        if (isScreensaverShowing) {
+            com.toxa.pureradio.ui.PhoneScreensaver(viewModel)
         }
     }
 
@@ -494,7 +503,10 @@ fun PhoneTopBar(
         ),
         navigationIcon = {
             Box(modifier = Modifier.statusBarsPadding()) {
-                IconButton(onClick = { menuExpanded = true }) {
+                IconButton(onClick = { 
+                    viewModel.resetScreensaverTimer()
+                    menuExpanded = true 
+                }) {
                     PhoneIcon(
                         Icons.Default.MoreVert, 
                         contentDescription = "Menu",

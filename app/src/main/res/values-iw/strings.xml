@@ -125,10 +125,6 @@
     <string name="update_every_24h">כל 24 שעות</string>
 
     <!-- Theme names/descriptions -->
-    <string name="theme_retro_gold">זהב רטרו</string>
-    <string name="theme_retro_gold_desc">קלאסי: זהב ועץ</string>
-    <string name="theme_vibrant_blue">כחול תוסס</string>
-    <string name="theme_vibrant_blue_desc">עיצוב כחול מודרני</string>
     <string name="theme_blue_neon">ניאון כחול</string>
     <string name="theme_blue_neon_desc">זוהר ניאון כחול</string>
     <string name="theme_violet">סגול</string>
