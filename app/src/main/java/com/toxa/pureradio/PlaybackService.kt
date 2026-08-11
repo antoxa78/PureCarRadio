@@ -10,6 +10,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.Player
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.DefaultLoadControl
@@ -54,9 +55,13 @@ class PlaybackService : MediaLibraryService() {
     private val serviceJob = SupervisorJob()
     private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
 
+    private var retryCount = 0
+    private var lastErrorMediaId: String? = null
+
     @UnstableApi
     private class InterceptingPlayer(player: Player) : ForwardingPlayer(player) {
         override fun isCommandAvailable(command: Int): Boolean {
+            if (command == Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM) return false
             if (command == Player.COMMAND_SEEK_TO_NEXT || 
                 command == Player.COMMAND_SEEK_TO_PREVIOUS ||
                 command == Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM ||
@@ -65,6 +70,7 @@ class PlaybackService : MediaLibraryService() {
         }
         override fun getAvailableCommands(): Player.Commands {
             return super.getAvailableCommands().buildUpon()
+                .remove(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)
                 .add(Player.COMMAND_SEEK_TO_NEXT)
                 .add(Player.COMMAND_SEEK_TO_PREVIOUS)
                 .add(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
@@ -124,6 +130,11 @@ class PlaybackService : MediaLibraryService() {
         
         player.addListener(object : Player.Listener {
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                if (mediaItem?.mediaId != lastErrorMediaId) {
+                    retryCount = 0
+                    lastErrorMediaId = null
+                }
+
                 val metadata = mediaItem?.mediaMetadata ?: return
                 val stationJson = metadata.extras?.getString("station_full_json") ?: return
                 val uuid = mediaItem.mediaId
@@ -135,8 +146,42 @@ class PlaybackService : MediaLibraryService() {
                     .apply()
             }
 
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                if (isPlaying) {
+                    retryCount = 0
+                    lastErrorMediaId = null
+                }
+            }
+
             override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                if (player.hasNextMediaItem()) {
+                val currentMediaItem = player.currentMediaItem ?: return
+                val mediaId = currentMediaItem.mediaId
+                
+                if (mediaId != lastErrorMediaId) {
+                    lastErrorMediaId = mediaId
+                    retryCount = 0
+                }
+
+                val isNetworkError = error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED ||
+                                     error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT ||
+                                     error.errorCode == PlaybackException.ERROR_CODE_IO_UNSPECIFIED
+                
+                val maxRetries = if (isNetworkError) Int.MAX_VALUE else 3
+                
+                if (retryCount < maxRetries) {
+                    // Exponential backoff: 2s, 4s, 8s, 16s... cap at 30s
+                    val backoffMs = (Math.pow(2.0, retryCount.toDouble() + 1) * 1000).toLong().coerceAtMost(30000)
+                    retryCount++
+                    
+                    serviceScope.launch {
+                        delay(backoffMs)
+                        player.prepare()
+                        player.play()
+                    }
+                } else if (player.hasNextMediaItem()) {
+                    // Exhausted retries for a specific stream error, move to next
+                    retryCount = 0
+                    lastErrorMediaId = null
                     serviceScope.launch {
                         delay(2000)
                         player.seekToNextMediaItem()
@@ -606,11 +651,7 @@ class PlaybackService : MediaLibraryService() {
     }
 
     private fun getAppIconUri(): Uri {
-        return Uri.Builder()
-            .scheme(android.content.ContentResolver.SCHEME_ANDROID_RESOURCE)
-            .authority(packageName ?: "com.toxa.pureradio")
-            .appendPath(R.drawable.ic_radio_logo.toString())
-            .build()
+        return Uri.parse("android.resource://$packageName/${R.drawable.ic_radio_logo}")
     }
 
     private fun cacheStation(station: Station) {
@@ -622,11 +663,9 @@ class PlaybackService : MediaLibraryService() {
 
     private fun createPlayableItem(station: Station, isHls: Boolean = false, parentId: String? = null): MediaItem {
         cacheStation(station)
-        val artworkUri = if (station.favicon.isNotEmpty()) {
-            android.net.Uri.parse(station.favicon)
-        } else {
-            getAppIconUri()
-        }
+        
+        val artworkUri = MediaUtils.getStationArtworkUrl(station.favicon, station.countryCode)?.let { Uri.parse(it) } ?: getAppIconUri()
+
         val isHlsStream = isHls
                 || station.url.lowercase().let { it.endsWith(".m3u8") || it.endsWith(".m3u") }
                 || (station.codec?.contains("hls", ignoreCase = true) == true)
@@ -635,6 +674,8 @@ class PlaybackService : MediaLibraryService() {
         val extras = Bundle().apply {
             putString("station_full_json", stationJson)
             putInt("android.media.browse.CONTENT_STYLE_PLAYABLE_HINT", 2) // Grid
+            putString("android.media.metadata.DISPLAY_ICON_URI", artworkUri.toString())
+            putString("android.media.metadata.ALBUM_ART_URI", artworkUri.toString())
         }
 
         val mediaId = if (parentId != null) "$parentId|station:${station.stationUuid}" else station.stationUuid
@@ -642,6 +683,10 @@ class PlaybackService : MediaLibraryService() {
         val builder = MediaItem.Builder()
             .setMediaId(mediaId)
             .setUri(station.url)
+            .setLiveConfiguration(MediaItem.LiveConfiguration.Builder()
+                .setMaxPlaybackSpeed(1.02f)
+                .setMinPlaybackSpeed(0.98f)
+                .build())
             .setMediaMetadata(MediaMetadata.Builder()
                 .setIsBrowsable(false)
                 .setIsPlayable(true)

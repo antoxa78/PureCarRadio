@@ -83,4 +83,16 @@ object MediaUtils {
             "https://flagcdn.com/w160/$c.png"
         } else null
     }
+
+    fun getStationArtworkUrl(favicon: String, countryCode: String?): String? {
+        var url = favicon
+        if (url.startsWith("http://")) {
+            url = url.replaceFirst("http://", "https://")
+        }
+        return when {
+            url.isNotEmpty() && !url.lowercase().endsWith(".ico") -> url
+            !countryCode.isNullOrEmpty() -> getCountryFlagUrl(countryCode)
+            else -> null
+        }
+    }
 }

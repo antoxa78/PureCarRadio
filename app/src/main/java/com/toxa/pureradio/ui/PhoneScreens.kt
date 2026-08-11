@@ -665,7 +665,7 @@ fun PhoneStationCard(
                     shadowElevation = 4.dp
                 ) {
                     AsyncImage(
-                        model = if (station.favicon.isNotEmpty()) station.favicon else R.drawable.ic_radio_logo,
+                        model = MediaUtils.getStationArtworkUrl(station.favicon, station.countryCode) ?: R.drawable.ic_radio_logo,
                         contentDescription = null,
                         modifier = Modifier.fillMaxSize().padding(12.dp),
                         contentScale = ContentScale.Fit,
@@ -2087,6 +2087,8 @@ fun PhoneNowPlayingBar(viewModel: MainViewModel, onClick: () -> Unit = {}) {
     val isPlaying by viewModel.isPlaying.collectAsState()
     val mediaMetadata by viewModel.mediaMetadata.collectAsState()
     val playbackTime by viewModel.playbackTime.collectAsState()
+    val bufferedPosition by viewModel.bufferedPosition.collectAsState()
+    val isLive by viewModel.isLive.collectAsState()
 
     currentStation?.let { station ->
         Surface(
@@ -2102,53 +2104,67 @@ fun PhoneNowPlayingBar(viewModel: MainViewModel, onClick: () -> Unit = {}) {
             color = MaterialTheme.colorScheme.surfaceColorAtElevation(8.dp),
             border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
         ) {
-            Row(
-                modifier = Modifier
-                    .padding(horizontal = 12.dp)
-                    .fillMaxSize(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.size(48.dp),
-                    color = Color.White.copy(alpha = 0.1f)
-                ) {
-                    AsyncImage(
-                        model = if (station.favicon.isNotEmpty()) station.favicon else R.drawable.ic_radio_logo,
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize().padding(6.dp),
-                        contentScale = ContentScale.Fit
-                    )
-                }
-                Column(modifier = Modifier.weight(1f).padding(horizontal = 12.dp)) {
-                    val title = if (!mediaMetadata?.title.isNullOrEmpty()) mediaMetadata?.title.toString() else station.name
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = station.name,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                
-                IconButton(
-                    onClick = { viewModel.togglePlayPause() },
+            Box(modifier = Modifier.fillMaxSize()) {
+                Row(
                     modifier = Modifier
-                        .size(48.dp)
-                        .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
+                        .padding(horizontal = 12.dp)
+                        .fillMaxSize(),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.size(28.dp)
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.size(48.dp),
+                        color = Color.White.copy(alpha = 0.1f)
+                    ) {
+                        AsyncImage(
+                            model = mediaMetadata?.artworkUri ?: MediaUtils.getStationArtworkUrl(station.favicon, station.countryCode) ?: R.drawable.ic_radio_logo,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize().padding(6.dp),
+                            contentScale = ContentScale.Fit,
+                            error = coil.compose.rememberAsyncImagePainter(R.drawable.ic_radio_logo),
+                            placeholder = coil.compose.rememberAsyncImagePainter(R.drawable.ic_radio_logo)
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                        val title = if (!mediaMetadata?.title.isNullOrEmpty()) mediaMetadata?.title.toString() else station.name
+                        Text(
+                            text = title,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = station.name,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    
+                    IconButton(
+                        onClick = { viewModel.togglePlayPause() },
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
+                    ) {
+                        Icon(
+                            if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                }
+
+                if (isLive) {
+                    val progress = (bufferedPosition.toFloat() / com.toxa.pureradio.ui.viewmodel.MainViewModel.MAX_BUFFER_MS).coerceIn(0f, 1f)
+                    LinearProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier.fillMaxWidth().height(2.dp).align(Alignment.BottomCenter),
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
+                        trackColor = Color.Transparent
                     )
                 }
             }
@@ -2197,11 +2213,12 @@ fun PhoneNowPlayingDialog(
                     Spacer(modifier = Modifier.weight(1f))
 
                     AsyncImage(
-                        model = if (station.favicon.isNotEmpty()) station.favicon else R.drawable.ic_radio_logo,
+                        model = mediaMetadata?.artworkUri ?: MediaUtils.getStationArtworkUrl(station.favicon, station.countryCode) ?: R.drawable.ic_radio_logo,
                         contentDescription = null,
                         modifier = Modifier.size(200.dp),
                         contentScale = ContentScale.Fit,
-                        error = coil.compose.rememberAsyncImagePainter(R.drawable.ic_radio_logo)
+                        error = coil.compose.rememberAsyncImagePainter(R.drawable.ic_radio_logo),
+                        placeholder = coil.compose.rememberAsyncImagePainter(R.drawable.ic_radio_logo)
                     )
                     Spacer(modifier = Modifier.height(24.dp))
 
@@ -2262,11 +2279,27 @@ fun PhoneNowPlayingDialog(
                     }
 
                     Spacer(modifier = Modifier.height(24.dp))
+                    val isLive by viewModel.isLive.collectAsState()
+                    val bufferedPosition by viewModel.bufferedPosition.collectAsState()
                     val waveformType by viewModel.waveformType.collectAsState()
                     WaveformAnalyzer(isPlaying = isPlaying, type = waveformType)
                     Spacer(modifier = Modifier.weight(1f))
 
-                    if (playbackDuration > 0) {
+                    if (isLive) {
+                        val progress = (bufferedPosition.toFloat() / com.toxa.pureradio.ui.viewmodel.MainViewModel.MAX_BUFFER_MS).coerceIn(0f, 1f)
+                        LinearProgressIndicator(
+                            progress = { progress },
+                            modifier = Modifier.fillMaxWidth().height(4.dp),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Buffer: ${bufferedPosition / 1000}s",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                        )
+                    } else if (playbackDuration > 0) {
                         LinearProgressIndicator(
                             progress = { playbackTime.toFloat() / playbackDuration.toFloat() },
                             modifier = Modifier.fillMaxWidth().height(4.dp),
@@ -2366,7 +2399,7 @@ fun PhoneScreensaver(viewModel: MainViewModel) {
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         AsyncImage(
-                            model = if (station.favicon.isNotEmpty()) station.favicon else R.drawable.ic_radio_logo,
+                            model = mediaMetadata?.artworkUri ?: if (station.favicon.isNotEmpty()) station.favicon else R.drawable.ic_radio_logo,
                             contentDescription = null,
                             modifier = Modifier.size(120.dp),
                             contentScale = ContentScale.Fit,

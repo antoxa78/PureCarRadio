@@ -234,11 +234,12 @@ fun PipContent(viewModel: MainViewModel) {
                     colors = SurfaceDefaults.colors(containerColor = Color.White.copy(alpha = 0.1f))
                 ) {
                     AsyncImage(
-                        model = if (station.favicon.isNotEmpty()) station.favicon else R.drawable.ic_radio_logo,
+                        model = mediaMetadata?.artworkUri ?: MediaUtils.getStationArtworkUrl(station.favicon, station.countryCode) ?: R.drawable.ic_radio_logo,
                         contentDescription = null,
                         modifier = Modifier.fillMaxSize().padding(6.dp),
                         contentScale = ContentScale.Fit,
-                        error = coil.compose.rememberAsyncImagePainter(R.drawable.ic_radio_logo)
+                        error = coil.compose.rememberAsyncImagePainter(R.drawable.ic_radio_logo),
+                        placeholder = coil.compose.rememberAsyncImagePainter(R.drawable.ic_radio_logo)
                     )
                 }
 
@@ -773,6 +774,8 @@ fun TvMainScreen(viewModel: MainViewModel) {
 
         currentStation?.let { station ->
             val playbackDuration by viewModel.playbackDuration.collectAsState()
+            val bufferedPosition by viewModel.bufferedPosition.collectAsState()
+            val isLive by viewModel.isLive.collectAsState()
             val waveformType by viewModel.waveformType.collectAsState()
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -784,6 +787,8 @@ fun TvMainScreen(viewModel: MainViewModel) {
                     isFavorite = favorites.contains(station.stationUuid),
                     playbackTime = playbackTime,
                     playbackDuration = playbackDuration,
+                    bufferedPosition = bufferedPosition,
+                    isLive = isLive,
                     mediaMetadata = mediaMetadata,
                     audioFormat = audioFormat,
                     waveformType = waveformType,
@@ -1712,7 +1717,14 @@ fun TvScreensaver(viewModel: MainViewModel) {
                 Column(modifier = Modifier.fillMaxWidth(0.8f).align(Alignment.Center).offset(x = (xOffset * 400).dp, y = (yOffset * 200).dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     currentStation?.let { station ->
                         Box(contentAlignment = Alignment.Center) {
-                            AsyncImage(model = if (station.favicon.isNotEmpty()) station.favicon else R.drawable.ic_radio_logo, contentDescription = null, modifier = Modifier.size(260.dp), contentScale = ContentScale.Fit)
+                            AsyncImage(
+                                model = mediaMetadata?.artworkUri ?: MediaUtils.getStationArtworkUrl(station.favicon, station.countryCode) ?: R.drawable.ic_radio_logo, 
+                                contentDescription = null, 
+                                modifier = Modifier.size(260.dp), 
+                                contentScale = ContentScale.Fit,
+                                error = coil.compose.rememberAsyncImagePainter(R.drawable.ic_radio_logo),
+                                placeholder = coil.compose.rememberAsyncImagePainter(R.drawable.ic_radio_logo)
+                            )
                             val code = station.countryCode?.trim()?.lowercase()
                             if (!code.isNullOrEmpty() && code.length == 2) {
                                 AsyncImage(model = "https://flagcdn.com/w80/$code.png", contentDescription = null, modifier = Modifier.size(48.dp).align(Alignment.TopStart).offset(x = (-20).dp, y = (-10).dp), contentScale = ContentScale.Fit)
@@ -1812,6 +1824,8 @@ fun TvNowPlayingBar(
     isFavorite: Boolean,
     playbackTime: Long,
     playbackDuration: Long,
+    bufferedPosition: Long,
+    isLive: Boolean,
     mediaMetadata: androidx.media3.common.MediaMetadata?,
     audioFormat: androidx.media3.common.Format?,
     waveformType: com.toxa.pureradio.ui.viewmodel.WaveformType,
@@ -1846,10 +1860,12 @@ fun TvNowPlayingBar(
                     colors = SurfaceDefaults.colors(containerColor = Color.White.copy(alpha = 0.15f))
                 ) {
                     AsyncImage(
-                        model = if (station.favicon.isNotEmpty()) station.favicon else R.drawable.ic_radio_logo,
+                        model = mediaMetadata?.artworkUri ?: MediaUtils.getStationArtworkUrl(station.favicon, station.countryCode) ?: R.drawable.ic_radio_logo,
                         contentDescription = null,
                         modifier = Modifier.fillMaxSize().padding(10.dp),
-                        contentScale = ContentScale.Fit
+                        contentScale = ContentScale.Fit,
+                        error = coil.compose.rememberAsyncImagePainter(R.drawable.ic_radio_logo),
+                        placeholder = coil.compose.rememberAsyncImagePainter(R.drawable.ic_radio_logo)
                     )
                 }
                 Spacer(modifier = Modifier.width(20.dp))
@@ -1928,7 +1944,15 @@ fun TvNowPlayingBar(
                 WaveformAnalyzer(isPlaying = isPlaying, type = waveformType)
             }
         }
-        if (playbackDuration > 0) {
+        if (isLive) {
+            val progress = (bufferedPosition.toFloat() / com.toxa.pureradio.ui.viewmodel.MainViewModel.MAX_BUFFER_MS).coerceIn(0f, 1f)
+            LinearProgressIndicator(
+                progress = { progress },
+                modifier = Modifier.fillMaxWidth().height(4.dp).align(Alignment.BottomCenter),
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                trackColor = Color.Transparent
+            )
+        } else if (playbackDuration > 0) {
             LinearProgressIndicator(
                 progress = { playbackTime.toFloat() / playbackDuration.toFloat() },
                 modifier = Modifier.fillMaxWidth().height(3.dp).align(Alignment.BottomCenter),
@@ -2158,7 +2182,7 @@ fun StationCardContent(station: Station, isFavorite: Boolean, isCurrent: Boolean
     Column(modifier = Modifier.padding(12.dp).fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.SpaceBetween) {
         Box(contentAlignment = Alignment.Center) {
             Surface(shape = MaterialTheme.shapes.small, modifier = Modifier.size(80.dp), colors = SurfaceDefaults.colors(containerColor = Color.White.copy(alpha = 0.05f))) {
-                AsyncImage(model = if (station.favicon.isNotEmpty()) station.favicon else R.drawable.ic_radio_logo, contentDescription = null, modifier = Modifier.fillMaxSize().padding(12.dp), contentScale = ContentScale.Fit, error = coil.compose.rememberAsyncImagePainter(R.drawable.ic_radio_logo))
+                AsyncImage(model = MediaUtils.getStationArtworkUrl(station.favicon, station.countryCode) ?: R.drawable.ic_radio_logo, contentDescription = null, modifier = Modifier.fillMaxSize().padding(12.dp), contentScale = ContentScale.Fit, error = coil.compose.rememberAsyncImagePainter(R.drawable.ic_radio_logo))
             }
             val code = station.countryCode?.trim()?.lowercase()
             if (!code.isNullOrEmpty() && code.length == 2) {

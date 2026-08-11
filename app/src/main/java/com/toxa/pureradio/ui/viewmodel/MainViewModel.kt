@@ -36,6 +36,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.toxa.pureradio.ui.MediaUtils
 import com.toxa.pureradio.PlayerAction
 import java.util.concurrent.ConcurrentHashMap
 
@@ -126,6 +127,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _playbackDuration = MutableStateFlow(0L)
     val playbackDuration: StateFlow<Long> = _playbackDuration
+
+    private val _bufferedPosition = MutableStateFlow(0L)
+    val bufferedPosition: StateFlow<Long> = _bufferedPosition
+
+    private val _isLive = MutableStateFlow(true)
+    val isLive: StateFlow<Boolean> = _isLive
+
+    companion object {
+        const val MAX_BUFFER_MS = 60_000L
+    }
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
@@ -831,10 +842,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             while (true) {
                 if (_isPlaying.value) {
-                    _playbackTime.value = player?.currentPosition ?: 0L
-                    val duration = player?.duration ?: 0L
-                    val isLive = player?.isCurrentMediaItemLive ?: false
-                    _playbackDuration.value = if (duration > 0 && !isLive) duration else 0L
+                    player?.let { p ->
+                        _playbackTime.value = p.currentPosition
+                        val duration = p.duration
+                        val isLive = p.isCurrentMediaItemLive
+                        _isLive.value = isLive
+                        _playbackDuration.value = if (duration > 0 && !isLive) duration else 0L
+                        
+                        if (isLive) {
+                            // Calculate buffer relative to current position
+                            _bufferedPosition.value = (p.bufferedPosition - p.currentPosition).coerceAtLeast(0L)
+                        } else {
+                            _bufferedPosition.value = p.bufferedPosition
+                        }
+                    }
                 }
                 kotlinx.coroutines.delay(1000)
             }
@@ -1770,27 +1791,26 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _mediaMetadata.value = null
         _audioFormat.value = null
 
-        val artworkUri = if (finalStation.favicon.isNotEmpty()) {
-            android.net.Uri.parse(finalStation.favicon)
-        } else {
-            android.net.Uri.parse("android.resource://${getApplication<android.app.Application>().packageName}/${com.toxa.pureradio.R.drawable.ic_radio_logo}")
+        val appPackage = getApplication<Application>().packageName
+        val appIconUri = android.net.Uri.parse("android.resource://$appPackage/${R.drawable.ic_radio_logo}")
+
+        fun getResolvedArtworkUri(s: Station): android.net.Uri {
+            return MediaUtils.getStationArtworkUrl(s.favicon, s.countryCode)?.let { android.net.Uri.parse(it) } ?: appIconUri
         }
 
+        val artworkUri = getResolvedArtworkUri(finalStation)
         val cachedBytes = faviconCache[finalStation.stationUuid]
 
         player?.let {
             it.stop()
             if (playlist != null && playlist.isNotEmpty()) {
                 val mediaItems = playlist.map { s -> 
-                    val artUri = if (s.favicon.isNotEmpty()) {
-                        android.net.Uri.parse(s.favicon)
-                    } else {
-                        android.net.Uri.parse("android.resource://${getApplication<android.app.Application>().packageName}/${com.toxa.pureradio.R.drawable.ic_radio_logo}")
-                    }
-                    
+                    val artUri = getResolvedArtworkUri(s)
                     val sJson = com.google.gson.Gson().toJson(s)
                     val sExtras = android.os.Bundle().apply {
                         putString("station_full_json", sJson)
+                        putString("android.media.metadata.DISPLAY_ICON_URI", artUri.toString())
+                        putString("android.media.metadata.ALBUM_ART_URI", artUri.toString())
                     }
 
                     val sId = if (parentId != null) "$parentId|station:${s.stationUuid}" else s.stationUuid
@@ -1822,6 +1842,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val sJson = com.google.gson.Gson().toJson(finalStation)
                 val sExtras = android.os.Bundle().apply {
                     putString("station_full_json", sJson)
+                    putString("android.media.metadata.DISPLAY_ICON_URI", artworkUri.toString())
+                    putString("android.media.metadata.ALBUM_ART_URI", artworkUri.toString())
                 }
 
                 val metaBuilder = androidx.media3.common.MediaMetadata.Builder()
