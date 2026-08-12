@@ -4,8 +4,10 @@ import com.toxa.pureradio.data.model.Station
 import com.toxa.pureradio.network.Country
 import com.toxa.pureradio.network.RadioBrowserService
 import com.toxa.pureradio.network.Tag
+import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.util.concurrent.TimeUnit
 
 /**
  * Repository for Radio Browser API.
@@ -29,9 +31,17 @@ class RadioRepository {
     }
 
     // Build a Retrofit service for each mirror so we can try them in order.
+    // Short timeouts keep the mirror fallback chain fast so car display browsing
+    // doesn't stall and show source errors.
     private val services: List<RadioBrowserService> = MIRRORS.map { baseUrl ->
+        val httpClient = OkHttpClient.Builder()
+            .connectTimeout(8, TimeUnit.SECONDS)
+            .readTimeout(10, TimeUnit.SECONDS)
+            .writeTimeout(10, TimeUnit.SECONDS)
+            .build()
         Retrofit.Builder()
             .baseUrl(baseUrl)
+            .client(httpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(RadioBrowserService::class.java)

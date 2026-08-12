@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.4] - 2026-08-12
+
+### Changed
+- **Version bump**: `versionCode` 22 → 23, `versionName` 1.6.3 → 1.6.4.
+
+### Fixed
+- **Car Display "Source error"**: Browsing from the car display no longer shows source error messages when a radio-browser mirror is slow or unreachable. Browse/search failures now return empty results, network calls are bounded by 10s timeouts, `onGetItem` resolves stations locally first, and the repository uses fast OkHttp timeouts.
+
 ## [1.6.3] - 2026-08-12
 
 ### Changed
