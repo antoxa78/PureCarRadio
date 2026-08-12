@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.3] - 2026-08-12
+
+### Changed
+- **Version bump**: `versionCode` 21 → 22, `versionName` 1.6.2 → 1.6.3.
+
+### Fixed
+- **Car Display Station Name**: Station name now shows on the car display (Android Auto) as the title fallback before ICY track metadata arrives or for streams without ICY metadata.
+
 ## [1.6.2] - 2026-08-12
 
 ### Changed

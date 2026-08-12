@@ -108,6 +108,21 @@ class PlaybackService : MediaLibraryService() {
 
         override fun getMediaMetadata(): MediaMetadata {
             val metadata = super.getMediaMetadata()
+            var builder = metadata.buildUpon()
+
+            if (metadata.title.isNullOrEmpty() && metadata.displayTitle.isNullOrEmpty()) {
+                val stationJson = super.getCurrentMediaItem()?.mediaMetadata?.extras
+                    ?.getString("station_full_json")
+                if (stationJson != null) {
+                    try {
+                        val station = com.google.gson.Gson().fromJson(stationJson, Station::class.java)
+                        if (!station.name.isNullOrEmpty()) {
+                            builder = builder.setTitle(station.name)
+                        }
+                    } catch (_: Exception) {}
+                }
+            }
+
             val format = service.currentAudioFormat
             
             val techInfo = format?.let { f ->
@@ -122,7 +137,7 @@ class PlaybackService : MediaLibraryService() {
                 }
             } ?: ""
 
-            if (techInfo.isEmpty()) return metadata
+            if (techInfo.isEmpty()) return builder.build()
 
             val currentArtist = metadata.artist
             val displayArtist = if (currentArtist.isNullOrEmpty()) {
@@ -131,7 +146,7 @@ class PlaybackService : MediaLibraryService() {
                 "$currentArtist \u2022 $techInfo"
             }
 
-            return metadata.buildUpon()
+            return builder
                 .setArtist(displayArtist)
                 .setSubtitle(displayArtist)
                 .build()
