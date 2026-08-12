@@ -1,10 +1,10 @@
-# Pure Radio TV 📻
+# Pure CAR Radio  📻
 
-Pure Radio TV is a premium, retro-styled internet radio application designed specifically for Android TV and Google TV (Nvidia Shield, Chromecast, Sony/TCL TVs, etc.). It leverages the vast [Radio Browser](https://www.radio-browser.info/) database to provide thousands of stations with a focus on high-fidelity audio and a classic aesthetic.
+Pure Car Radio is a premium, retro-styled internet radio application designed specifically for Android Auto and Android It leverages the vast [Radio Browser](https://www.radio-browser.info/) database to provide thousands of stations with a focus on high-fidelity audio and a classic aesthetic.
 
 ## ✨ Features
 
-- **📺 Optimized for TV**: Fully navigable with a standard D-pad remote. High-contrast UI for comfortable viewing from the couch.
+- **📺 Optimized for CAR**
 - **🎙️ Global Discovery**: Access thousands of stations via the community-driven Radio Browser database.
 - **🔥 Popular Stations**: Dedicated section for the world's most-voted and trending radio stations.
 - **🔊 Bit-Perfect Audio**: Experimental "Audio Passthrough" mode designed for Nvidia Shield to bypass the Android system resampler and output high-fidelity PCM.
@@ -13,7 +13,6 @@ Pure Radio TV is a premium, retro-styled internet radio application designed spe
 - **🚗 Android Car Support**: Fully compatible with Android Auto and Android Automotive OS. Control playback and browse stations directly from your car's head unit.
 - **🖼️ Anti-Burn-In Screensaver**: Dynamic "Bouncing" screensaver with live playback stats and waveform, specifically designed to protect OLED/Plasma TV screens.
 - **⭐ Favorites & Recents**: Manage your favorite stations and quickly return to recently played ones with automatic metadata "healing".
-- **🛡️ Native TV Look**: High-definition Adaptive Icons and Leanback Banners for a premium look on the Google TV home screen.
 
 ## 🛠️ Tech Stack
 
