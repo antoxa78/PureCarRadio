@@ -1,24 +1,23 @@
 # Pure Car Radio 📻
 
-Pure Car Radio is a premium, retro-styled internet radio application for Android TV, Google TV, Android Auto, and Android Automotive OS. It leverages the vast [Radio Browser](https://www.radio-browser.info/) database to provide thousands of stations with a focus on high-fidelity audio and a classic aesthetic.
+Pure Car Radio is a premium, retro-styled internet radio application for Android Auto and Android Automotive OS, also usable on Android phones. It leverages the vast [Radio Browser](https://www.radio-browser.info/) database to provide thousands of stations with a focus on high-fidelity audio and a classic aesthetic.
 
 ## ✨ Features
 
-- **📺 Optimized for TV & Car**: Fully navigable with a standard D-pad remote on Android TV and Google TV, plus full Android Auto / Android Automotive OS support with native browsing and playback controls on the car head unit.
+- **🚗 Built for the Car**: Full Android Auto / Android Automotive OS support with native browsing, search, and playback controls directly on the car head unit.
 - **🎙️ Global Discovery**: Access thousands of stations via the community-driven Radio Browser database.
 - **🔥 Popular Stations**: Dedicated section for the world's most-voted and trending radio stations.
-- **🎵 Now Playing Metadata**: Real-time song and artist titles via ICY metadata on phone, TV, and car screens, with bitrate and codec info on the Now Playing bar.
-- **🔊 Bit-Perfect Audio**: Experimental "Audio Passthrough" mode designed for Nvidia Shield to bypass the Android system resampler and output high-fidelity PCM.
+- **🎵 Now Playing Metadata**: Real-time song and artist titles via ICY metadata, with bitrate and codec info on the Now Playing bar.
+- **🔊 Bit-Perfect Audio**: Experimental "Audio Passthrough" mode that bypasses the Android system resampler to output high-fidelity PCM.
 - **🏷️ Smart Browsing**: Explore by Genres (with personalization), Countries, or use the integrated Search.
 - **📊 Real-time Visuals**: Includes a center-weighted animated Waveform Analyzer that reacts to the music.
-- **🖼️ Anti-Burn-In Screensaver**: Dynamic "Bouncing" screensaver with live playback stats and waveform, specifically designed to protect OLED/Plasma TV screens.
+- **🖼️ Screensaver Mode**: "Station Info" screensaver with live playback stats and waveform to protect car and phone displays from burn-in.
 - **⭐ Favorites & Recents**: Manage your favorite stations and quickly return to recently played ones with automatic metadata "healing".
-- **🛡️ Native TV Look**: High-definition Adaptive Icons and Leanback Banners for a premium look on the Google TV home screen.
 
 ## 🛠️ Tech Stack
 
 - **Language**: Kotlin
-- **UI Framework**: Jetpack Compose for TV (Material 3)
+- **UI Framework**: Jetpack Compose (Material 3)
 - **Audio Engine**: Android Media3 (ExoPlayer)
 - **Network**: Retrofit & Gson
 - **Image Loading**: Coil
@@ -37,7 +36,7 @@ Pure Car Radio is a premium, retro-styled internet radio application for Android
    git clone https://github.com/antoxa78/PureCarRadio.git
    ```
 2. Open the project in Android Studio.
-3. Sync Gradle and run on an Android TV emulator, automotive emulator, or physical device.
+3. Sync Gradle and run on an automotive emulator, Android Auto Desktop Head Unit, or a physical phone/device.
 
 ## 📦 Releases
 
