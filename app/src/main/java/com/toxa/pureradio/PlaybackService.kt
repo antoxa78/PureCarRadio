@@ -1,16 +1,19 @@
 package com.toxa.pureradio
 
+import android.content.ContentResolver
 import android.net.Uri
 import android.os.Bundle
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.Format
 import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.Player
 import androidx.media3.common.PlaybackException
+import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.DefaultLoadControl
@@ -30,6 +33,7 @@ import com.google.common.collect.ImmutableList
 import com.toxa.pureradio.data.repository.RadioRepository
 import com.toxa.pureradio.data.model.Station
 import com.toxa.pureradio.ui.MediaUtils
+import androidx.media3.extractor.metadata.icy.IcyInfo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -47,6 +51,9 @@ class PlaybackService : MediaLibraryService() {
 
     companion object {
         const val CMD_PLAY_STATION = "play_station"
+        const val CMD_ICY_TITLE = "com.toxa.pureradio.ICY_TITLE"
+        const val EXTRA_ICY_TITLE = "icy_title"
+        const val EXTRA_STATION_UUID = "station_uuid"
     }
 
     private var mediaLibrarySession: MediaLibrarySession? = null
@@ -55,11 +62,32 @@ class PlaybackService : MediaLibraryService() {
     private val serviceJob = SupervisorJob()
     private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
 
+    private class BrowseCache {
+        private val cache = ConcurrentHashMap<String, Pair<Long, List<MediaItem>>>()
+        private val CACHE_TIMEOUT_MS = 60_000L // 1 minute
+
+        fun get(parentId: String): List<MediaItem>? {
+            val entry = cache[parentId] ?: return null
+            if (System.currentTimeMillis() - entry.first > CACHE_TIMEOUT_MS) {
+                cache.remove(parentId)
+                return null
+            }
+            return entry.second
+        }
+
+        fun put(parentId: String, items: List<MediaItem>) {
+            cache[parentId] = System.currentTimeMillis() to items
+        }
+    }
+
+    private val browseCache = BrowseCache()
+
     private var retryCount = 0
     private var lastErrorMediaId: String? = null
+    private var currentAudioFormat: Format? = null
 
     @UnstableApi
-    private class InterceptingPlayer(player: Player) : ForwardingPlayer(player) {
+    private class InterceptingPlayer(player: Player, private val service: PlaybackService) : ForwardingPlayer(player) {
         override fun isCommandAvailable(command: Int): Boolean {
             if (command == Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM) return false
             if (command == Player.COMMAND_SEEK_TO_NEXT || 
@@ -75,6 +103,37 @@ class PlaybackService : MediaLibraryService() {
                 .add(Player.COMMAND_SEEK_TO_PREVIOUS)
                 .add(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
                 .add(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
+                .build()
+        }
+
+        override fun getMediaMetadata(): MediaMetadata {
+            val metadata = super.getMediaMetadata()
+            val format = service.currentAudioFormat
+            
+            val techInfo = format?.let { f ->
+                buildString {
+                    if (f.bitrate > 0) append("${f.bitrate / 1000}k")
+                    val codec = f.sampleMimeType?.removePrefix("audio/")?.uppercase()
+                        ?.replace("MPEG", "MP3")?.replace("MP4A-LATM", "AAC")
+                    if (codec != null) {
+                        if (isNotEmpty()) append(" ")
+                        append(codec)
+                    }
+                }
+            } ?: ""
+
+            if (techInfo.isEmpty()) return metadata
+
+            val currentArtist = metadata.artist
+            val displayArtist = if (currentArtist.isNullOrEmpty()) {
+                techInfo
+            } else {
+                "$currentArtist \u2022 $techInfo"
+            }
+
+            return metadata.buildUpon()
+                .setArtist(displayArtist)
+                .setSubtitle(displayArtist)
                 .build()
         }
     }
@@ -125,7 +184,7 @@ class PlaybackService : MediaLibraryService() {
             playerBuilder.setRenderersFactory(renderersFactory)
         }
 
-        val player = InterceptingPlayer(playerBuilder.build())
+        val player = InterceptingPlayer(playerBuilder.build(), this)
         player.repeatMode = Player.REPEAT_MODE_ALL
         
         player.addListener(object : Player.Listener {
@@ -134,6 +193,7 @@ class PlaybackService : MediaLibraryService() {
                     retryCount = 0
                     lastErrorMediaId = null
                 }
+                currentAudioFormat = null
 
                 val metadata = mediaItem?.mediaMetadata ?: return
                 val stationJson = metadata.extras?.getString("station_full_json") ?: return
@@ -150,6 +210,48 @@ class PlaybackService : MediaLibraryService() {
                 if (isPlaying) {
                     retryCount = 0
                     lastErrorMediaId = null
+                }
+            }
+
+            override fun onMediaMetadataChanged(metadata: MediaMetadata) {
+                // Primary metadata updates (including ICY) are handled by Media3 session automatically.
+                // This listener is here for potential future enhancements.
+            }
+
+            override fun onMetadata(metadata: androidx.media3.common.Metadata) {
+                // ICY metadata may be masked by static MediaItem metadata in the merged
+                // mediaMetadata, so broadcast the raw ICY title directly to controllers.
+                for (i in 0 until metadata.length()) {
+                    val entry = metadata[i]
+                    if (entry is IcyInfo && !entry.title.isNullOrEmpty()) {
+                        val currentItem = player.currentMediaItem
+                        val uuid = currentItem?.mediaId?.let {
+                            if (it.contains("|station:")) it.split("|")[1].removePrefix("station:") else it
+                        }
+                        val args = Bundle().apply {
+                            putString(EXTRA_ICY_TITLE, entry.title.toString())
+                            putString(EXTRA_STATION_UUID, uuid)
+                        }
+                        try {
+                            mediaLibrarySession?.broadcastCustomCommand(
+                                SessionCommand(CMD_ICY_TITLE, Bundle.EMPTY),
+                                args
+                            )
+                        } catch (_: Exception) {}
+                    }
+                }
+            }
+
+            override fun onTracksChanged(tracks: Tracks) {
+                for (group in tracks.groups) {
+                    if (group.type == C.TRACK_TYPE_AUDIO && group.isSelected) {
+                        for (i in 0 until group.length) {
+                            if (group.isTrackSelected(i)) {
+                                currentAudioFormat = group.getTrackFormat(i)
+                                break
+                            }
+                        }
+                    }
                 }
             }
 
@@ -217,7 +319,7 @@ class PlaybackService : MediaLibraryService() {
                                     object : com.google.gson.reflect.TypeToken<List<Station>>() {}.type
                                 )
                                 if (stations.isNotEmpty()) {
-                                    val mediaItems = stations.map { createPlayableItem(it) }
+                                    val mediaItems = stations.map { createPlayableItem(it, forPlayback = true) }
                                     val startIndex = stations.indexOfFirst { it.stationUuid == lastUuid }.coerceAtLeast(0)
                                     player.setMediaItems(mediaItems, startIndex, 0L)
                                     player.prepare()
@@ -232,7 +334,7 @@ class PlaybackService : MediaLibraryService() {
                         if (lastJson != null) {
                             try {
                                 val station = com.google.gson.Gson().fromJson(lastJson, Station::class.java)
-                                val mediaItem = createPlayableItem(station)
+                                val mediaItem = createPlayableItem(station, forPlayback = true)
                                 player.setMediaItem(mediaItem)
                                 player.prepare()
                             } catch (_: Exception) {}
@@ -263,7 +365,7 @@ class PlaybackService : MediaLibraryService() {
                         bitrate = extras.getInt("station_bitrate", 0)
                     )
                     val isHls = extras.getBoolean("is_hls", false)
-                    val mediaItem = createPlayableItem(station, isHls)
+                    val mediaItem = createPlayableItem(station, isHls, forPlayback = true)
                     player.stop()
                     player.clearMediaItems()
                     player.setMediaItem(mediaItem)
@@ -336,8 +438,16 @@ class PlaybackService : MediaLibraryService() {
                     }
                     "popular" -> serviceScope.future {
                         try {
-                            val stations = repository.getTopStations(limit = 100)
-                            val items = stations.map { createPlayableItem(it, parentId = "popular") }
+                            val cached = browseCache.get("popular")
+                            val items = if (cached != null) {
+                                cached
+                            } else {
+                                val stations = repository.getTopStations(limit = 100)
+                                val newItems = stations.map { createPlayableItem(it, parentId = "popular") }
+                                browseCache.put("popular", newItems)
+                                newItems
+                            }
+                            
                             val pagedItems = if (page >= 0 && pageSize >= 1) {
                                 val start = (page * pageSize).coerceAtMost(items.size)
                                 val end = ((page + 1) * pageSize).coerceAtMost(items.size)
@@ -350,10 +460,18 @@ class PlaybackService : MediaLibraryService() {
                     }
                     "genres" -> serviceScope.future {
                         try {
-                            val tags = repository.getTags(limit = 500)
-                            val items = tags.map { tag ->
-                                createBrowsableItem("genre_${tag.name}", tag.name, Uri.parse(MediaUtils.getGenreImageUrl(tag.name)))
+                            val cached = browseCache.get("genres")
+                            val items = if (cached != null) {
+                                cached
+                            } else {
+                                val tags = repository.getTags(limit = 500)
+                                val newItems = tags.map { tag ->
+                                    createBrowsableItem("genre_${tag.name}", tag.name, Uri.parse(MediaUtils.getGenreImageUrl(tag.name)))
+                                }
+                                browseCache.put("genres", newItems)
+                                newItems
                             }
+                            
                             val pagedItems = if (page >= 0 && pageSize >= 1) {
                                 val start = (page * pageSize).coerceAtMost(items.size)
                                 val end = ((page + 1) * pageSize).coerceAtMost(items.size)
@@ -366,11 +484,19 @@ class PlaybackService : MediaLibraryService() {
                     }
                     "countries" -> serviceScope.future {
                         try {
-                            val countries = repository.getCountries()
-                            val items = countries.map { country ->
-                                val flagUrl = MediaUtils.getCountryFlagUrl(country.iso_3166_1)
-                                createBrowsableItem("country_${country.name}", country.name, flagUrl?.let { Uri.parse(it) })
+                            val cached = browseCache.get("countries")
+                            val items = if (cached != null) {
+                                cached
+                            } else {
+                                val countries = repository.getCountries()
+                                val newItems = countries.map { country ->
+                                    val flagUrl = MediaUtils.getCountryFlagUrl(country.iso_3166_1)
+                                    createBrowsableItem("country_${country.name}", country.name, flagUrl?.let { Uri.parse(it) })
+                                }
+                                browseCache.put("countries", newItems)
+                                newItems
                             }
+                            
                             val pagedItems = if (page >= 0 && pageSize >= 1) {
                                 val start = (page * pageSize).coerceAtMost(items.size)
                                 val end = ((page + 1) * pageSize).coerceAtMost(items.size)
@@ -422,22 +548,44 @@ class PlaybackService : MediaLibraryService() {
                     else -> if (parentId.startsWith("genre_")) serviceScope.future {
                         try {
                             val genre = parentId.removePrefix("genre_")
-                            val safePageSize = if (pageSize >= 1) pageSize else 50
-                            val offset = if (page >= 0) page * safePageSize else 0
-                            val stations = repository.searchStations(tag = genre, limit = safePageSize, offset = offset)
-                            val items = stations.map { createPlayableItem(it, parentId = parentId) }
-                            LibraryResult.ofItemList(ImmutableList.copyOf(items), params)
+                            val cached = browseCache.get(parentId)
+                            val items = if (cached != null) {
+                                cached
+                            } else {
+                                val stations = repository.searchStations(tag = genre, limit = 100)
+                                val newItems = stations.map { createPlayableItem(it, parentId = parentId) }
+                                browseCache.put(parentId, newItems)
+                                newItems
+                            }
+
+                            val pagedItems = if (page >= 0 && pageSize >= 1) {
+                                val start = (page * pageSize).coerceAtMost(items.size)
+                                val end = ((page + 1) * pageSize).coerceAtMost(items.size)
+                                items.subList(start, end)
+                            } else items
+                            LibraryResult.ofItemList(ImmutableList.copyOf(pagedItems), params)
                         } catch (e: Exception) {
                             LibraryResult.ofError(SessionError.ERROR_NOT_SUPPORTED)
                         }
                     } else if (parentId.startsWith("country_")) serviceScope.future {
                         try {
                             val country = parentId.removePrefix("country_")
-                            val safePageSize = if (pageSize >= 1) pageSize else 50
-                            val offset = if (page >= 0) page * safePageSize else 0
-                            val stations = repository.searchStations(country = country, limit = safePageSize, offset = offset)
-                            val items = stations.map { createPlayableItem(it, parentId = parentId) }
-                            LibraryResult.ofItemList(ImmutableList.copyOf(items), params)
+                            val cached = browseCache.get(parentId)
+                            val items = if (cached != null) {
+                                cached
+                            } else {
+                                val stations = repository.searchStations(country = country, limit = 100)
+                                val newItems = stations.map { createPlayableItem(it, parentId = parentId) }
+                                browseCache.put(parentId, newItems)
+                                newItems
+                            }
+                            
+                            val pagedItems = if (page >= 0 && pageSize >= 1) {
+                                val start = (page * pageSize).coerceAtMost(items.size)
+                                val end = ((page + 1) * pageSize).coerceAtMost(items.size)
+                                items.subList(start, end)
+                            } else items
+                            LibraryResult.ofItemList(ImmutableList.copyOf(pagedItems), params)
                         } catch (e: Exception) {
                             LibraryResult.ofError(SessionError.ERROR_NOT_SUPPORTED)
                         }
@@ -554,8 +702,25 @@ class PlaybackService : MediaLibraryService() {
                             val stationUuid = parts[1].removePrefix("station:")
                             
                             // Resolve siblings for playlist support on car display
+                            val cachedItems = browseCache.get(parentId)
+                            if (cachedItems != null) {
+                                val index = cachedItems.indexOfFirst { 
+                                    it.mediaId.split("|").lastOrNull()?.removePrefix("station:") == stationUuid 
+                                }
+                                if (index != -1) {
+                                    serviceScope.launch(Dispatchers.Main) {
+                                        mediaSession.player.stop()
+                                        mediaSession.player.clearMediaItems()
+                                        mediaSession.player.setMediaItems(cachedItems.map { createPlaybackItemFromBrowseItem(it) }, index, 0L)
+                                        mediaSession.player.prepare()
+                                        mediaSession.player.play()
+                                    }
+                                    return@future emptyList()
+                                }
+                            }
+
                             val siblings = when {
-                                parentId == "popular" -> repository.getTopStations(limit = 50)
+                                parentId == "popular" -> repository.getTopStations(limit = 100)
                                 parentId == "favourites" -> {
                                     val prefs = getSharedPreferences("pure_radio_prefs", MODE_PRIVATE)
                                     val json = prefs.getString("favorite_stations_json", null)
@@ -576,11 +741,11 @@ class PlaybackService : MediaLibraryService() {
                                 }
                                 parentId.startsWith("genre_") -> {
                                     val genre = parentId.removePrefix("genre_")
-                                    repository.searchStations(tag = genre, limit = 50)
+                                    repository.searchStations(tag = genre, limit = 100)
                                 }
                                 parentId.startsWith("country_") -> {
                                     val country = parentId.removePrefix("country_")
-                                    repository.searchStations(country = country, limit = 50)
+                                    repository.searchStations(country = country, limit = 100)
                                 }
                                 parentId.startsWith("search_") -> {
                                     val query = parentId.removePrefix("search_")
@@ -591,7 +756,7 @@ class PlaybackService : MediaLibraryService() {
                             
                             if (siblings.isNotEmpty()) {
                                 // Create items for siblings, preserving the contextual ID
-                                val items = siblings.map { createPlayableItem(it, parentId = parentId) }
+                                val items = siblings.map { createPlayableItem(it, parentId = parentId, forPlayback = true) }
                                 
                                 // Find the index of the requested item
                                 val index = siblings.indexOfFirst { it.stationUuid == stationUuid }
@@ -614,13 +779,13 @@ class PlaybackService : MediaLibraryService() {
 
                     mediaItems.map { item ->
                         if (item.requestMetadata.mediaUri != null || item.localConfiguration?.uri != null) {
-                            item
+                            createPlaybackItemFromBrowseItem(item)
                         } else {
                             val realId = if (item.mediaId.contains("|station:")) 
                                 item.mediaId.split("|")[1].removePrefix("station:") 
                                 else item.mediaId
                             val station = stationCache[realId] ?: repository.getStation(realId)
-                            if (station != null) createPlayableItem(station) else item
+                            if (station != null) createPlayableItem(station, forPlayback = true) else item
                         }
                     }
                 }
@@ -642,6 +807,9 @@ class PlaybackService : MediaLibraryService() {
         val extras = Bundle()
         extras.putInt("android.media.browse.CONTENT_STYLE_BROWSABLE_HINT", 2) // Grid
         extras.putInt("android.media.browse.CONTENT_STYLE_PLAYABLE_HINT", 2)  // Grid
+        if (artworkUri != null) {
+            extras.putString("android.media.metadata.DISPLAY_ICON_URI", artworkUri.toString())
+        }
         metadata.setExtras(extras)
 
         return MediaItem.Builder()
@@ -651,7 +819,13 @@ class PlaybackService : MediaLibraryService() {
     }
 
     private fun getAppIconUri(): Uri {
-        return Uri.parse("android.resource://$packageName/${R.drawable.ic_radio_logo}")
+        val resourceId = R.drawable.ic_radio_logo
+        return Uri.Builder()
+            .scheme(ContentResolver.SCHEME_ANDROID_RESOURCE)
+            .authority(resources.getResourcePackageName(resourceId))
+            .appendPath(resources.getResourceTypeName(resourceId))
+            .appendPath(resources.getResourceEntryName(resourceId))
+            .build()
     }
 
     private fun cacheStation(station: Station) {
@@ -661,7 +835,12 @@ class PlaybackService : MediaLibraryService() {
         stationCache[station.stationUuid] = station
     }
 
-    private fun createPlayableItem(station: Station, isHls: Boolean = false, parentId: String? = null): MediaItem {
+    private fun createPlayableItem(
+        station: Station,
+        isHls: Boolean = false,
+        parentId: String? = null,
+        forPlayback: Boolean = false
+    ): MediaItem {
         cacheStation(station)
         
         val artworkUri = MediaUtils.getStationArtworkUrl(station.favicon, station.countryCode)?.let { Uri.parse(it) } ?: getAppIconUri()
@@ -680,6 +859,17 @@ class PlaybackService : MediaLibraryService() {
 
         val mediaId = if (parentId != null) "$parentId|station:${station.stationUuid}" else station.stationUuid
 
+        val metadataBuilder = MediaMetadata.Builder()
+            .setIsBrowsable(false)
+            .setIsPlayable(true)
+            .setMediaType(MediaMetadata.MEDIA_TYPE_RADIO_STATION)
+            .setArtworkUri(artworkUri)
+            .setExtras(extras)
+        if (!forPlayback) {
+            metadataBuilder.setTitle(station.name)
+        }
+        metadataBuilder.setArtist(station.tags)
+
         val builder = MediaItem.Builder()
             .setMediaId(mediaId)
             .setUri(station.url)
@@ -687,19 +877,17 @@ class PlaybackService : MediaLibraryService() {
                 .setMaxPlaybackSpeed(1.02f)
                 .setMinPlaybackSpeed(0.98f)
                 .build())
-            .setMediaMetadata(MediaMetadata.Builder()
-                .setIsBrowsable(false)
-                .setIsPlayable(true)
-                .setMediaType(MediaMetadata.MEDIA_TYPE_RADIO_STATION)
-                .setTitle(station.name)
-                .setArtist(station.tags)
-                .setArtworkUri(artworkUri)
-                .setExtras(extras)
-                .build())
+            .setMediaMetadata(metadataBuilder.build())
         if (isHlsStream) {
             builder.setMimeType(MimeTypes.APPLICATION_M3U8)
         }
         return builder.build()
+    }
+
+    private fun createPlaybackItemFromBrowseItem(item: MediaItem): MediaItem {
+        return item.buildUpon()
+            .setMediaMetadata(item.mediaMetadata.buildUpon().setTitle(null).build())
+            .build()
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? {

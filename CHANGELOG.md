@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.2] - 2026-08-12
+
+### Changed
+- **Version bump**: `versionCode` 20 → 21, `versionName` 1.6.1 → 1.6.2.
+
+### Fixed
+- **Stale Station Info**: Previous station metadata no longer shown when switching to another station.
+- **Stream Titles (ICY)**: Stream song titles now display on the now playing screen. Playback media items no longer mask in-stream ICY metadata with the station name.
+- **Stream Titles (HTTP)**: ICY titles for streams such as `http://dorognoe.hostingradio.ru:8000/radio` now display. The service broadcasts raw ICY metadata directly to the app, bypassing merged metadata that could drop or mask the dynamic title.
+
+## [1.6.1] - 2026-08-12
+
+### Fixed
+- **Metadata Display**: Fixed an issue where stream artist and song title were not appearing on the phone screen.
+- **Sync Logic**: Improved `MediaController` synchronization for immediate metadata display on connection.
+- **UI Robustness**: Added support for `displayTitle` metadata field as a fallback for various stream formats.
+
+## [1.6.0] - 2026-08-12
+
+### Added
+- **Dynamic Metadata**: Real-time artist and song title updates on phone, TV, and car screens via ICY metadata.
+- **Stream Info**: Bitrate and codec information displayed on car head units and the phone's "Now Playing" bar.
+- **Enhanced Car Experience**: Automatic injection of stream quality metrics into car display metadata.
+
+### Fixed
+- **UI Consistency**: Standardized bitrate indicators across all device form factors.
+
 ## [1.5.2] - 2026-07-18
 
 ### Added

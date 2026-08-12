@@ -2080,7 +2080,8 @@ fun WaveformAnalyzerPreview() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, androidx.media3.common.util.UnstableApi::class)
+@UnstableApi
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PhoneNowPlayingBar(viewModel: MainViewModel, onClick: () -> Unit = {}) {
     val currentStation by viewModel.currentStation.collectAsState()
@@ -2089,6 +2090,7 @@ fun PhoneNowPlayingBar(viewModel: MainViewModel, onClick: () -> Unit = {}) {
     val playbackTime by viewModel.playbackTime.collectAsState()
     val bufferedPosition by viewModel.bufferedPosition.collectAsState()
     val isLive by viewModel.isLive.collectAsState()
+    val audioFormat by viewModel.audioFormat.collectAsState()
 
     currentStation?.let { station ->
         Surface(
@@ -2126,7 +2128,11 @@ fun PhoneNowPlayingBar(viewModel: MainViewModel, onClick: () -> Unit = {}) {
                         )
                     }
                     Column(modifier = Modifier.weight(1f).padding(horizontal = 12.dp)) {
-                        val title = if (!mediaMetadata?.title.isNullOrEmpty()) mediaMetadata?.title.toString() else station.name
+                        val title = mediaMetadata?.let { 
+                            if (!it.title.isNullOrEmpty()) it.title.toString()
+                            else if (!it.displayTitle.isNullOrEmpty()) it.displayTitle.toString()
+                            else null
+                        } ?: station.name
                         Text(
                             text = title,
                             style = MaterialTheme.typography.titleMedium,
@@ -2134,13 +2140,36 @@ fun PhoneNowPlayingBar(viewModel: MainViewModel, onClick: () -> Unit = {}) {
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
-                        Text(
-                            text = station.name,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = station.name,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
+                            )
+                            val techInfo = audioFormat?.let { format ->
+                                buildString {
+                                    if (format.bitrate > 0) append("${format.bitrate / 1000}k")
+                                    val codec = format.sampleMimeType?.removePrefix("audio/")?.uppercase()
+                                        ?.replace("MPEG", "MP3")?.replace("MP4A-LATM", "AAC")
+                                    if (codec != null) {
+                                        if (isNotEmpty()) append(" ")
+                                        append(codec)
+                                    }
+                                }
+                            } ?: if (station.bitrate > 0) "${station.bitrate}k" else ""
+                            
+                            if (techInfo.isNotEmpty()) {
+                                Text(
+                                    text = " \u2022 $techInfo",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                                    maxLines = 1
+                                )
+                            }
+                        }
                     }
                     
                     IconButton(
@@ -2172,6 +2201,7 @@ fun PhoneNowPlayingBar(viewModel: MainViewModel, onClick: () -> Unit = {}) {
     }
 }
 
+@UnstableApi
 @Composable
 fun PhoneNowPlayingDialog(
     viewModel: MainViewModel,
@@ -2222,7 +2252,11 @@ fun PhoneNowPlayingDialog(
                     )
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    val title = if (!mediaMetadata?.title.isNullOrEmpty()) mediaMetadata?.title.toString() else station.name
+                    val title = mediaMetadata?.let { 
+                        if (!it.title.isNullOrEmpty()) it.title.toString()
+                        else if (!it.displayTitle.isNullOrEmpty()) it.displayTitle.toString()
+                        else null
+                    } ?: station.name
                     Text(
                         text = title,
                         style = MaterialTheme.typography.headlineMedium,

@@ -354,7 +354,11 @@ class MainActivity : ComponentActivity() {
             }
 
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                val title = if (!metadata?.title.isNullOrEmpty()) metadata?.title.toString() else station.name
+                val title = metadata?.let { 
+                    if (!it.title.isNullOrEmpty()) it.title.toString()
+                    else if (!it.displayTitle.isNullOrEmpty()) it.displayTitle.toString()
+                    else null
+                } ?: station.name
                 builder.setTitle(title)
                 builder.setSubtitle(station.name)
             }

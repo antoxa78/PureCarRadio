@@ -244,11 +244,11 @@ fun PipContent(viewModel: MainViewModel) {
                 }
 
                 Column(modifier = Modifier.weight(1f)) {
-                    val displayTitle = if (!mediaMetadata?.title.isNullOrEmpty()) {
-                        mediaMetadata?.title.toString()
-                    } else {
-                        station.name
-                    }
+                    val displayTitle = mediaMetadata?.let { 
+                        if (!it.title.isNullOrEmpty()) it.title.toString()
+                        else if (!it.displayTitle.isNullOrEmpty()) it.displayTitle.toString()
+                        else null
+                    } ?: station.name
                     Text(
                         text = displayTitle,
                         style = MaterialTheme.typography.titleLarge,
@@ -1742,7 +1742,11 @@ fun TvScreensaver(viewModel: MainViewModel) {
                         Surface(shape = MaterialTheme.shapes.extraSmall, colors = SurfaceDefaults.colors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)), modifier = Modifier.padding(bottom = 8.dp)) {
                             Text(text = technicalInfo, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.ExtraBold, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
                         }
-                        val displayTitle = if (!mediaMetadata?.title.isNullOrEmpty()) mediaMetadata?.title.toString() else station.name
+                        val displayTitle = mediaMetadata?.let { 
+                            if (!it.title.isNullOrEmpty()) it.title.toString()
+                            else if (!it.displayTitle.isNullOrEmpty()) it.displayTitle.toString()
+                            else null
+                        } ?: station.name
                         Text(text = displayTitle, style = MaterialTheme.typography.displayMedium, color = Color.White, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Bold)
                         if (!mediaMetadata?.artist.isNullOrEmpty()) {
                             Text(text = mediaMetadata?.artist.toString(), style = MaterialTheme.typography.headlineMedium, color = Color.Gray, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 4.dp))
