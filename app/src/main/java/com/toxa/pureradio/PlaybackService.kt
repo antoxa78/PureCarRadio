@@ -809,7 +809,7 @@ class PlaybackService : MediaLibraryService() {
                     }
                 }
             }
-        }).build()
+        }).setPeriodicPositionUpdateEnabled(false).build()
     }
 
     private fun createBrowsableItem(id: String, title: String, artworkUri: Uri? = null): MediaItem {
@@ -845,6 +845,21 @@ class PlaybackService : MediaLibraryService() {
             .appendPath(resources.getResourceTypeName(resourceId))
             .appendPath(resources.getResourceEntryName(resourceId))
             .build()
+    }
+
+    /**
+     * Raw PNG bytes of the app icon, so car displays can show it even though they
+     * cannot resolve our android.resource:// artwork URI directly.
+     */
+    @android.annotation.SuppressLint("ResourceType")
+    private fun openAppIconStream() = resources.openRawResource(R.drawable.ic_radio_logo)
+
+    private val appIconBytes: ByteArray? by lazy {
+        try {
+            openAppIconStream().use { it.readBytes() }
+        } catch (_: Exception) {
+            null
+        }
     }
 
     private fun cacheStation(station: Station) {
@@ -892,7 +907,9 @@ class PlaybackService : MediaLibraryService() {
     ): MediaItem {
         cacheStation(station)
         
-        val artworkUri = MediaUtils.getStationArtworkUrl(station.favicon, station.countryCode)?.let { Uri.parse(it) } ?: getAppIconUri()
+        val stationArtworkUrl = MediaUtils.getStationArtworkUrl(station.favicon, station.countryCode)
+        val artworkUri = stationArtworkUrl?.let { Uri.parse(it) } ?: getAppIconUri()
+        val artworkData = if (stationArtworkUrl == null) appIconBytes else null
 
         val isHlsStream = isHls
                 || station.url.lowercase().let { it.endsWith(".m3u8") || it.endsWith(".m3u") }
@@ -914,6 +931,9 @@ class PlaybackService : MediaLibraryService() {
             .setMediaType(MediaMetadata.MEDIA_TYPE_RADIO_STATION)
             .setArtworkUri(artworkUri)
             .setExtras(extras)
+        if (artworkData != null) {
+            metadataBuilder.setArtworkData(artworkData, MediaMetadata.PICTURE_TYPE_OTHER)
+        }
         if (!forPlayback) {
             metadataBuilder.setTitle(station.name)
         }

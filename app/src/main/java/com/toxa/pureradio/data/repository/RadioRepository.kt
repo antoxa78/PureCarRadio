@@ -132,6 +132,12 @@ class RadioRepository {
     suspend fun getStationsByUuid(uuids: String): List<Station> =
         withFallback(emptyList()) { service -> service.getStationsByUuid(uuids) }
 
+    suspend fun getStationsByUrl(url: String): List<Station> =
+        withFallback(emptyList()) { service -> service.getStationsByUrl(url) }
+
+    suspend fun getStationsByName(name: String): List<Station> =
+        withFallback(emptyList()) { service -> service.getStationsByName(name) }
+
     suspend fun getStation(uuid: String): Station? {
         val list = getStationsByUuid(uuid)
         return list.firstOrNull()

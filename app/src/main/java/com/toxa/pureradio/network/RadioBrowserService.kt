@@ -2,6 +2,7 @@ package com.toxa.pureradio.network
 
 import com.toxa.pureradio.data.model.Station
 import retrofit2.http.GET
+import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface RadioBrowserService {
@@ -44,6 +45,16 @@ interface RadioBrowserService {
     @GET("json/stations/byuuid")
     suspend fun getStationsByUuid(
         @Query("uuids") uuids: String
+    ): List<Station>
+
+    @GET("json/stations/byurl")
+    suspend fun getStationsByUrl(
+        @Query("url") url: String
+    ): List<Station>
+
+    @GET("json/stations/byname/{name}")
+    suspend fun getStationsByName(
+        @Path("name") name: String
     ): List<Station>
 }
 

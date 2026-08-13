@@ -34,6 +34,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.toxa.pureradio.ui.MediaUtils
@@ -1510,30 +1511,81 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 val updatedStations = repository.getStationsByUuid(uuids)
-                if (updatedStations.isNotEmpty()) {
-                    val merged = _favoriteStations.value.toMutableList()
-                    updatedStations.forEach { updated ->
-                        val idx = merged.indexOfFirst { it.stationUuid == updated.stationUuid }
-                        if (idx != -1) {
-                            merged[idx] = updated
-                        } else {
-                            merged.add(updated)
-                        }
+                val merged = _favoriteStations.value.toMutableList()
+                updatedStations.forEach { updated ->
+                    val idx = merged.indexOfFirst { it.stationUuid == updated.stationUuid }
+                    if (idx != -1) {
+                        merged[idx] = updated
+                    } else {
+                        merged.add(updated)
                     }
-                    _favoriteStations.value = merged
-                    saveFavoritesToPrefs(_favorites.value, merged)
-                    if (_selectedNavItem.value == NavigationItem.Favourites) {
-                        _stations.value = merged
-                    }
-                    _currentStation.value?.let { current ->
-                        merged.find { it.stationUuid == current.stationUuid }?.let {
-                            if (it.countryCode != current.countryCode) {
-                                _currentStation.value = it
-                            }
+                }
+                val enriched = enrichStationsWithVotes(merged)
+                _favoriteStations.value = enriched
+                saveFavoritesToPrefs(_favorites.value, enriched)
+                if (_selectedNavItem.value == NavigationItem.Favourites) {
+                    _stations.value = enriched
+                }
+                _currentStation.value?.let { current ->
+                    enriched.find { it.stationUuid == current.stationUuid }?.let {
+                        if (it.countryCode != current.countryCode) {
+                            _currentStation.value = it
                         }
                     }
                 }
             } catch (_: Exception) {}
+        }
+    }
+
+    /** UUIDs of imported favourites whose enrichment was already attempted this session. */
+    private val enrichmentAttempted = mutableSetOf<String>()
+
+    /**
+     * Imported playlist stations carry no vote counts. Try to resolve them in the
+     * Radio Browser database by stream URL first (exact match), then by exact name,
+     * and fill in the missing metadata.
+     */
+    private suspend fun CoroutineScope.enrichStationsWithVotes(stations: List<Station>): List<Station> {
+        val toEnrich = stations.filter { it.votes == 0 && it.stationUuid !in enrichmentAttempted }
+        if (toEnrich.isEmpty()) return stations
+        val resolved = mutableMapOf<String, Station>()
+        toEnrich.chunked(10).forEach { chunk ->
+            val results = chunk.map { station ->
+                async(Dispatchers.IO) { station to resolveStationMetadata(station) }
+            }.awaitAll()
+            results.forEach { (station, result) ->
+                if (result.first) enrichmentAttempted.add(station.stationUuid)
+                result.second?.let { match -> resolved[station.stationUuid] = match }
+            }
+        }
+        return stations.map { resolved[it.stationUuid] ?: it }
+    }
+
+    /**
+     * Returns (attemptFinished, enrichedStation). attemptFinished is false only when
+     * the network failed, so the station can be retried on the next refresh.
+     */
+    private suspend fun resolveStationMetadata(station: Station): Pair<Boolean, Station?> {
+        return try {
+            val byUrl = repository.getStationsByUrl(station.url)
+            val byName = if (byUrl.isEmpty()) repository.getStationsByName(station.name) else emptyList()
+            val match = byUrl.firstOrNull() ?: byName.maxByOrNull { it.votes }
+            if (match != null) {
+                true to station.copy(
+                    votes = if (match.votes > 0) match.votes else station.votes,
+                    bitrate = if (station.bitrate <= 0) match.bitrate else station.bitrate,
+                    codec = if (station.codec.isNullOrEmpty()) match.codec else station.codec,
+                    favicon = if (station.favicon.isBlank()) match.favicon else station.favicon,
+                    tags = if (station.tags.isBlank()) match.tags else station.tags,
+                    country = if (station.country.isBlank()) match.country else station.country,
+                    countryCode = station.countryCode ?: match.countryCode,
+                    language = if (station.language.isBlank()) match.language else station.language
+                )
+            } else {
+                true to null
+            }
+        } catch (_: Exception) {
+            false to null
         }
     }
 
@@ -1855,9 +1907,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val appPackage = getApplication<Application>().packageName
         val appIconUri = android.net.Uri.parse("android.resource://$appPackage/${R.drawable.ic_radio_logo}")
 
+        @android.annotation.SuppressLint("ResourceType")
+        val appIconBytes: ByteArray? by lazy {
+            try {
+                getApplication<Application>().resources.openRawResource(R.drawable.ic_radio_logo)
+                    .use { it.readBytes() }
+            } catch (_: Exception) { null }
+        }
+
         fun getResolvedArtworkUri(s: Station): android.net.Uri {
             return MediaUtils.getStationArtworkUrl(s.favicon, s.countryCode)?.let { android.net.Uri.parse(it) } ?: appIconUri
         }
+
+        fun isFallbackArtwork(s: Station): Boolean =
+            MediaUtils.getStationArtworkUrl(s.favicon, s.countryCode) == null
 
         val artworkUri = getResolvedArtworkUri(finalStation)
         val cachedBytes = faviconCache[finalStation.stationUuid]
@@ -1886,6 +1949,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             .setIsBrowsable(false)
                             .setIsPlayable(true)
                             .setMediaType(androidx.media3.common.MediaMetadata.MEDIA_TYPE_RADIO_STATION)
+                            .apply {
+                                if (isFallbackArtwork(s)) {
+                                    appIconBytes?.let { setArtworkData(it, androidx.media3.common.MediaMetadata.PICTURE_TYPE_OTHER) }
+                                }
+                            }
                             .build())
                     
                     val isHls = s.url.lowercase().let { url ->
@@ -1913,6 +1981,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     .setIsBrowsable(false)
                     .setIsPlayable(true)
                     .setMediaType(androidx.media3.common.MediaMetadata.MEDIA_TYPE_RADIO_STATION)
+                    .apply {
+                        if (isFallbackArtwork(finalStation)) {
+                            appIconBytes?.let { setArtworkData(it, androidx.media3.common.MediaMetadata.PICTURE_TYPE_OTHER) }
+                        }
+                    }
 
                 if (cachedBytes != null) {
                     metaBuilder.setArtworkData(cachedBytes, androidx.media3.common.MediaMetadata.PICTURE_TYPE_OTHER)

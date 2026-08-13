@@ -16,6 +16,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -124,6 +125,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.media3.common.Format
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.util.UnstableApi
 import coil.compose.AsyncImage
 import com.toxa.pureradio.BuildConfig
@@ -1928,12 +1931,16 @@ fun PhoneAppLanguageSettings(viewModel: MainViewModel) {
 fun WaveformAnalyzer(
     isPlaying: Boolean,
     modifier: Modifier = Modifier,
-    type: com.toxa.pureradio.ui.viewmodel.WaveformType = com.toxa.pureradio.ui.viewmodel.WaveformType.Classic
+    type: com.toxa.pureradio.ui.viewmodel.WaveformType = com.toxa.pureradio.ui.viewmodel.WaveformType.Classic,
+    compact: Boolean = false
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "Waveform")
     val barCount = 40
     Row(
-        modifier = modifier.width(260.dp).height(60.dp),
+        modifier = modifier.then(
+            if (compact) Modifier.width(200.dp).height(44.dp)
+            else Modifier.width(260.dp).height(60.dp)
+        ),
         horizontalArrangement = Arrangement.spacedBy(2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -2214,6 +2221,9 @@ fun PhoneNowPlayingDialog(
     val playbackDuration by viewModel.playbackDuration.collectAsState()
     val audioFormat by viewModel.audioFormat.collectAsState()
     val favorites by viewModel.favorites.collectAsState()
+    val isLive by viewModel.isLive.collectAsState()
+    val bufferedPosition by viewModel.bufferedPosition.collectAsState()
+    val waveformType by viewModel.waveformType.collectAsState()
 
     currentStation?.let { station ->
         val isFavorite = favorites.contains(station.stationUuid)
@@ -2225,176 +2235,378 @@ fun PhoneNowPlayingDialog(
                 modifier = Modifier.fillMaxSize(),
                 color = MaterialTheme.colorScheme.background
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(24.dp)
-                        .navigationBarsPadding()
-                        .statusBarsPadding(),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Row(modifier = Modifier.fillMaxWidth()) {
-                        IconButton(onClick = onDismiss) {
-                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close_desc))
-                        }
-                        Spacer(modifier = Modifier.weight(1f))
+                BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                    val compact = maxHeight < 640.dp && maxWidth >= 480.dp
+                    if (compact) {
+                        NowPlayingCompactContent(
+                            station = station,
+                            viewModel = viewModel,
+                            isFavorite = isFavorite,
+                            isPlaying = isPlaying,
+                            mediaMetadata = mediaMetadata,
+                            playbackTime = playbackTime,
+                            playbackDuration = playbackDuration,
+                            bufferedPosition = bufferedPosition,
+                            isLive = isLive,
+                            audioFormat = audioFormat,
+                            waveformType = waveformType,
+                            showWaveform = maxHeight >= 300.dp,
+                            onDismiss = onDismiss
+                        )
+                    } else {
+                        NowPlayingFullContent(
+                            station = station,
+                            viewModel = viewModel,
+                            isFavorite = isFavorite,
+                            isPlaying = isPlaying,
+                            mediaMetadata = mediaMetadata,
+                            playbackTime = playbackTime,
+                            playbackDuration = playbackDuration,
+                            bufferedPosition = bufferedPosition,
+                            isLive = isLive,
+                            audioFormat = audioFormat,
+                            waveformType = waveformType,
+                            onDismiss = onDismiss
+                        )
                     }
+                }
+            }
+        }
+    }
+}
 
-                    Spacer(modifier = Modifier.weight(1f))
+private fun buildTitleText(mediaMetadata: MediaMetadata?, station: Station): String =
+    mediaMetadata?.let {
+        if (!it.title.isNullOrEmpty()) it.title.toString()
+        else if (!it.displayTitle.isNullOrEmpty()) it.displayTitle.toString()
+        else null
+    } ?: station.name
 
+@UnstableApi
+private fun buildTechInfo(audioFormat: Format?, station: Station): String =
+    audioFormat?.let { format ->
+        buildString {
+            format.codecs?.let { append(it.uppercase()) }
+            if (format.bitrate > 0) {
+                if (isNotEmpty()) append(" \u2022 ")
+                append("${format.bitrate / 1000}k")
+            }
+            if (format.sampleRate > 0) {
+                if (isNotEmpty()) append(" \u2022 ")
+                append("${format.sampleRate / 1000}kHz")
+            }
+        }
+    } ?: if (station.bitrate > 0) "${station.bitrate}k" else station.codec?.uppercase() ?: ""
+
+@Composable
+private fun PlaybackTimeLabel(playbackTime: Long) {
+    val timeMinutes = (playbackTime / 1000) / 60
+    val timeSeconds = (playbackTime / 1000) % 60
+    Text(
+        text = String.format(Locale.getDefault(), "%02d:%02d", timeMinutes, timeSeconds),
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.primary
+    )
+}
+
+@Composable
+private fun PlaybackProgressSection(
+    isLive: Boolean,
+    bufferedPosition: Long,
+    playbackDuration: Long,
+    playbackTime: Long,
+    showBufferLabel: Boolean
+) {
+    if (isLive) {
+        val progress = (bufferedPosition.toFloat() / MainViewModel.MAX_BUFFER_MS).coerceIn(0f, 1f)
+        LinearProgressIndicator(
+            progress = { progress },
+            modifier = Modifier.fillMaxWidth().height(4.dp),
+            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+            trackColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+        if (showBufferLabel) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Buffer: ${bufferedPosition / 1000}s",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+            )
+        }
+    } else if (playbackDuration > 0) {
+        LinearProgressIndicator(
+            progress = { playbackTime.toFloat() / playbackDuration.toFloat() },
+            modifier = Modifier.fillMaxWidth().height(4.dp),
+        )
+    }
+}
+
+@Composable
+private fun PlaybackControlsRow(viewModel: MainViewModel, isPlaying: Boolean, compact: Boolean) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        IconButton(onClick = { viewModel.playPrevious() }) {
+            Icon(Icons.Default.SkipPrevious, contentDescription = stringResource(R.string.previous_desc), modifier = Modifier.size(if (compact) 36.dp else 48.dp))
+        }
+        Surface(
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(if (compact) 56.dp else 72.dp)
+        ) {
+            IconButton(onClick = { viewModel.togglePlayPause() }) {
+                Icon(
+                    if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    contentDescription = if (isPlaying) stringResource(R.string.pause_desc) else stringResource(R.string.play_desc),
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(if (compact) 30.dp else 40.dp)
+                )
+            }
+        }
+        IconButton(onClick = { viewModel.playNext() }) {
+            Icon(Icons.Default.SkipNext, contentDescription = stringResource(R.string.next_desc), modifier = Modifier.size(if (compact) 36.dp else 48.dp))
+        }
+    }
+}
+
+@UnstableApi
+@Composable
+private fun NowPlayingFullContent(
+    station: Station,
+    viewModel: MainViewModel,
+    isFavorite: Boolean,
+    isPlaying: Boolean,
+    mediaMetadata: MediaMetadata?,
+    playbackTime: Long,
+    playbackDuration: Long,
+    bufferedPosition: Long,
+    isLive: Boolean,
+    audioFormat: Format?,
+    waveformType: com.toxa.pureradio.ui.viewmodel.WaveformType,
+    onDismiss: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp)
+            .navigationBarsPadding()
+            .statusBarsPadding(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Row(modifier = Modifier.fillMaxWidth()) {
+            IconButton(onClick = onDismiss) {
+                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close_desc))
+            }
+            Spacer(modifier = Modifier.weight(1f))
+        }
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        AsyncImage(
+            model = mediaMetadata?.artworkUri ?: MediaUtils.getStationArtworkUrl(station.favicon, station.countryCode) ?: R.drawable.ic_radio_logo,
+            contentDescription = null,
+            modifier = Modifier.size(200.dp),
+            contentScale = ContentScale.Fit,
+            error = coil.compose.rememberAsyncImagePainter(R.drawable.ic_radio_logo),
+            placeholder = coil.compose.rememberAsyncImagePainter(R.drawable.ic_radio_logo)
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Text(
+            text = buildTitleText(mediaMetadata, station),
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center
+        )
+
+        if (!mediaMetadata?.artist.isNullOrEmpty()) {
+            Text(
+                text = mediaMetadata?.artist.toString(),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+        }
+
+        Text(
+            text = station.name,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+
+        val techInfo = buildTechInfo(audioFormat, station)
+        if (techInfo.isNotEmpty()) {
+            Surface(
+                shape = RoundedCornerShape(4.dp),
+                color = MaterialTheme.colorScheme.primaryContainer
+            ) {
+                Text(
+                    text = techInfo,
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+        WaveformAnalyzer(isPlaying = isPlaying, type = waveformType)
+        Spacer(modifier = Modifier.weight(1f))
+
+        PlaybackProgressSection(
+            isLive = isLive,
+            bufferedPosition = bufferedPosition,
+            playbackDuration = playbackDuration,
+            playbackTime = playbackTime,
+            showBufferLabel = true
+        )
+
+        PlaybackTimeLabel(playbackTime)
+        Spacer(modifier = Modifier.height(24.dp))
+
+        PlaybackControlsRow(viewModel, isPlaying, compact = false)
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        TextButton(onClick = { viewModel.toggleFavorite(station) }) {
+            Icon(
+                if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                contentDescription = if (isFavorite) stringResource(R.string.remove_from_fav_desc) else stringResource(R.string.add_to_fav_desc),
+                tint = if (isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                if (isFavorite) stringResource(R.string.fav_remove_full) else stringResource(R.string.fav_add_full),
+                color = if (isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+    }
+}
+
+@UnstableApi
+@Composable
+private fun NowPlayingCompactContent(
+    station: Station,
+    viewModel: MainViewModel,
+    isFavorite: Boolean,
+    isPlaying: Boolean,
+    mediaMetadata: MediaMetadata?,
+    playbackTime: Long,
+    playbackDuration: Long,
+    bufferedPosition: Long,
+    isLive: Boolean,
+    audioFormat: Format?,
+    waveformType: com.toxa.pureradio.ui.viewmodel.WaveformType,
+    showWaveform: Boolean,
+    onDismiss: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .navigationBarsPadding()
+            .statusBarsPadding()
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier.size(96.dp)
+                ) {
                     AsyncImage(
                         model = mediaMetadata?.artworkUri ?: MediaUtils.getStationArtworkUrl(station.favicon, station.countryCode) ?: R.drawable.ic_radio_logo,
                         contentDescription = null,
-                        modifier = Modifier.size(200.dp),
+                        modifier = Modifier.fillMaxSize().padding(12.dp),
                         contentScale = ContentScale.Fit,
                         error = coil.compose.rememberAsyncImagePainter(R.drawable.ic_radio_logo),
                         placeholder = coil.compose.rememberAsyncImagePainter(R.drawable.ic_radio_logo)
                     )
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    val title = mediaMetadata?.let { 
-                        if (!it.title.isNullOrEmpty()) it.title.toString()
-                        else if (!it.displayTitle.isNullOrEmpty()) it.displayTitle.toString()
-                        else null
-                    } ?: station.name
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        textAlign = TextAlign.Center
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                IconButton(onClick = { viewModel.toggleFavorite(station) }) {
+                    Icon(
+                        if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                        contentDescription = if (isFavorite) stringResource(R.string.remove_from_fav_desc) else stringResource(R.string.add_to_fav_desc),
+                        tint = if (isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(22.dp)
                     )
-
-                    if (!mediaMetadata?.artist.isNullOrEmpty()) {
-                        Text(
-                            text = mediaMetadata?.artist.toString(),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                    }
-
-                    Text(
-                        text = station.name,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    val techInfo = audioFormat?.let { format ->
-                        buildString {
-                            format.codecs?.let { append(it.uppercase()) }
-                            if (format.bitrate > 0) {
-                                if (isNotEmpty()) append(" \u2022 ")
-                                append("${format.bitrate / 1000}k")
-                            }
-                            if (format.sampleRate > 0) {
-                                if (isNotEmpty()) append(" \u2022 ")
-                                append("${format.sampleRate / 1000}kHz")
-                            }
-                        }
-                    } ?: if (station.bitrate > 0) "${station.bitrate}k" else station.codec?.uppercase() ?: ""
-
-                    if (techInfo.isNotEmpty()) {
-                        Surface(
-                            shape = RoundedCornerShape(4.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer
-                        ) {
-                            Text(
-                                text = techInfo,
-                                style = MaterialTheme.typography.labelSmall,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(24.dp))
-                    val isLive by viewModel.isLive.collectAsState()
-                    val bufferedPosition by viewModel.bufferedPosition.collectAsState()
-                    val waveformType by viewModel.waveformType.collectAsState()
-                    WaveformAnalyzer(isPlaying = isPlaying, type = waveformType)
-                    Spacer(modifier = Modifier.weight(1f))
-
-                    if (isLive) {
-                        val progress = (bufferedPosition.toFloat() / com.toxa.pureradio.ui.viewmodel.MainViewModel.MAX_BUFFER_MS).coerceIn(0f, 1f)
-                        LinearProgressIndicator(
-                            progress = { progress },
-                            modifier = Modifier.fillMaxWidth().height(4.dp),
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
-                            trackColor = MaterialTheme.colorScheme.surfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Buffer: ${bufferedPosition / 1000}s",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
-                        )
-                    } else if (playbackDuration > 0) {
-                        LinearProgressIndicator(
-                            progress = { playbackTime.toFloat() / playbackDuration.toFloat() },
-                            modifier = Modifier.fillMaxWidth().height(4.dp),
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                    }
-
-                    val timeMinutes = (playbackTime / 1000) / 60
-                    val timeSeconds = (playbackTime / 1000) % 60
-                    Text(
-                        text = String.format(Locale.getDefault(), "%02d:%02d", timeMinutes, timeSeconds),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(onClick = { viewModel.playPrevious() }) {
-                            Icon(Icons.Default.SkipPrevious, contentDescription = stringResource(R.string.previous_desc), modifier = Modifier.size(48.dp))
-                        }
-                        Surface(
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(72.dp)
-                        ) {
-                            IconButton(onClick = { viewModel.togglePlayPause() }) {
-                                Icon(
-                                    if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                    contentDescription = if (isPlaying) stringResource(R.string.pause_desc) else stringResource(R.string.play_desc),
-                                    tint = MaterialTheme.colorScheme.onPrimary,
-                                    modifier = Modifier.size(40.dp)
-                                )
-                            }
-                        }
-                        IconButton(onClick = { viewModel.playNext() }) {
-                            Icon(Icons.Default.SkipNext, contentDescription = stringResource(R.string.next_desc), modifier = Modifier.size(48.dp))
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    TextButton(onClick = { viewModel.toggleFavorite(station) }) {
-                        Icon(
-                            if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                            contentDescription = if (isFavorite) stringResource(R.string.remove_from_fav_desc) else stringResource(R.string.add_to_fav_desc),
-                            tint = if (isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            if (isFavorite) stringResource(R.string.fav_remove_full) else stringResource(R.string.fav_add_full),
-                            color = if (isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
                 }
             }
+
+            Column(
+                modifier = Modifier.weight(1f).padding(start = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = buildTitleText(mediaMetadata, station),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center
+                )
+
+                if (!mediaMetadata?.artist.isNullOrEmpty()) {
+                    Text(
+                        text = mediaMetadata?.artist.toString(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                val techInfo = buildTechInfo(audioFormat, station)
+                if (techInfo.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = techInfo,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+                    )
+                }
+
+                if (showWaveform) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    WaveformAnalyzer(isPlaying = isPlaying, type = waveformType, compact = true)
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                PlaybackProgressSection(
+                    isLive = isLive,
+                    bufferedPosition = bufferedPosition,
+                    playbackDuration = playbackDuration,
+                    playbackTime = playbackTime,
+                    showBufferLabel = false
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+                PlaybackTimeLabel(playbackTime)
+                Spacer(modifier = Modifier.height(8.dp))
+
+                PlaybackControlsRow(viewModel, isPlaying, compact = true)
+            }
+        }
+
+        IconButton(
+            onClick = onDismiss,
+            modifier = Modifier.align(Alignment.TopEnd).size(40.dp)
+        ) {
+            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close_desc), modifier = Modifier.size(20.dp))
         }
     }
 }

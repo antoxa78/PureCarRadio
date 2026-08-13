@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.5] - 2026-08-13
+
+### Changed
+- **Version bump**: `versionCode` 23 → 24, `versionName` 1.6.4 → 1.6.5.
+
+### Fixed
+- **Car Display Scroll Reset**: Browsing lists on the car display no longer snap back to the top while audio is playing. Periodic position updates are disabled on the media session, which Android Auto/Automotive treated as list refreshes.
+- **Car Display Default Icon**: Stations without artwork (no favicon or country flag) now show the app icon on the car display. The icon is delivered as artwork data since car UIs cannot resolve the app's `android.resource://` URIs.
+- **Favourites Vote Counts**: Stations imported from playlists now resolve real vote counts from the Radio Browser database (matched by stream URL first, then exact name) instead of showing 0.
+- **Now Playing on Low-Resolution Landscape Displays**: Player controls are now always visible via a compact side-by-side layout, and the default station icon renders at a sharper size.
+
 ## [1.6.4] - 2026-08-12
 
 ### Changed
