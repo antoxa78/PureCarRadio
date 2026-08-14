@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.7] - 2026-08-14
+
+### Changed
+- **Version bump**: `versionCode` 25 → 26, `versionName` 1.6.6 → 1.6.7.
+- **Phone UI Polish**: Phone grids now adapt to wider screens, browse cards use consistent rounded elevation, and the top-bar menu spacing is more compact.
+- **Theme Contrast**: Improved selected-container text contrast in the Blue Neon and Forest themes.
+
+### Fixed
+- **Car Display Artwork Fallback**: Stations without a favicon now use a local application artwork URI that Android Auto and Android Automotive OS can resolve.
+
 ## [1.6.6] - 2026-08-14
 
 ### Changed

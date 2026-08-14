@@ -596,7 +596,7 @@ fun PhoneStationGrid(
     }
 
     LazyVerticalGrid(
-        columns = GridCells.Fixed(2),
+        columns = GridCells.Adaptive(minSize = 160.dp),
         contentPadding = PaddingValues(8.dp, 8.dp, 8.dp, 140.dp),
         modifier = Modifier.fillMaxSize(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -613,7 +613,7 @@ fun PhoneStationGrid(
         }
 
         if (onLoadMore != null) {
-            item(key = "load_more", span = { androidx.compose.foundation.lazy.grid.GridItemSpan(2) }) {
+            item(key = "load_more", span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
                 Box(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
                     contentAlignment = Alignment.Center
@@ -763,7 +763,7 @@ fun PhoneGenreGroupGrid(
     }
 
     LazyVerticalGrid(
-        columns = GridCells.Fixed(2),
+        columns = GridCells.Adaptive(minSize = 160.dp),
         contentPadding = PaddingValues(8.dp, 8.dp, 8.dp, 140.dp),
         modifier = Modifier.fillMaxSize(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1019,7 +1019,7 @@ fun PhoneTagSearchGroupGrid(
     }
 
     LazyVerticalGrid(
-        columns = GridCells.Fixed(2),
+        columns = GridCells.Adaptive(minSize = 160.dp),
         contentPadding = PaddingValues(8.dp, 8.dp, 8.dp, 140.dp),
         modifier = Modifier.fillMaxSize(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1147,7 +1147,7 @@ fun PhoneTagGrid(
     }
 
     LazyVerticalGrid(
-        columns = GridCells.Fixed(2),
+        columns = GridCells.Adaptive(minSize = 160.dp),
         contentPadding = PaddingValues(8.dp, 8.dp, 8.dp, 140.dp),
         modifier = Modifier.fillMaxSize(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1162,6 +1162,8 @@ fun PhoneTagGrid(
                         onClick = { onTagClick(tag) },
                         onLongClick = { onTagLongClick?.invoke(tag) }
                     ),
+                shape = RoundedCornerShape(16.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
                 colors = CardDefaults.cardColors(containerColor = MediaUtils.getGenreColor(tag.name))
             ) {
                 Box(modifier = Modifier.fillMaxSize()) {
@@ -1246,7 +1248,7 @@ fun PhoneCountriesScreen(
     }
 
     LazyVerticalGrid(
-        columns = GridCells.Fixed(2),
+        columns = GridCells.Adaptive(minSize = 160.dp),
         contentPadding = PaddingValues(8.dp, 8.dp, 8.dp, 140.dp),
         modifier = Modifier.fillMaxSize(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1258,6 +1260,8 @@ fun PhoneCountriesScreen(
                     .fillMaxWidth()
                     .height(100.dp)
                     .clickable { viewModel.selectCountry(country) },
+                shape = RoundedCornerShape(16.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
                 colors = CardDefaults.cardColors(containerColor = getPhoneGenreColor(country.name))
             ) {
                 Box(modifier = Modifier.fillMaxSize()) {

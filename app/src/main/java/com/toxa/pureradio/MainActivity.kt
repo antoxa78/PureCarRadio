@@ -17,7 +17,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.SystemBarStyle
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import android.content.Intent
@@ -506,7 +505,7 @@ fun PhoneTopBar(
             containerColor = PhoneMaterialTheme.colorScheme.surface
         ),
         navigationIcon = {
-            Box(modifier = Modifier.statusBarsPadding()) {
+            Box {
                 IconButton(onClick = { 
                     viewModel.resetScreensaverTimer()
                     menuExpanded = true 
@@ -534,9 +533,9 @@ fun PhoneTopBar(
                             NavigationItem.Exit -> Icons.AutoMirrored.Filled.ExitToApp
                         }
                         DropdownMenuItem(
-                            text = { PhoneText(stringResource(item.labelRes), style = PhoneMaterialTheme.typography.titleLarge) },
-                            leadingIcon = { PhoneIcon(icon, contentDescription = null, modifier = Modifier.size(36.dp)) },
-                            modifier = Modifier.height(64.dp),
+                            text = { PhoneText(stringResource(item.labelRes), style = PhoneMaterialTheme.typography.titleMedium) },
+                            leadingIcon = { PhoneIcon(icon, contentDescription = null, modifier = Modifier.size(28.dp)) },
+                            modifier = Modifier.height(56.dp),
                             onClick = {
                                 if (item == NavigationItem.Exit) {
                                     if (quitConfirmationEnabled) {

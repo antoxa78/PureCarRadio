@@ -20,7 +20,7 @@ private val BlueNeonColorScheme = darkColorScheme(
     onBackground = White,
     onSurface = White,
     primaryContainer = BlueDark,
-    onPrimaryContainer = BluePrimary
+    onPrimaryContainer = BlueTertiary
 )
 
 private val VioletColorScheme = darkColorScheme(
@@ -68,7 +68,7 @@ private val ForestColorScheme = darkColorScheme(
     onBackground = White,
     onSurface = White,
     primaryContainer = ForestDark,
-    onPrimaryContainer = Color(0xFF4CAF50)
+    onPrimaryContainer = Color(0xFF81C784)
 )
 
 private val BlackColorScheme = darkColorScheme(

@@ -865,21 +865,6 @@ class PlaybackService : MediaLibraryService() {
             .build()
     }
 
-    /**
-     * Raw PNG bytes of the app icon, so car displays can show it even though they
-     * cannot resolve our android.resource:// artwork URI directly.
-     */
-    @android.annotation.SuppressLint("ResourceType")
-    private fun openAppIconStream() = resources.openRawResource(R.drawable.ic_radio_logo)
-
-    private val appIconBytes: ByteArray? by lazy {
-        try {
-            openAppIconStream().use { it.readBytes() }
-        } catch (_: Exception) {
-            null
-        }
-    }
-
     private fun cacheStation(station: Station) {
         if (stationCache.size >= 500) {
             stationCache.keys.take(100).forEach { stationCache.remove(it) }
@@ -925,11 +910,10 @@ class PlaybackService : MediaLibraryService() {
     ): MediaItem {
         cacheStation(station)
         
-        val stationArtworkUrl = MediaUtils.getStationArtworkUrl(station.favicon, station.countryCode)
-        // Car hosts may not be able to resolve android.resource:// URIs. Leave the
-        // fallback URI unset so they use the embedded artwork data below.
-        val artworkUri = stationArtworkUrl?.let { Uri.parse(it) }
-        val artworkData = if (stationArtworkUrl == null) appIconBytes else null
+        // Car displays require local artwork URIs for browse items. Do not use a
+        // remote country flag as a station icon fallback here.
+        val stationArtworkUrl = MediaUtils.getStationArtworkUrl(station.favicon, null)
+        val artworkUri = stationArtworkUrl?.let { Uri.parse(it) } ?: getAppIconUri()
 
         val isHlsStream = isHls
                 || station.url.lowercase().let { it.endsWith(".m3u8") || it.endsWith(".m3u") }
@@ -939,10 +923,8 @@ class PlaybackService : MediaLibraryService() {
         val extras = Bundle().apply {
             putString("station_full_json", stationJson)
             putInt("android.media.browse.CONTENT_STYLE_PLAYABLE_HINT", 2) // Grid
-            artworkUri?.let {
-                putString("android.media.metadata.DISPLAY_ICON_URI", it.toString())
-                putString("android.media.metadata.ALBUM_ART_URI", it.toString())
-            }
+            putString("android.media.metadata.DISPLAY_ICON_URI", artworkUri.toString())
+            putString("android.media.metadata.ALBUM_ART_URI", artworkUri.toString())
         }
 
         val mediaId = if (parentId != null) "$parentId|station:${station.stationUuid}" else station.stationUuid
@@ -952,10 +934,7 @@ class PlaybackService : MediaLibraryService() {
             .setIsPlayable(true)
             .setMediaType(MediaMetadata.MEDIA_TYPE_RADIO_STATION)
             .setExtras(extras)
-            .apply { artworkUri?.let { setArtworkUri(it) } }
-        if (artworkData != null) {
-            metadataBuilder.setArtworkData(artworkData, MediaMetadata.PICTURE_TYPE_OTHER)
-        }
+            .setArtworkUri(artworkUri)
         if (!forPlayback) {
             metadataBuilder.setTitle(station.name)
         }
