@@ -20,10 +20,10 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = file(System.getProperty("user.home") + "/.android/debug.keystore")
-            storePassword = "android"
-            keyAlias = "androiddebugkey"
-            keyPassword = "android"
+            storeFile = file(providers.gradleProperty("PURE_RADIO_STORE_FILE").get())
+            storePassword = providers.gradleProperty("PURE_RADIO_STORE_PASSWORD").get()
+            keyAlias = providers.gradleProperty("PURE_RADIO_KEY_ALIAS").get()
+            keyPassword = providers.gradleProperty("PURE_RADIO_KEY_PASSWORD").get()
         }
     }
 
