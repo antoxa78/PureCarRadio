@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.6] - 2026-08-14
+
+### Changed
+- **Version bump**: `versionCode` 24 → 25, `versionName` 1.6.5 → 1.6.6.
+
+### Fixed
+- **Station Artwork Fallback**: Stations with missing or invalid artwork now consistently show the app icon on phone and car displays.
+- **Artwork URL Validation**: Invalid, unsupported, blank, and `.ico` artwork URLs now fall back to a country flag or the app icon.
+- **Playback Retry Safety**: Delayed stream retries are cancelled when playback stops, the station changes, or the service is destroyed.
+- **Playback Lifecycle Cleanup**: Controller connections and stopped-playback metadata are cleaned up correctly.
+
 ## [1.6.5] - 2026-08-13
 
 ### Changed

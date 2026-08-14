@@ -39,7 +39,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.toxa.pureradio.ui.MediaUtils
 import com.toxa.pureradio.PlayerAction
-import java.util.concurrent.ConcurrentHashMap
 
 enum class NavigationItem(val labelRes: Int) {
     Home(R.string.nav_home),
@@ -101,7 +100,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = RadioRepository()
     private var player: Player? = null
     private val prefs = application.getSharedPreferences("pure_radio_prefs", Context.MODE_PRIVATE)
-    private val faviconCache = ConcurrentHashMap<String, ByteArray>()
 
     /** Convenience helper to access localized strings from the ViewModel. */
     private fun str(resId: Int, vararg args: Any): String =
@@ -381,6 +379,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         future.addListener({
             try {
                 val controller = future.get()
+                if (controllerFuture !== future) {
+                    controller.release()
+                    return@addListener
+                }
                 player = controller
                 controllerFuture = null
                 controller.addListener(object : Player.Listener {
@@ -1267,7 +1269,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private fun updateStations(newStations: List<Station>) {
         _allStations.value = newStations
         applyFilters()
-        newStations.take(30).forEach { cacheFavicon(it.stationUuid, it.favicon) }
     }
 
     private fun loadBitrateFilters(): Set<BitrateFilter> {
@@ -1859,19 +1860,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun cacheFavicon(uuid: String, url: String) {
-        if (url.isBlank() || faviconCache.containsKey(uuid)) return
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
-                conn.connectTimeout = 5000
-                conn.readTimeout = 5000
-                conn.doInput = true
-                conn.inputStream.use { faviconCache[uuid] = it.readBytes() }
-            } catch (_: Exception) {}
-        }
-    }
-
     @OptIn(UnstableApi::class)
     fun playStation(station: Station, playlist: List<Station>? = null) {
         consecutiveErrors = 0
@@ -1916,15 +1904,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         fun getResolvedArtworkUri(s: Station): android.net.Uri {
-            return MediaUtils.getStationArtworkUrl(s.favicon, s.countryCode)?.let { android.net.Uri.parse(it) } ?: appIconUri
+            return MediaUtils.getStationArtworkUrl(s.favicon, s.countryCode)?.let { android.net.Uri.parse(it) }
+                ?: appIconUri
         }
 
         fun isFallbackArtwork(s: Station): Boolean =
             MediaUtils.getStationArtworkUrl(s.favicon, s.countryCode) == null
 
         val artworkUri = getResolvedArtworkUri(finalStation)
-        val cachedBytes = faviconCache[finalStation.stationUuid]
-
         player?.let {
             it.stop()
             if (playlist != null && playlist.isNotEmpty()) {
@@ -1933,8 +1920,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     val sJson = com.google.gson.Gson().toJson(s)
                     val sExtras = android.os.Bundle().apply {
                         putString("station_full_json", sJson)
-                        putString("android.media.metadata.DISPLAY_ICON_URI", artUri.toString())
-                        putString("android.media.metadata.ALBUM_ART_URI", artUri.toString())
+                        if (!isFallbackArtwork(s)) {
+                            putString("android.media.metadata.DISPLAY_ICON_URI", artUri.toString())
+                            putString("android.media.metadata.ALBUM_ART_URI", artUri.toString())
+                        }
                     }
 
                     val sId = if (parentId != null) "$parentId|station:${s.stationUuid}" else s.stationUuid
@@ -1944,12 +1933,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         .setMediaId(sId)
                         .setMediaMetadata(androidx.media3.common.MediaMetadata.Builder()
                             .setArtist(s.tags)
-                            .setArtworkUri(artUri)
                             .setExtras(sExtras)
                             .setIsBrowsable(false)
                             .setIsPlayable(true)
                             .setMediaType(androidx.media3.common.MediaMetadata.MEDIA_TYPE_RADIO_STATION)
                             .apply {
+                                if (!isFallbackArtwork(s)) setArtworkUri(artUri)
                                 if (isFallbackArtwork(s)) {
                                     appIconBytes?.let { setArtworkData(it, androidx.media3.common.MediaMetadata.PICTURE_TYPE_OTHER) }
                                 }
@@ -1970,27 +1959,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val sJson = com.google.gson.Gson().toJson(finalStation)
                 val sExtras = android.os.Bundle().apply {
                     putString("station_full_json", sJson)
-                    putString("android.media.metadata.DISPLAY_ICON_URI", artworkUri.toString())
-                    putString("android.media.metadata.ALBUM_ART_URI", artworkUri.toString())
+                    if (!isFallbackArtwork(finalStation)) {
+                        putString("android.media.metadata.DISPLAY_ICON_URI", artworkUri.toString())
+                        putString("android.media.metadata.ALBUM_ART_URI", artworkUri.toString())
+                    }
                 }
 
                 val metaBuilder = androidx.media3.common.MediaMetadata.Builder()
                     .setArtist(finalStation.tags)
-                    .setArtworkUri(artworkUri)
                     .setExtras(sExtras)
                     .setIsBrowsable(false)
                     .setIsPlayable(true)
                     .setMediaType(androidx.media3.common.MediaMetadata.MEDIA_TYPE_RADIO_STATION)
                     .apply {
+                        if (!isFallbackArtwork(finalStation)) setArtworkUri(artworkUri)
                         if (isFallbackArtwork(finalStation)) {
                             appIconBytes?.let { setArtworkData(it, androidx.media3.common.MediaMetadata.PICTURE_TYPE_OTHER) }
                         }
                     }
 
-                if (cachedBytes != null) {
-                    metaBuilder.setArtworkData(cachedBytes, androidx.media3.common.MediaMetadata.PICTURE_TYPE_OTHER)
-                }
-                
                 val sId = if (parentId != null) "$parentId|station:${finalStation.stationUuid}" else finalStation.stationUuid
                 
                 val mediaItemBuilder = MediaItem.Builder()
@@ -2064,6 +2051,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         player?.stop()
         _isPlaying.value = false
         _currentStation.value = null
+        _mediaMetadata.value = null
+        _audioFormat.value = null
     }
 
     fun searchStations(query: String) {
@@ -2091,6 +2080,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     override fun onCleared() {
+        controllerFuture?.cancel(true)
+        controllerFuture = null
         super.onCleared()
         player?.release()
         player = null

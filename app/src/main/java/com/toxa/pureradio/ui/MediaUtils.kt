@@ -85,12 +85,19 @@ object MediaUtils {
     }
 
     fun getStationArtworkUrl(favicon: String, countryCode: String?): String? {
-        var url = favicon
-        if (url.startsWith("http://")) {
-            url = url.replaceFirst("http://", "https://")
+        val url = favicon.trim().let {
+            if (it.startsWith("http://", ignoreCase = true)) {
+                it.replaceFirst(Regex("^http://", RegexOption.IGNORE_CASE), "https://")
+            } else it
         }
+        val uri = runCatching { android.net.Uri.parse(url) }.getOrNull()
+        val isValidArtwork = uri?.let {
+            it.scheme?.lowercase() in setOf("http", "https") &&
+                !it.host.isNullOrBlank() &&
+                !it.path.orEmpty().lowercase().endsWith(".ico")
+        } == true
         return when {
-            url.isNotEmpty() && !url.lowercase().endsWith(".ico") -> url
+            isValidArtwork -> url
             !countryCode.isNullOrEmpty() -> getCountryFlagUrl(countryCode)
             else -> null
         }

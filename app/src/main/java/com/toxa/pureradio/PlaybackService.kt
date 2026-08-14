@@ -36,6 +36,7 @@ import com.toxa.pureradio.ui.MediaUtils
 import androidx.media3.extractor.metadata.icy.IcyInfo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -85,6 +86,12 @@ class PlaybackService : MediaLibraryService() {
 
     private var retryCount = 0
     private var lastErrorMediaId: String? = null
+    private var retryJob: Job? = null
+
+    private fun cancelRetryJob() {
+        retryJob?.cancel()
+        retryJob = null
+    }
     private var currentAudioFormat: Format? = null
 
     @UnstableApi
@@ -105,6 +112,11 @@ class PlaybackService : MediaLibraryService() {
                 .add(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
                 .add(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
                 .build()
+        }
+
+        override fun stop() {
+            service.cancelRetryJob()
+            super.stop()
         }
 
         override fun getMediaMetadata(): MediaMetadata {
@@ -205,6 +217,8 @@ class PlaybackService : MediaLibraryService() {
         
         player.addListener(object : Player.Listener {
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                retryJob?.cancel()
+                retryJob = null
                 if (mediaItem?.mediaId != lastErrorMediaId) {
                     retryCount = 0
                     lastErrorMediaId = null
@@ -291,8 +305,10 @@ class PlaybackService : MediaLibraryService() {
                     val backoffMs = (Math.pow(2.0, retryCount.toDouble() + 1) * 1000).toLong().coerceAtMost(30000)
                     retryCount++
                     
-                    serviceScope.launch {
+                    retryJob?.cancel()
+                    retryJob = serviceScope.launch {
                         delay(backoffMs)
+                        if (player.currentMediaItem?.mediaId != mediaId) return@launch
                         player.prepare()
                         player.play()
                     }
@@ -300,8 +316,10 @@ class PlaybackService : MediaLibraryService() {
                     // Exhausted retries for a specific stream error, move to next
                     retryCount = 0
                     lastErrorMediaId = null
-                    serviceScope.launch {
+                    retryJob?.cancel()
+                    retryJob = serviceScope.launch {
                         delay(2000)
+                        if (player.currentMediaItem?.mediaId != mediaId) return@launch
                         player.seekToNextMediaItem()
                         player.prepare()
                         player.play()
@@ -908,7 +926,9 @@ class PlaybackService : MediaLibraryService() {
         cacheStation(station)
         
         val stationArtworkUrl = MediaUtils.getStationArtworkUrl(station.favicon, station.countryCode)
-        val artworkUri = stationArtworkUrl?.let { Uri.parse(it) } ?: getAppIconUri()
+        // Car hosts may not be able to resolve android.resource:// URIs. Leave the
+        // fallback URI unset so they use the embedded artwork data below.
+        val artworkUri = stationArtworkUrl?.let { Uri.parse(it) }
         val artworkData = if (stationArtworkUrl == null) appIconBytes else null
 
         val isHlsStream = isHls
@@ -919,8 +939,10 @@ class PlaybackService : MediaLibraryService() {
         val extras = Bundle().apply {
             putString("station_full_json", stationJson)
             putInt("android.media.browse.CONTENT_STYLE_PLAYABLE_HINT", 2) // Grid
-            putString("android.media.metadata.DISPLAY_ICON_URI", artworkUri.toString())
-            putString("android.media.metadata.ALBUM_ART_URI", artworkUri.toString())
+            artworkUri?.let {
+                putString("android.media.metadata.DISPLAY_ICON_URI", it.toString())
+                putString("android.media.metadata.ALBUM_ART_URI", it.toString())
+            }
         }
 
         val mediaId = if (parentId != null) "$parentId|station:${station.stationUuid}" else station.stationUuid
@@ -929,8 +951,8 @@ class PlaybackService : MediaLibraryService() {
             .setIsBrowsable(false)
             .setIsPlayable(true)
             .setMediaType(MediaMetadata.MEDIA_TYPE_RADIO_STATION)
-            .setArtworkUri(artworkUri)
             .setExtras(extras)
+            .apply { artworkUri?.let { setArtworkUri(it) } }
         if (artworkData != null) {
             metadataBuilder.setArtworkData(artworkData, MediaMetadata.PICTURE_TYPE_OTHER)
         }
@@ -972,6 +994,8 @@ class PlaybackService : MediaLibraryService() {
     }
 
     override fun onDestroy() {
+        retryJob?.cancel()
+        retryJob = null
         mediaLibrarySession?.run {
             release()
             mediaLibrarySession = null
