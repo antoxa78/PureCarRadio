@@ -4,6 +4,26 @@ import androidx.compose.ui.graphics.Color
 import com.toxa.pureradio.R
 
 object MediaUtils {
+    @Volatile
+    private var appIconBytesCache: ByteArray? = null
+
+    fun getAppIconArtworkBytes(context: android.content.Context): ByteArray? {
+        appIconBytesCache?.let { return it }
+        return try {
+            val drawable = context.resources.getDrawable(R.drawable.ic_radio_logo, context.theme)
+            val width = drawable.intrinsicWidth.coerceAtLeast(1)
+            val height = drawable.intrinsicHeight.coerceAtLeast(1)
+            val bitmap = android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ARGB_8888)
+            val canvas = android.graphics.Canvas(bitmap)
+            drawable.setBounds(0, 0, canvas.width, canvas.height)
+            drawable.draw(canvas)
+            val stream = java.io.ByteArrayOutputStream()
+            if (bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, stream)) {
+                stream.toByteArray().also { appIconBytesCache = it }
+            } else null
+        } catch (_: Exception) { null }
+    }
+
     fun getGenreColor(genre: String): Color {
         val hash = genre.hashCode()
         val r = ((Math.abs(hash) % 50) + 10) / 255f

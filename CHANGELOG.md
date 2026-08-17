@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.8] - 2026-08-17
+
+### Changed
+- **Version bump**: `versionCode` 26 → 27, `versionName` 1.6.7 → 1.6.8.
+
+### Fixed
+- **Car Display Default App Icon**: Stations without a favicon now show the default app icon on the fullscreen Now Playing view of the car display. The icon is embedded as artwork data in the media session instead of an `android.resource://` URI, which car UIs (Android Auto / Automotive) cannot resolve. Verified on an Android Automotive emulator.
+
 ## [1.6.7] - 2026-08-14
 
 ### Changed

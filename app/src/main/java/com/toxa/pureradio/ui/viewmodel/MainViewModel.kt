@@ -1892,17 +1892,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _mediaMetadata.value = null
         _audioFormat.value = null
 
-        val appResources = getApplication<Application>().resources
-        val appIconUri = Uri.Builder()
-            .scheme(android.content.ContentResolver.SCHEME_ANDROID_RESOURCE)
-            .authority(appResources.getResourcePackageName(R.drawable.ic_radio_logo))
-            .appendPath(appResources.getResourceTypeName(R.drawable.ic_radio_logo))
-            .appendPath(appResources.getResourceEntryName(R.drawable.ic_radio_logo))
-            .build()
+        // When a station has no favicon, embed the app icon as artwork data:
+        // car displays cannot resolve android.resource URIs from the app.
+        val appIconBytes = MediaUtils.getAppIconArtworkBytes(getApplication())
 
-        fun getResolvedArtworkUri(s: Station): android.net.Uri {
+        fun getResolvedArtworkUri(s: Station): android.net.Uri? {
             return MediaUtils.getStationArtworkUrl(s.favicon, null)?.let { android.net.Uri.parse(it) }
-                ?: appIconUri
         }
 
         val artworkUri = getResolvedArtworkUri(finalStation)
@@ -1914,23 +1909,30 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     val sJson = com.google.gson.Gson().toJson(s)
                     val sExtras = android.os.Bundle().apply {
                         putString("station_full_json", sJson)
-                        putString("android.media.metadata.DISPLAY_ICON_URI", artUri.toString())
-                        putString("android.media.metadata.ALBUM_ART_URI", artUri.toString())
+                        if (artUri != null) {
+                            putString("android.media.metadata.DISPLAY_ICON_URI", artUri.toString())
+                            putString("android.media.metadata.ALBUM_ART_URI", artUri.toString())
+                        }
                     }
 
                     val sId = if (parentId != null) "$parentId|station:${s.stationUuid}" else s.stationUuid
 
+                    val metaBuilder = androidx.media3.common.MediaMetadata.Builder()
+                        .setArtist(s.tags)
+                        .setExtras(sExtras)
+                        .setIsBrowsable(false)
+                        .setIsPlayable(true)
+                        .setMediaType(androidx.media3.common.MediaMetadata.MEDIA_TYPE_RADIO_STATION)
+                    if (artUri != null) {
+                        metaBuilder.setArtworkUri(artUri)
+                    } else if (appIconBytes != null) {
+                        metaBuilder.setArtworkData(appIconBytes, androidx.media3.common.MediaMetadata.PICTURE_TYPE_OTHER)
+                    }
+
                     val builder = MediaItem.Builder()
                         .setUri(s.url)
                         .setMediaId(sId)
-                        .setMediaMetadata(androidx.media3.common.MediaMetadata.Builder()
-                            .setArtist(s.tags)
-                            .setExtras(sExtras)
-                            .setIsBrowsable(false)
-                            .setIsPlayable(true)
-                            .setMediaType(androidx.media3.common.MediaMetadata.MEDIA_TYPE_RADIO_STATION)
-                            .setArtworkUri(artUri)
-                            .build())
+                        .setMediaMetadata(metaBuilder.build())
                     
                     val isHls = s.url.lowercase().let { url ->
                         url.endsWith(".m3u8") || url.endsWith(".m3u")
@@ -1946,8 +1948,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val sJson = com.google.gson.Gson().toJson(finalStation)
                 val sExtras = android.os.Bundle().apply {
                     putString("station_full_json", sJson)
-                    putString("android.media.metadata.DISPLAY_ICON_URI", artworkUri.toString())
-                    putString("android.media.metadata.ALBUM_ART_URI", artworkUri.toString())
+                    if (artworkUri != null) {
+                        putString("android.media.metadata.DISPLAY_ICON_URI", artworkUri.toString())
+                        putString("android.media.metadata.ALBUM_ART_URI", artworkUri.toString())
+                    }
                 }
 
                 val metaBuilder = androidx.media3.common.MediaMetadata.Builder()
@@ -1956,7 +1960,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     .setIsBrowsable(false)
                     .setIsPlayable(true)
                     .setMediaType(androidx.media3.common.MediaMetadata.MEDIA_TYPE_RADIO_STATION)
-                    .setArtworkUri(artworkUri)
+                if (artworkUri != null) {
+                    metaBuilder.setArtworkUri(artworkUri)
+                } else if (appIconBytes != null) {
+                    metaBuilder.setArtworkData(appIconBytes, androidx.media3.common.MediaMetadata.PICTURE_TYPE_OTHER)
+                }
 
                 val sId = if (parentId != null) "$parentId|station:${finalStation.stationUuid}" else finalStation.stationUuid
                 
