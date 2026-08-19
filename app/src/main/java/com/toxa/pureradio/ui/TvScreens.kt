@@ -234,7 +234,7 @@ fun PipContent(viewModel: MainViewModel) {
                     colors = SurfaceDefaults.colors(containerColor = Color.White.copy(alpha = 0.1f))
                 ) {
                     AsyncImage(
-                        model = mediaMetadata?.artworkUri ?: MediaUtils.getStationArtworkUrl(station.favicon, station.countryCode) ?: R.drawable.ic_radio_logo,
+                        model = mediaMetadata?.artworkUri ?: MediaUtils.getStationArtworkUrl(station.favicon, null) ?: R.drawable.ic_radio_logo,
                         contentDescription = null,
                         modifier = Modifier.fillMaxSize().padding(6.dp),
                         contentScale = ContentScale.Fit,
@@ -1718,7 +1718,7 @@ fun TvScreensaver(viewModel: MainViewModel) {
                     currentStation?.let { station ->
                         Box(contentAlignment = Alignment.Center) {
                             AsyncImage(
-                                model = mediaMetadata?.artworkUri ?: MediaUtils.getStationArtworkUrl(station.favicon, station.countryCode) ?: R.drawable.ic_radio_logo, 
+                                model = mediaMetadata?.artworkUri ?: MediaUtils.getStationArtworkUrl(station.favicon, null) ?: R.drawable.ic_radio_logo, 
                                 contentDescription = null, 
                                 modifier = Modifier.size(260.dp), 
                                 contentScale = ContentScale.Fit,
@@ -1863,8 +1863,10 @@ fun TvNowPlayingBar(
                     modifier = Modifier.size(68.dp),
                     colors = SurfaceDefaults.colors(containerColor = Color.White.copy(alpha = 0.15f))
                 ) {
+                    // No country flag fallback on the car display: stations without
+                    // a logo must show the default app icon.
                     AsyncImage(
-                        model = mediaMetadata?.artworkUri ?: MediaUtils.getStationArtworkUrl(station.favicon, station.countryCode) ?: R.drawable.ic_radio_logo,
+                        model = mediaMetadata?.artworkUri ?: MediaUtils.getStationArtworkUrl(station.favicon, null) ?: R.drawable.ic_radio_logo,
                         contentDescription = null,
                         modifier = Modifier.fillMaxSize().padding(10.dp),
                         contentScale = ContentScale.Fit,
@@ -2186,7 +2188,7 @@ fun StationCardContent(station: Station, isFavorite: Boolean, isCurrent: Boolean
     Column(modifier = Modifier.padding(12.dp).fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.SpaceBetween) {
         Box(contentAlignment = Alignment.Center) {
             Surface(shape = MaterialTheme.shapes.small, modifier = Modifier.size(80.dp), colors = SurfaceDefaults.colors(containerColor = Color.White.copy(alpha = 0.05f))) {
-                AsyncImage(model = MediaUtils.getStationArtworkUrl(station.favicon, station.countryCode) ?: R.drawable.ic_radio_logo, contentDescription = null, modifier = Modifier.fillMaxSize().padding(12.dp), contentScale = ContentScale.Fit, error = coil.compose.rememberAsyncImagePainter(R.drawable.ic_radio_logo))
+                AsyncImage(model = MediaUtils.getStationArtworkUrl(station.favicon, null) ?: R.drawable.ic_radio_logo, contentDescription = null, modifier = Modifier.fillMaxSize().padding(12.dp), contentScale = ContentScale.Fit, error = coil.compose.rememberAsyncImagePainter(R.drawable.ic_radio_logo))
             }
             val code = station.countryCode?.trim()?.lowercase()
             if (!code.isNullOrEmpty() && code.length == 2) {

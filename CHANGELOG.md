@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.9] - 2026-08-19
+
+### Changed
+- **Version bump**: `versionCode` 27 → 28, `versionName` 1.6.8 → 1.6.9.
+
+### Fixed
+- **Car Display App Icon Fallback**: Stations without a favicon now show the default app icon on the app's own fullscreen car display UI (Now Playing bar, screensaver, station cards, and PiP) instead of falling back to the country flag.
+
 ## [1.6.8] - 2026-08-17
 
 ### Changed
