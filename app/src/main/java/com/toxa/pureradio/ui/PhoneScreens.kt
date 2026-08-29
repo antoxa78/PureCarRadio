@@ -535,11 +535,11 @@ fun PhoneHomeScreen(
                             onGroupClick = { name ->
                                 val group = genreGroups.find { it.genreName == name }
                                 if (group?.isCountry == true) {
-                                    val country = countries.find { it.name == name }
+                                    val country = countries.find { it.name.equals(name, ignoreCase = true) }
                                         ?: Country(name = name, iso_3166_1 = "", stationcount = 0)
                                     viewModel.selectCountry(country)
                                 } else {
-                                    val tag = tags.find { it.name == name }
+                                    val tag = tags.find { it.name.equals(name, ignoreCase = true) }
                                         ?: Tag(name = name, stationcount = group?.totalStations ?: 0)
                                     viewModel.selectTag(tag)
                                 }

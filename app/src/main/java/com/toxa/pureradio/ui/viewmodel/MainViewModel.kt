@@ -322,7 +322,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _isInitialized.value = true
         }
         viewModelScope.launch {
-            delay(1500)
+            // Wait for player to be initialized before attempting resume
+            while (player == null) {
+                delay(100)
+            }
             if (_resumeLastStation.value && _currentStation.value == null) {
                 val uuid = prefs.getString("last_station_uuid", null)
                 val lastJson = prefs.getString("last_station_json", null)
@@ -1012,7 +1015,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private fun loadVisibleGenres(): Set<String> {
         val genres = prefs.getStringSet("visible_genres", emptySet()) ?: emptySet()
         if (genres.isEmpty() && prefs.getLong("last_db_update", 0) == 0L) {
-            return setOf("Rock", "Pop", "Jazz", "Electronic", "News", "Classical")
+            return setOf("rock", "pop", "jazz", "electronic", "news", "classical")
         }
         return genres
     }
@@ -1438,7 +1441,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                 filteredCount = allStations.count { matchesBitrateFilter(it, bitrates) }
                                 retries++
                             }
-                            val total = _tags.value.find { it.name == genre }?.stationcount ?: allStations.size
+                            val total = _tags.value.find { it.name.equals(genre, ignoreCase = true) }?.stationcount ?: allStations.size
                             GenreGroup(genre, allStations, total, filteredCount, isCountry = false)
                         }
                     }
@@ -1457,7 +1460,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                 filteredCount = allStations.count { matchesBitrateFilter(it, bitrates) }
                                 retries++
                             }
-                            val total = _countries.value.find { it.name == country }?.stationcount ?: allStations.size
+                            val total = _countries.value.find { it.name.equals(country, ignoreCase = true) }?.stationcount ?: allStations.size
                             GenreGroup(country, allStations, total, filteredCount, isCountry = true)
                         }
                     }

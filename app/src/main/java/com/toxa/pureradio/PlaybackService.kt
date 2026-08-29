@@ -458,7 +458,10 @@ class PlaybackService : MediaLibraryService() {
                         Futures.immediateFuture(LibraryResult.ofItemList(ImmutableList.copyOf(items), params))
                     }
                     "home_screen" -> {
-                        val visibleGenres = prefs.getStringSet("visible_genres", emptySet()) ?: emptySet()
+                        var visibleGenres = prefs.getStringSet("visible_genres", emptySet()) ?: emptySet()
+                        if (visibleGenres.isEmpty()) {
+                            visibleGenres = setOf("Rock", "Pop", "Jazz", "Electronic", "News", "Classical")
+                        }
                         val visibleCountries = prefs.getStringSet("visible_countries", emptySet()) ?: emptySet()
                         val items = mutableListOf<MediaItem>()
                         visibleGenres.forEach { 

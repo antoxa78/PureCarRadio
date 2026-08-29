@@ -12,18 +12,21 @@ android {
         minSdk = 29
         //noinspection OldTargetApi
         targetSdk = 36
-        versionCode = 28
-        versionName = "1.6.9"
+        versionCode = 29
+        versionName = "1.7.0"
 
         buildConfigField("Long", "BUILD_TIME", "${System.currentTimeMillis()}L")
     }
 
     signingConfigs {
         create("release") {
-            storeFile = file(providers.gradleProperty("PURE_RADIO_STORE_FILE").get())
-            storePassword = providers.gradleProperty("PURE_RADIO_STORE_PASSWORD").get()
-            keyAlias = providers.gradleProperty("PURE_RADIO_KEY_ALIAS").get()
-            keyPassword = providers.gradleProperty("PURE_RADIO_KEY_PASSWORD").get()
+            val storeFileProp = providers.gradleProperty("PURE_RADIO_STORE_FILE")
+            if (storeFileProp.isPresent) {
+                storeFile = file(storeFileProp.get())
+                storePassword = providers.gradleProperty("PURE_RADIO_STORE_PASSWORD").orNull
+                keyAlias = providers.gradleProperty("PURE_RADIO_KEY_ALIAS").orNull
+                keyPassword = providers.gradleProperty("PURE_RADIO_KEY_PASSWORD").orNull
+            }
         }
     }
 
