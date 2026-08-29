@@ -1872,8 +1872,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val parentId = when (selectedNavItem.value) {
             NavigationItem.Popular -> "popular"
             NavigationItem.Favourites -> "favourites"
-            NavigationItem.Genres -> selectedTag.value?.let { "genre_${it.name}" }
-            NavigationItem.Countries -> selectedCountry.value?.let { "country_${it.name}" }
+            NavigationItem.Genres -> selectedTag.value?.let { "genre_${MediaUtils.encodeBrowseName(it.name)}" }
+            NavigationItem.Countries -> selectedCountry.value?.let { "country_${MediaUtils.encodeBrowseName(it.name)}" }
             else -> null
         }
 

@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.1] - 2026-08-29
+
+### Changed
+- **Version bump**: `versionCode` 29 → 30, `versionName` 1.7.0 → 1.7.1.
+
+### Fixed
+- **Car Home Screen Genres**: Home-screen genre/country titles are now properly capitalized on Android Auto / Automotive displays.
+- **Car Genre Artwork**: Browsable genre/country items now expose both `DISPLAY_ICON_URI` and `ALBUM_ART_URI` so more car head units render their artwork.
+- **Last Station UUID**: `PlaybackService` now persists the real station UUID instead of the contextual `parentId|station:uuid` media ID, keeping the phone UI in sync after car/background playback changes.
+- **Custom Command Station Tracking**: `CMD_PLAY_STATION` now updates `last_station_uuid` as well as `last_station_json`.
+- **Safe Browse IDs**: Genre and country names are URL-encoded inside MediaItem IDs, preventing issues with spaces or special characters on car displays.
+- **Search Country Dialog**: Long-pressing a country tag in search results now shows the correct add/remove-country dialog.
+- **Localized Root Title**: The media library root title now uses `R.string.app_name` for proper localization.
+
 ## [1.6.9] - 2026-08-19
 
 ### Changed

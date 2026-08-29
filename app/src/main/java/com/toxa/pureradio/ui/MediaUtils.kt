@@ -2,10 +2,18 @@ package com.toxa.pureradio.ui
 
 import androidx.compose.ui.graphics.Color
 import com.toxa.pureradio.R
+import java.net.URLDecoder
+import java.net.URLEncoder
 
 object MediaUtils {
     @Volatile
     private var appIconBytesCache: ByteArray? = null
+
+    /** URL-encode a genre/country name so it can be safely embedded in a MediaItem ID. */
+    fun encodeBrowseName(name: String): String = URLEncoder.encode(name, "UTF-8")
+
+    /** Decode a genre/country name that was embedded in a MediaItem ID. */
+    fun decodeBrowseName(encoded: String): String = URLDecoder.decode(encoded, "UTF-8")
 
     fun getAppIconArtworkBytes(context: android.content.Context): ByteArray? {
         appIconBytesCache?.let { return it }

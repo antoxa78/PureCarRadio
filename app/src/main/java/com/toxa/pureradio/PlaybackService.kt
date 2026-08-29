@@ -226,7 +226,9 @@ class PlaybackService : MediaLibraryService() {
 
                 val metadata = mediaItem?.mediaMetadata ?: return
                 val stationJson = metadata.extras?.getString("station_full_json") ?: return
-                val uuid = mediaItem.mediaId
+                val uuid = mediaItem.mediaId.let {
+                    if (it.contains("|station:")) it.split("|")[1].removePrefix("station:") else it
+                }
                 
                 val prefs = getSharedPreferences("pure_radio_prefs", MODE_PRIVATE)
                 prefs.edit()
@@ -340,15 +342,16 @@ class PlaybackService : MediaLibraryService() {
                     serviceScope.launch {
                         delay(500)
                         val prefs = getSharedPreferences("pure_radio_prefs", MODE_PRIVATE)
-                        
+                        val autoResume = prefs.getBoolean("resume_last_station", false)
+
                         // Try to load favorites first to provide a playlist
                         val favoritesJson = prefs.getString("favorite_stations_json", null)
                         val lastUuid = prefs.getString("last_station_uuid", null)
-                        
+
                         if (favoritesJson != null) {
                             try {
                                 val stations = com.google.gson.Gson().fromJson<List<Station>>(
-                                    favoritesJson, 
+                                    favoritesJson,
                                     object : com.google.gson.reflect.TypeToken<List<Station>>() {}.type
                                 )
                                 if (stations.isNotEmpty()) {
@@ -356,7 +359,7 @@ class PlaybackService : MediaLibraryService() {
                                     val startIndex = stations.indexOfFirst { it.stationUuid == lastUuid }.coerceAtLeast(0)
                                     player.setMediaItems(mediaItems, startIndex, 0L)
                                     player.prepare()
-                                    // Don't auto-play on connect, just prepare
+                                    if (autoResume) player.play()
                                     return@launch
                                 }
                             } catch (_: Exception) {}
@@ -370,9 +373,35 @@ class PlaybackService : MediaLibraryService() {
                                 val mediaItem = createPlayableItem(station, forPlayback = true)
                                 player.setMediaItem(mediaItem)
                                 player.prepare()
+                                if (autoResume) player.play()
                             } catch (_: Exception) {}
                         }
                     }
+                }
+            }
+
+            override fun onPlaybackResumption(
+                session: MediaSession,
+                controller: MediaSession.ControllerInfo
+            ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
+                val prefs = getSharedPreferences("pure_radio_prefs", MODE_PRIVATE)
+                if (!prefs.getBoolean("resume_last_station", false)) {
+                    return Futures.immediateFailedFuture(IllegalStateException("Resume last station is disabled"))
+                }
+                val lastJson = prefs.getString("last_station_json", null)
+                    ?: return Futures.immediateFailedFuture(IllegalStateException("No last station to resume"))
+                return try {
+                    val station = com.google.gson.Gson().fromJson(lastJson, Station::class.java)
+                    val mediaItem = createPlayableItem(station, forPlayback = true)
+                    Futures.immediateFuture(
+                        MediaSession.MediaItemsWithStartPosition(
+                            ImmutableList.of(mediaItem),
+                            /* startIndex= */ 0,
+                            /* startPositionMs= */ 0L
+                        )
+                    )
+                } catch (e: Exception) {
+                    Futures.immediateFailedFuture(e)
                 }
             }
 
@@ -405,7 +434,10 @@ class PlaybackService : MediaLibraryService() {
                     player.prepare()
                     player.play()
                     val lastStationJson = com.google.gson.Gson().toJson(station)
-                    getSharedPreferences("pure_radio_prefs", MODE_PRIVATE).edit().putString("last_station_json", lastStationJson).apply()
+                    getSharedPreferences("pure_radio_prefs", MODE_PRIVATE).edit()
+                        .putString("last_station_json", lastStationJson)
+                        .putString("last_station_uuid", station.stationUuid)
+                        .apply()
                     return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
                 }
                 return super.onCustomCommand(session, controller, customCommand, args)
@@ -422,7 +454,7 @@ class PlaybackService : MediaLibraryService() {
                         .setIsBrowsable(true)
                         .setIsPlayable(false)
                         .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
-                        .setTitle("Pure Radio")
+                        .setTitle(getString(R.string.app_name))
                         .build())
                     .build()
                 
@@ -460,17 +492,24 @@ class PlaybackService : MediaLibraryService() {
                     "home_screen" -> {
                         var visibleGenres = prefs.getStringSet("visible_genres", emptySet()) ?: emptySet()
                         if (visibleGenres.isEmpty()) {
-                            visibleGenres = setOf("Rock", "Pop", "Jazz", "Electronic", "News", "Classical")
+                            visibleGenres = setOf("rock", "pop", "jazz", "electronic", "news", "classical")
                         }
                         val visibleCountries = prefs.getStringSet("visible_countries", emptySet()) ?: emptySet()
                         val items = mutableListOf<MediaItem>()
-                        visibleGenres.forEach { 
-                            items.add(createBrowsableItem("genre_$it", it, Uri.parse(MediaUtils.getGenreImageUrl(it)))) 
+                        visibleGenres.forEach { genre ->
+                            val encodedGenre = MediaUtils.encodeBrowseName(genre)
+                            items.add(createBrowsableItem("genre_$encodedGenre", formatBrowseTitle(genre), Uri.parse(MediaUtils.getGenreImageUrl(genre))))
                         }
                         visibleCountries.forEach { countryName ->
-                            items.add(createBrowsableItem("country_$countryName", countryName, Uri.parse(MediaUtils.getCategoryImageUrl("countries")))) 
+                            val encodedCountry = MediaUtils.encodeBrowseName(countryName)
+                            items.add(createBrowsableItem("country_$encodedCountry", formatBrowseTitle(countryName), Uri.parse(MediaUtils.getCategoryImageUrl("countries"))))
                         }
-                        Futures.immediateFuture(LibraryResult.ofItemList(ImmutableList.copyOf(items), params))
+                        val pagedItems = if (page >= 0 && pageSize >= 1) {
+                            val start = (page * pageSize).coerceAtMost(items.size)
+                            val end = ((page + 1) * pageSize).coerceAtMost(items.size)
+                            items.subList(start, end)
+                        } else items
+                        Futures.immediateFuture(LibraryResult.ofItemList(ImmutableList.copyOf(pagedItems), params))
                     }
                     "popular" -> serviceScope.future {
                         try {
@@ -498,7 +537,8 @@ class PlaybackService : MediaLibraryService() {
                             val items = cached ?: withTimeoutOrNull(10_000L) {
                                 val tags = repository.getTags(limit = 500)
                                 val newItems = tags.map { tag ->
-                                    createBrowsableItem("genre_${tag.name}", tag.name, Uri.parse(MediaUtils.getGenreImageUrl(tag.name)))
+                                    val encodedTag = MediaUtils.encodeBrowseName(tag.name)
+                                    createBrowsableItem("genre_${encodedTag}", formatBrowseTitle(tag.name), Uri.parse(MediaUtils.getGenreImageUrl(tag.name)))
                                 }
                                 browseCache.put("genres", newItems)
                                 newItems
@@ -520,8 +560,9 @@ class PlaybackService : MediaLibraryService() {
                             val items = cached ?: withTimeoutOrNull(10_000L) {
                                 val countries = repository.getCountries()
                                 val newItems = countries.map { country ->
+                                    val encodedCountry = MediaUtils.encodeBrowseName(country.name)
                                     val flagUrl = MediaUtils.getCountryFlagUrl(country.iso_3166_1)
-                                    createBrowsableItem("country_${country.name}", country.name, flagUrl?.let { Uri.parse(it) })
+                                    createBrowsableItem("country_${encodedCountry}", formatBrowseTitle(country.name), flagUrl?.let { Uri.parse(it) })
                                 }
                                 browseCache.put("countries", newItems)
                                 newItems
@@ -577,7 +618,7 @@ class PlaybackService : MediaLibraryService() {
                     }
                     else -> if (parentId.startsWith("genre_")) serviceScope.future {
                         try {
-                            val genre = parentId.removePrefix("genre_")
+                            val genre = MediaUtils.decodeBrowseName(parentId.removePrefix("genre_"))
                             val cached = browseCache.get(parentId)
                             val items = cached ?: withTimeoutOrNull(10_000L) {
                                 val stations = repository.searchStations(tag = genre, limit = 100)
@@ -597,7 +638,7 @@ class PlaybackService : MediaLibraryService() {
                         }
                     } else if (parentId.startsWith("country_")) serviceScope.future {
                         try {
-                            val country = parentId.removePrefix("country_")
+                            val country = MediaUtils.decodeBrowseName(parentId.removePrefix("country_"))
                             val cached = browseCache.get(parentId)
                             val items = cached ?: withTimeoutOrNull(10_000L) {
                                 val stations = repository.searchStations(country = country, limit = 100)
@@ -675,7 +716,17 @@ class PlaybackService : MediaLibraryService() {
                                 "recent" -> createBrowsableItem("recent", getString(R.string.nav_recent), Uri.parse(MediaUtils.getCategoryImageUrl("recent")))
                                 "genres" -> createBrowsableItem("genres", getString(R.string.nav_genres), Uri.parse(MediaUtils.getCategoryImageUrl("genres")))
                                 "countries" -> createBrowsableItem("countries", getString(R.string.nav_countries), Uri.parse(MediaUtils.getCategoryImageUrl("countries")))
-                                else -> null
+                                else -> when {
+                                    mediaId.startsWith("genre_") -> {
+                                        val genre = MediaUtils.decodeBrowseName(mediaId.removePrefix("genre_"))
+                                        createBrowsableItem(mediaId, formatBrowseTitle(genre), Uri.parse(MediaUtils.getGenreImageUrl(genre)))
+                                    }
+                                    mediaId.startsWith("country_") -> {
+                                        val country = MediaUtils.decodeBrowseName(mediaId.removePrefix("country_"))
+                                        createBrowsableItem(mediaId, formatBrowseTitle(country), Uri.parse(MediaUtils.getCategoryImageUrl("countries")))
+                                    }
+                                    else -> null
+                                }
                             }
                             if (item != null) {
                                 LibraryResult.ofItem(item, null)
@@ -779,11 +830,11 @@ class PlaybackService : MediaLibraryService() {
                                     } else emptyList()
                                 }
                                 parentId.startsWith("genre_") -> {
-                                    val genre = parentId.removePrefix("genre_")
+                                    val genre = MediaUtils.decodeBrowseName(parentId.removePrefix("genre_"))
                                     repository.searchStations(tag = genre, limit = 100)
                                 }
                                 parentId.startsWith("country_") -> {
-                                    val country = parentId.removePrefix("country_")
+                                    val country = MediaUtils.decodeBrowseName(parentId.removePrefix("country_"))
                                     repository.searchStations(country = country, limit = 100)
                                 }
                                 parentId.startsWith("search_") -> {
@@ -832,6 +883,12 @@ class PlaybackService : MediaLibraryService() {
         }).setPeriodicPositionUpdateEnabled(false).build()
     }
 
+    private fun formatBrowseTitle(name: String): String {
+        return name.lowercase().split(" ").joinToString(" ") {
+            it.replaceFirstChar { c -> c.uppercase() }
+        }
+    }
+
     private fun createBrowsableItem(id: String, title: String, artworkUri: Uri? = null): MediaItem {
         val metadata = MediaMetadata.Builder()
             .setIsBrowsable(true)
@@ -848,6 +905,7 @@ class PlaybackService : MediaLibraryService() {
         extras.putInt("android.media.browse.CONTENT_STYLE_PLAYABLE_HINT", 2)  // Grid
         if (artworkUri != null) {
             extras.putString("android.media.metadata.DISPLAY_ICON_URI", artworkUri.toString())
+            extras.putString("android.media.metadata.ALBUM_ART_URI", artworkUri.toString())
         }
         metadata.setExtras(extras)
 

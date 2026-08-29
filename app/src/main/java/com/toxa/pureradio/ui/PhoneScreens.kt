@@ -435,8 +435,9 @@ fun PhoneMainScreen(viewModel: MainViewModel) {
     }
 
     viewModel.showGenreDialog.collectAsState().value?.let { genreName ->
+        val countries by viewModel.countries.collectAsState()
         val group = genreGroups.find { it.genreName == genreName }
-        val isCountry = group?.isCountry == true
+        val isCountry = group?.isCountry == true || countries.any { it.name.equals(genreName, ignoreCase = true) }
         val isOnHome by remember { derivedStateOf {
             if (isCountry) viewModel.visibleCountries.value.contains(genreName)
             else viewModel.visibleGenres.value.contains(genreName)
