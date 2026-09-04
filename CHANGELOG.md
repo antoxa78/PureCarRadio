@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.2] - 2026-09-04
+
+### Changed
+- **Version bump**: `versionCode` 30 → 31, `versionName` 1.7.1 → 1.7.2.
+
+### Fixed
+- **Car Category Artwork**: Replaced 16 dead Unsplash image URLs (HTTP 404) in the genre/category artwork mapping — including pop/hits/top/chart, rock variants, jazz/blues/latin, classical/orchestra/opera, electronic genres, 60s/oldies/retro, and the Home Screen tile. Categories like "Hits" now display their pictures again on Android Auto / Automotive screens. All 48 image URLs verified live and visually checked for theme fit.
+
 ## [1.7.1] - 2026-08-29
 
 ### Changed
