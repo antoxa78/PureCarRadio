@@ -40,6 +40,30 @@ object MediaUtils {
         return Color(r, g, b)
     }
 
+    /**
+     * Small pool of generic "mood" photos used for genres that don't match any of the
+     * specific rules below. Radio Browser exposes hundreds of distinct tag names (far more
+     * than we can reasonably curate), so without this every uncurated genre used to collapse
+     * onto the exact same fallback photo, making the car display's genre grid look repetitive.
+     * Picking deterministically by hash keeps the same genre showing the same photo across
+     * sessions while spreading unmapped genres across several distinct images.
+     */
+    private val fallbackGenreImages = listOf(
+        "https://images.unsplash.com/photo-1453090927415-5f45085b65c0?q=80&w=600&auto=format&fit=crop",
+        "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=600&auto=format&fit=crop",
+        "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?q=80&w=600&auto=format&fit=crop",
+        "https://images.unsplash.com/photo-1526218626217-dc65a29bb444?q=80&w=600&auto=format&fit=crop",
+        "https://images.unsplash.com/photo-1519681393784-d120267933ba?q=80&w=600&auto=format&fit=crop",
+        "https://images.unsplash.com/photo-1485846234645-a62644f84728?q=80&w=600&auto=format&fit=crop",
+        "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=80&w=600&auto=format&fit=crop",
+        "https://images.unsplash.com/photo-1506126613408-eca07ce68773?q=80&w=600&auto=format&fit=crop"
+    )
+
+    private fun fallbackGenreImageFor(genre: String): String {
+        val index = (genre.hashCode().let { if (it == Int.MIN_VALUE) 0 else Math.abs(it) }) % fallbackGenreImages.size
+        return fallbackGenreImages[index]
+    }
+
     fun getGenreImageUrl(genre: String): String {
         val g = genre.lowercase().trim()
         return when {
@@ -61,10 +85,12 @@ object MediaUtils {
             g.contains("classical") || g.contains("classic") -> "https://images.unsplash.com/photo-1507838153414-b4b713384a76?q=80&w=600&auto=format&fit=crop"
             g.contains("opera") -> "https://images.unsplash.com/photo-1470019693664-1d202d2c0907?q=80&w=600&auto=format&fit=crop"
             g.contains("techno") -> "https://images.unsplash.com/photo-1493676304819-0d7a8d026dcf?q=80&w=600&auto=format&fit=crop"
-            g.contains("deep house") -> "https://images.unsplash.com/photo-1557683316-973673baf926?q=80&w=600&auto=format&fit=crop"
+            g.contains("deep house") -> fallbackGenreImageFor(g)
             g.contains("house") -> "https://images.unsplash.com/photo-1557683316-973673baf926?q=80&w=600&auto=format&fit=crop"
+            // psytrance must be checked before the plain "trance" rule below, since
+            // "psytrance".contains("trance") is true and would otherwise always win first.
+            g.contains("psytrance") -> fallbackGenreImageFor(g)
             g.contains("trance") -> "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=600&auto=format&fit=crop"
-            g.contains("psytrance") -> "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=600&auto=format&fit=crop"
             g.contains("electro") || g.contains("edm") -> "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=600&auto=format&fit=crop"
             g.contains("ambient") || g.contains("lofi") -> "https://images.unsplash.com/photo-1516280440614-37939bbacd81?q=80&w=600&auto=format&fit=crop"
             g.contains("chillout") || g.contains("chill") -> "https://images.unsplash.com/photo-1519681393784-d120267933ba?q=80&w=600&auto=format&fit=crop"
@@ -75,10 +101,10 @@ object MediaUtils {
             g.contains("hip hop") -> "https://images.unsplash.com/photo-1520262454473-a1a82276a574?q=80&w=600&auto=format&fit=crop"
             g.contains("rap") || g.contains("urban") || g.contains("r&b") -> "https://images.unsplash.com/photo-1524368535928-5b5e00ddc76b?q=80&w=600&auto=format&fit=crop"
             g.contains("reggae") -> "https://images.unsplash.com/photo-1510915228340-29c85a43dcfe?q=80&w=600&auto=format&fit=crop"
-            g.contains("ska") -> "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=600&auto=format&fit=crop"
+            g.contains("ska") -> fallbackGenreImageFor(g)
             g.contains("world") -> "https://images.unsplash.com/photo-1526218626217-dc65a29bb444?q=80&w=600&auto=format&fit=crop"
             g.contains("latin") -> "https://images.unsplash.com/photo-1445985543470-41fba5c3144a?q=80&w=600&auto=format&fit=crop"
-            g.contains("80s") -> "https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=600&auto=format&fit=crop"
+            g.contains("80s") -> fallbackGenreImageFor(g)
             g.contains("90s") -> "https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?q=80&w=600&auto=format&fit=crop"
             g.contains("70s") -> "https://images.unsplash.com/photo-1516062423079-7ca13cdc7f5a?q=80&w=600&auto=format&fit=crop"
             g.contains("60s") || g.contains("oldies") || g.contains("retro") -> "https://images.unsplash.com/photo-1461360370896-922624d12aa1?q=80&w=600&auto=format&fit=crop"
@@ -89,7 +115,9 @@ object MediaUtils {
             g.contains("comedy") -> "https://images.unsplash.com/photo-1527224857830-43a7acc85260?q=80&w=600&auto=format&fit=crop"
             g.contains("christmas") || g.contains("xmas") -> "https://images.unsplash.com/photo-1543589077-47d81606c1bf?q=80&w=600&auto=format&fit=crop"
             g.contains("kids") || g.contains("children") -> "https://images.unsplash.com/photo-1516627145497-ae6968895b74?q=80&w=600&auto=format&fit=crop"
-            else -> "https://images.unsplash.com/photo-1453090927415-5f45085b65c0?q=80&w=600&auto=format&fit=crop"
+            // Radio Browser has hundreds of tag names beyond what's curated above; spread
+            // them across a small pool instead of collapsing them all onto one photo.
+            else -> fallbackGenreImageFor(g)
         }
     }
 

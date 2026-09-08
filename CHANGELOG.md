@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.3] - 2026-09-08
+
+### Changed
+- **Version bump**: `versionCode` 31 → 32, `versionName` 1.7.2 → 1.7.3.
+
+### Added
+- **Genre Artwork Diversification**: Unmapped Radio Browser genre tags (and deep house, psytrance, ska, 80s) now spread across a small pool of generic mood photos instead of all collapsing onto one image, keeping the car display's genre grid varied.
+- **Hide Broken In Car Browsing**: The "hide broken stations" preference now applies to the Android Auto / Automotive media browser (popular, genres, countries, search) so car displays match the phone UI.
+
+### Fixed
+- **Broadcast Receiver Security**: The stop-radio receiver is now registered as not-exported on every API level (via the AndroidX compat shim below API 33), preventing other apps on the device from broadcasting `ACTION_STOP_RADIO` and force-stopping playback.
+- **Home Genre Defaults Persistence**: A deliberately emptied home genre selection no longer keeps reverting to the default genre set on the car media browser.
+
 ## [1.7.2] - 2026-09-04
 
 ### Changed

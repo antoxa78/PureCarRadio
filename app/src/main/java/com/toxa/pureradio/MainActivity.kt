@@ -242,11 +242,14 @@ class MainActivity : ComponentActivity() {
             statusBarStyle = SystemBarStyle.dark(0),
             navigationBarStyle = SystemBarStyle.dark(0)
         )
-        if (Build.VERSION.SDK_INT >= 34) {
-            registerReceiver(stopReceiver, IntentFilter("ACTION_STOP_RADIO"), Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            registerReceiver(stopReceiver, IntentFilter("ACTION_STOP_RADIO"))
-        }
+        // Registered as not-exported on every API level (via the AndroidX compat shim below API 33)
+        // so other apps on the device cannot send this broadcast and force-stop playback.
+        ContextCompat.registerReceiver(
+            this,
+            stopReceiver,
+            IntentFilter("ACTION_STOP_RADIO"),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
         setContent {
             val isPip by isInPipMode
             val isInitialized by viewModel.isInitialized.collectAsState()

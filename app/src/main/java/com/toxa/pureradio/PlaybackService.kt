@@ -491,7 +491,10 @@ class PlaybackService : MediaLibraryService() {
                     }
                     "home_screen" -> {
                         var visibleGenres = prefs.getStringSet("visible_genres", emptySet()) ?: emptySet()
-                        if (visibleGenres.isEmpty()) {
+                        // Only fall back to the default genre set before the user has ever touched
+                        // their home genre selection (mirrors MainViewModel.loadVisibleGenres()).
+                        // Otherwise a deliberately emptied selection would keep reappearing here.
+                        if (visibleGenres.isEmpty() && prefs.getLong("last_db_update", 0) == 0L) {
                             visibleGenres = setOf("rock", "pop", "jazz", "electronic", "news", "classical")
                         }
                         val visibleCountries = prefs.getStringSet("visible_countries", emptySet()) ?: emptySet()
@@ -515,7 +518,7 @@ class PlaybackService : MediaLibraryService() {
                         try {
                             val cached = browseCache.get("popular")
                             val items = cached ?: withTimeoutOrNull(10_000L) {
-                                val stations = repository.getTopStations(limit = 100)
+                                val stations = repository.getTopStations(limit = 100, hideBroken = prefs.getBoolean("hide_broken", true))
                                 val newItems = stations.map { createPlayableItem(it, parentId = "popular") }
                                 browseCache.put("popular", newItems)
                                 newItems
@@ -621,7 +624,7 @@ class PlaybackService : MediaLibraryService() {
                             val genre = MediaUtils.decodeBrowseName(parentId.removePrefix("genre_"))
                             val cached = browseCache.get(parentId)
                             val items = cached ?: withTimeoutOrNull(10_000L) {
-                                val stations = repository.searchStations(tag = genre, limit = 100)
+                                val stations = repository.searchStations(tag = genre, limit = 100, hideBroken = prefs.getBoolean("hide_broken", true))
                                 val newItems = stations.map { createPlayableItem(it, parentId = parentId) }
                                 browseCache.put(parentId, newItems)
                                 newItems
@@ -641,7 +644,7 @@ class PlaybackService : MediaLibraryService() {
                             val country = MediaUtils.decodeBrowseName(parentId.removePrefix("country_"))
                             val cached = browseCache.get(parentId)
                             val items = cached ?: withTimeoutOrNull(10_000L) {
-                                val stations = repository.searchStations(country = country, limit = 100)
+                                val stations = repository.searchStations(country = country, limit = 100, hideBroken = prefs.getBoolean("hide_broken", true))
                                 val newItems = stations.map { createPlayableItem(it, parentId = parentId) }
                                 browseCache.put(parentId, newItems)
                                 newItems
@@ -748,7 +751,8 @@ class PlaybackService : MediaLibraryService() {
             ): ListenableFuture<LibraryResult<Void>> {
                 serviceScope.launch {
                     try {
-                        val stations = repository.searchStations(query = query, limit = 50)
+                        val hideBroken = getSharedPreferences("pure_radio_prefs", MODE_PRIVATE).getBoolean("hide_broken", true)
+                        val stations = repository.searchStations(query = query, limit = 50, hideBroken = hideBroken)
                         session.notifySearchResultChanged(browser, query, stations.size, params)
                     } catch (_: Exception) {}
                 }
@@ -767,8 +771,9 @@ class PlaybackService : MediaLibraryService() {
                 val safePageSize = pageSize.coerceIn(1, 200)
                 return serviceScope.future {
                     try {
+                        val hideBroken = getSharedPreferences("pure_radio_prefs", MODE_PRIVATE).getBoolean("hide_broken", true)
                         val stations = withTimeoutOrNull(10_000L) {
-                            repository.searchStations(query = query, limit = safePageSize, offset = safePage * safePageSize)
+                            repository.searchStations(query = query, limit = safePageSize, offset = safePage * safePageSize, hideBroken = hideBroken)
                         } ?: emptyList()
                         val items = stations.map { createPlayableItem(it, parentId = "search_$query") }
                         LibraryResult.ofItemList(ImmutableList.copyOf(items), params)
@@ -809,10 +814,11 @@ class PlaybackService : MediaLibraryService() {
                                 }
                             }
 
+                            val prefs = getSharedPreferences("pure_radio_prefs", MODE_PRIVATE)
+                            val hideBroken = prefs.getBoolean("hide_broken", true)
                             val siblings = when {
-                                parentId == "popular" -> repository.getTopStations(limit = 100)
+                                parentId == "popular" -> repository.getTopStations(limit = 100, hideBroken = hideBroken)
                                 parentId == "favourites" -> {
-                                    val prefs = getSharedPreferences("pure_radio_prefs", MODE_PRIVATE)
                                     val json = prefs.getString("favorite_stations_json", null)
                                     if (json != null) {
                                         try {
@@ -821,7 +827,6 @@ class PlaybackService : MediaLibraryService() {
                                     } else emptyList()
                                 }
                                 parentId == "recent" -> {
-                                    val prefs = getSharedPreferences("pure_radio_prefs", MODE_PRIVATE)
                                     val json = prefs.getString("recent_stations_json", null)
                                     if (json != null) {
                                         try {
@@ -831,15 +836,15 @@ class PlaybackService : MediaLibraryService() {
                                 }
                                 parentId.startsWith("genre_") -> {
                                     val genre = MediaUtils.decodeBrowseName(parentId.removePrefix("genre_"))
-                                    repository.searchStations(tag = genre, limit = 100)
+                                    repository.searchStations(tag = genre, limit = 100, hideBroken = hideBroken)
                                 }
                                 parentId.startsWith("country_") -> {
                                     val country = MediaUtils.decodeBrowseName(parentId.removePrefix("country_"))
-                                    repository.searchStations(country = country, limit = 100)
+                                    repository.searchStations(country = country, limit = 100, hideBroken = hideBroken)
                                 }
                                 parentId.startsWith("search_") -> {
                                     val query = parentId.removePrefix("search_")
-                                    repository.searchStations(query = query, limit = 50)
+                                    repository.searchStations(query = query, limit = 50, hideBroken = hideBroken)
                                 }
                                 else -> emptyList()
                             }
