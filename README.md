@@ -42,6 +42,16 @@ Pure Car Radio is a premium, retro-styled internet radio application for Android
 
 Prebuilt APKs are attached to the [GitHub Releases](https://github.com/antoxa78/PureCarRadio/releases) page.
 
+## Support
+
+Enjoying this project? A small donation is greatly appreciated and helps keep it going:
+
+<p align="center">
+  <a href="https://www.paypal.me/antoxab1978" target="_blank">
+    <img src="https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif" alt="Donate with PayPal" />
+  </a>
+</p>
+
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
