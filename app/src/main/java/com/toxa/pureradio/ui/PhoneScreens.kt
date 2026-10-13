@@ -11,6 +11,21 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import com.toxa.pureradio.ui.theme.paletteFor
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -262,25 +277,69 @@ fun PhoneMainScreen(viewModel: MainViewModel) {
 
         if (isLoading && selectedNavItem != NavigationItem.Search) {
             Box(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background.copy(alpha = 0.55f)),
                 contentAlignment = Alignment.Center
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    LinearProgressIndicator(modifier = Modifier.width(200.dp))
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = stringResource(R.string.searching_for_waves),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
-                    )
+                Surface(
+                    shape = RoundedCornerShape(24.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    shadowElevation = 8.dp
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 28.dp, vertical = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        MiniEqualizer(isPlaying = true, modifier = Modifier.size(width = 36.dp, height = 28.dp), bars = 4)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = stringResource(R.string.searching_for_waves),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(14.dp))
+                        LinearProgressIndicator(
+                            modifier = Modifier
+                                .width(180.dp)
+                                .height(3.dp)
+                                .clip(CircleShape),
+                            trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                        )
+                    }
                 }
             }
         }
 
-        error?.let {
+        error?.let { message ->
             LaunchedEffect(error) {
                 delay(5000)
                 viewModel.clearError()
+            }
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.errorContainer,
+                contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                shadowElevation = 6.dp,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .fillMaxWidth()
+                    .clickable { viewModel.clearError() }
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Warning, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = message,
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
     }
@@ -488,44 +547,27 @@ fun PhoneHomeScreen(
 
     Column(modifier = Modifier.fillMaxSize()) {
         val title = when {
-            selectedTag != null -> {
-                val name = selectedTag.name.lowercase().split(" ").joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
-                "$name (${stations.size})"
-            }
-            selectedCountry != null -> {
-                val name = selectedCountry.name.lowercase().split(" ").joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
-                "$name (${stations.size})"
-            }
+            selectedTag != null -> selectedTag.name.displayCase()
+            selectedCountry != null -> selectedCountry.name.displayCase()
             else -> stringResource(R.string.nav_home)
         }
         val isDeepDive = selectedTag != null || selectedCountry != null
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = if (isDeepDive) FontWeight.Black else FontWeight.ExtraBold,
-                modifier = Modifier.weight(1f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                letterSpacing = if (isDeepDive) 0.sp else 1.sp
-            )
-        }
+        PhoneScreenHeader(
+            title = title,
+            subtitle = if (isDeepDive) stringResource(R.string.stations_count, stations.size) else null,
+            onBack = if (isDeepDive) {
+                {
+                    if (selectedTag != null) viewModel.selectTag(null) else viewModel.selectCountry(null)
+                }
+            } else null
+        )
 
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            PhoneBitrateFilters(
-                selectedBitrates = selectedBitrates,
-                onToggleFilter = { viewModel.toggleBitrateFilter(it) }
-            )
-        }
+        PhoneBitrateFilters(
+            selectedBitrates = selectedBitrates,
+            onToggleFilter = { viewModel.toggleBitrateFilter(it) }
+        )
+        Spacer(modifier = Modifier.height(8.dp))
 
         Box(modifier = Modifier.weight(1f)) {
             if (genreGroups.isNotEmpty()) {
@@ -587,48 +629,73 @@ fun PhoneStationGrid(
 ) {
     val favorites by viewModel.favorites.collectAsState()
     val currentStation by viewModel.currentStation.collectAsState()
+    val isPlaying by viewModel.isPlaying.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
     if (stations.isEmpty()) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(stringResource(R.string.no_stations_found), style = MaterialTheme.typography.bodyLarge)
+        if (!isLoading) {
+            PhoneEmptyState(
+                icon = Icons.Default.Radio,
+                message = stringResource(R.string.no_stations_found)
+            )
         }
         return
     }
 
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = 160.dp),
-        contentPadding = PaddingValues(8.dp, 8.dp, 8.dp, 140.dp),
+        columns = GridCells.Adaptive(minSize = 156.dp),
+        contentPadding = GridPadding,
         modifier = Modifier.fillMaxSize(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(GridGap),
+        verticalArrangement = Arrangement.spacedBy(GridGap)
     ) {
         itemsIndexed(stations, key = { _, station -> station.stationUuid }) { _, station ->
+            val isCurrent = currentStation?.stationUuid == station.stationUuid
             PhoneStationCard(
                 station = station,
                 isFavorite = favorites.contains(station.stationUuid),
-                isCurrent = currentStation?.stationUuid == station.stationUuid,
+                isCurrent = isCurrent,
                 onClick = { viewModel.playStation(station, stations) },
-                onLongClick = { onLongClick(station) }
+                onLongClick = { onLongClick(station) },
+                isPlaying = isCurrent && isPlaying
             )
         }
 
         if (onLoadMore != null) {
             item(key = "load_more", span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
                 Box(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Button(
+                    FilledTonalButton(
                         onClick = { if (!isLoading) onLoadMore() },
-                        enabled = !isLoading
+                        enabled = !isLoading,
+                        shape = CircleShape,
+                        contentPadding = PaddingValues(horizontal = 28.dp, vertical = 12.dp)
                     ) {
-                        Text(if (isLoading) stringResource(R.string.loading) else stringResource(R.string.load_more))
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(stringResource(R.string.loading))
+                        } else {
+                            Text(stringResource(R.string.load_more))
+                        }
                     }
                 }
             }
         }
     }
+}
+
+/** 1234 -> "1.2K", 1_250_000 -> "1.3M". */
+private fun compactCount(value: Int): String = when {
+    value >= 1_000_000 -> String.format(Locale.US, "%.1fM", value / 1_000_000f).replace(".0M", "M")
+    value >= 10_000 -> "${value / 1000}K"
+    value >= 1_000 -> String.format(Locale.US, "%.1fK", value / 1000f).replace(".0K", "K")
+    else -> value.toString()
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -638,111 +705,123 @@ fun PhoneStationCard(
     isFavorite: Boolean,
     isCurrent: Boolean,
     onClick: () -> Unit,
-    onLongClick: () -> Unit = {}
+    onLongClick: () -> Unit = {},
+    isPlaying: Boolean = true
 ) {
-    Card(
+    val shape = RoundedCornerShape(20.dp)
+    val colors = MaterialTheme.colorScheme
+    Surface(
+        shape = shape,
+        color = if (isCurrent) colors.primaryContainer.copy(alpha = 0.6f) else colors.surfaceContainer,
+        border = BorderStroke(
+            width = if (isCurrent) 1.5.dp else 1.dp,
+            color = if (isCurrent) colors.primary.copy(alpha = 0.85f) else colors.outlineVariant.copy(alpha = 0.45f)
+        ),
         modifier = Modifier
             .fillMaxWidth()
-            .height(180.dp)
+            .height(196.dp)
+            .clip(shape)
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick
-            ),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isCurrent) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
-                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-        ),
-        border = if (isCurrent) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            )
     ) {
-        Column(
-            modifier = Modifier.padding(12.dp).fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(top = 4.dp)) {
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.size(80.dp),
-                    color = Color.White.copy(alpha = 0.08f),
-                    shadowElevation = 4.dp
-                ) {
-                    AsyncImage(
-                        model = MediaUtils.getStationArtworkUrl(station.favicon, station.countryCode) ?: R.drawable.ic_radio_logo,
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize().padding(12.dp),
-                        contentScale = ContentScale.Fit,
-                        error = coil.compose.rememberAsyncImagePainter(R.drawable.ic_radio_logo)
-                    )
-                }
+        Column(modifier = Modifier.padding(10.dp)) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
+                StationArtwork(
+                    model = MediaUtils.getStationArtworkUrl(station.favicon, station.countryCode),
+                    modifier = Modifier.fillMaxSize(),
+                    shape = RoundedCornerShape(14.dp),
+                    contentPadding = 16.dp
+                )
                 val code = station.countryCode?.trim()?.lowercase()
                 if (!code.isNullOrEmpty() && code.length == 2) {
                     AsyncImage(
                         model = "https://flagcdn.com/w80/$code.png",
                         contentDescription = null,
                         modifier = Modifier
-                            .size(24.dp)
                             .align(Alignment.TopStart)
-                            .offset(x = (-8).dp, y = (-8).dp)
-                            .background(Color.Black.copy(alpha = 0.2f), CircleShape)
-                            .padding(2.dp),
-                        contentScale = ContentScale.Fit
+                            .padding(8.dp)
+                            .size(width = 22.dp, height = 16.dp)
+                            .clip(RoundedCornerShape(3.dp)),
+                        contentScale = ContentScale.Crop
                     )
                 }
                 if (isFavorite) {
-                    Icon(
-                        Icons.Default.Favorite,
-                        contentDescription = null,
+                    Box(
                         modifier = Modifier
-                            .size(18.dp)
                             .align(Alignment.TopEnd)
-                            .offset(x = 8.dp, y = (-8).dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-            
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = station.name,
-                    style = MaterialTheme.typography.titleSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    fontWeight = if (isCurrent) FontWeight.ExtraBold else FontWeight.Bold,
-                    textAlign = TextAlign.Center
-                )
-                if (isCurrent) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.GraphicEq,
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "LIVE",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                } else {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                            .padding(6.dp)
+                            .size(26.dp)
+                            .background(Color.Black.copy(alpha = 0.45f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
                         Icon(
                             Icons.Default.Favorite,
-                            contentDescription = null,
-                            modifier = Modifier.size(12.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = station.votes.toString(),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                            contentDescription = stringResource(R.string.favorite_desc),
+                            modifier = Modifier.size(14.dp),
+                            tint = colors.primary
                         )
                     }
+                }
+                if (isCurrent) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(8.dp)
+                            .size(30.dp)
+                            .background(colors.primary, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        MiniEqualizer(
+                            isPlaying = isPlaying,
+                            modifier = Modifier.size(width = 14.dp, height = 13.dp),
+                            color = colors.onPrimary
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Text(
+                text = station.name,
+                style = MaterialTheme.typography.titleSmall,
+                color = if (isCurrent) colors.primary else colors.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(horizontal = 2.dp)
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(
+                modifier = Modifier.padding(horizontal = 2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Default.Favorite,
+                    contentDescription = null,
+                    modifier = Modifier.size(11.dp),
+                    tint = colors.onSurfaceVariant.copy(alpha = 0.7f)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = compactCount(station.votes),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = colors.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                stationQualityLabel(station)?.let { quality ->
+                    Text(
+                        text = quality,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (isCurrent) colors.primary else colors.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
         }
@@ -757,22 +836,23 @@ fun PhoneGenreGroupGrid(
     onGroupLongClick: ((String) -> Unit)? = null
 ) {
     if (groups.isEmpty()) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(stringResource(R.string.no_genres_selected), style = MaterialTheme.typography.bodyLarge)
-        }
+        PhoneEmptyState(
+            icon = Icons.AutoMirrored.Filled.List,
+            message = stringResource(R.string.no_genres_selected)
+        )
         return
     }
 
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = 160.dp),
-        contentPadding = PaddingValues(8.dp, 8.dp, 8.dp, 140.dp),
+        columns = GridCells.Adaptive(minSize = 156.dp),
+        contentPadding = GridPadding,
         modifier = Modifier.fillMaxSize(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(GridGap),
+        verticalArrangement = Arrangement.spacedBy(GridGap)
     ) {
         itemsIndexed(groups, key = { _, group -> group.genreName }) { _, group ->
             PhoneGenreGroupCard(
-                group = group.copy(genreName = group.genreName.lowercase().split(" ").joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }),
+                group = group.copy(genreName = group.genreName.displayCase()),
                 onClick = { onGroupClick(group.genreName) },
                 onLongClick = if (onGroupLongClick != null) {{ onGroupLongClick(group.genreName) }} else null
             )
@@ -780,68 +860,100 @@ fun PhoneGenreGroupGrid(
     }
 }
 
+/**
+ * Photo tile used for genres, tags and countries: full-bleed image over the genre's
+ * fallback colour, a bottom scrim for legibility and left-aligned title + caption.
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun PhoneGenreGroupCard(group: GenreGroup, onClick: () -> Unit, onLongClick: (() -> Unit)? = null) {
-    Card(
+private fun PhonePhotoTile(
+    title: String,
+    caption: String?,
+    imageUrl: String?,
+    baseColor: Color,
+    height: androidx.compose.ui.unit.Dp,
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
+    imageAlpha: Float = 0.75f,
+    badge: (@Composable () -> Unit)? = null
+) {
+    val shape = RoundedCornerShape(20.dp)
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(140.dp)
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongClick
-            ),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MediaUtils.getGenreColor(group.genreName)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            .height(height)
+            .clip(shape)
+            .background(baseColor)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
+        if (imageUrl != null) {
             AsyncImage(
-                model = MediaUtils.getGenreImageUrl(group.genreName),
+                model = imageUrl,
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
-                alpha = 0.45f
+                alpha = imageAlpha
             )
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                Color.Black.copy(alpha = 0.1f),
-                                Color.Black.copy(alpha = 0.8f)
-                            )
-                        )
+        }
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        0f to Color.Black.copy(alpha = 0.05f),
+                        0.45f to Color.Black.copy(alpha = 0.15f),
+                        1f to Color.Black.copy(alpha = 0.85f)
                     )
-            )
-            Column(
-                modifier = Modifier.fillMaxSize().padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Bottom
-            ) {
-                Text(
-                    text = group.genreName,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Black,
-                    color = Color.White,
-                    textAlign = TextAlign.Center
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
-                ) {
-                    Text(
-                        text = "${group.filteredCount} / ${group.totalStations}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                    )
-                }
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .border(1.dp, Color.White.copy(alpha = 0.08f), shape)
+        )
+        if (badge != null) {
+            Box(modifier = Modifier.align(Alignment.TopStart).padding(10.dp)) {
+                badge()
+            }
+        }
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth()
+                .padding(start = 14.dp, end = 14.dp, bottom = 12.dp)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                color = Color.White,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (caption != null) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = caption,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Color.White.copy(alpha = 0.75f),
+                    maxLines = 1
+                )
             }
         }
     }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun PhoneGenreGroupCard(group: GenreGroup, onClick: () -> Unit, onLongClick: (() -> Unit)? = null) {
+    PhonePhotoTile(
+        title = group.genreName,
+        caption = "${group.filteredCount} / ${group.totalStations}",
+        imageUrl = MediaUtils.getGenreImageUrl(group.genreName),
+        baseColor = MediaUtils.getGenreColor(group.genreName),
+        height = 132.dp,
+        onClick = onClick,
+        onLongClick = onLongClick
+    )
 }
 
 fun getPhoneGenreColor(genre: String): Color = MediaUtils.getGenreColor(genre)
@@ -856,15 +968,10 @@ fun PhoneStationListScreen(
     hasMoreStations: Boolean = false,
     onLongClick: (Station) -> Unit
 ) {
-    val selectedBitrates by viewModel.selectedBitrates.collectAsState()
-
     Column(modifier = Modifier.fillMaxSize()) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Black,
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
-            letterSpacing = 1.sp
+        PhoneScreenHeader(
+            title = title,
+            subtitle = if (stations.isNotEmpty()) stringResource(R.string.stations_count, stations.size) else null
         )
         Box(modifier = Modifier.weight(1f)) {
             PhoneStationGrid(
@@ -901,107 +1008,117 @@ fun PhoneSearchScreen(
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            OutlinedTextField(
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            PhoneSearchField(
                 value = localSearchQuery,
                 onValueChange = { viewModel.onSearchQueryChange(it); localSearchQuery = it },
-                label = { Text(stringResource(R.string.search_hint)) },
-                modifier = Modifier.weight(1f),
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(
-                    onSearch = {
-                        viewModel.addToRecentSearches(localSearchQuery)
-                        keyboardController?.hide()
-                    }
-                ),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant
-                )
-            )
-            Button(
-                onClick = { viewModel.toggleSearchMode() },
-                colors = if (searchMode == SearchMode.Tag) {
-                    androidx.compose.material3.ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
-                    )
-                } else {
-                    androidx.compose.material3.ButtonDefaults.buttonColors()
+                placeholder = stringResource(R.string.search_hint),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 10.dp),
+                onSearch = {
+                    viewModel.addToRecentSearches(localSearchQuery)
+                    keyboardController?.hide()
                 }
-            ) {
-                Text(if (searchMode == SearchMode.Tag) stringResource(R.string.search_mode_tag) else stringResource(R.string.search_mode_name))
-            }
-        }
-
-        Row(modifier = Modifier.padding(horizontal = 16.dp)) {
-            PhoneBitrateFilters(
-                selectedBitrates = selectedBitrates,
-                onToggleFilter = { viewModel.toggleBitrateFilter(it) }
             )
-        }
 
-        Box(modifier = Modifier.weight(1f).padding(horizontal = 8.dp)) {
-            when {
-                stations.isEmpty() && localSearchQuery.isEmpty() && tagSearchGroups.isEmpty() -> {
-                    if (recentSearches.isNotEmpty()) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(stringResource(R.string.recent_searches), style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(bottom = 8.dp))
-                            LazyRow {
-                                items(recentSearches) { query ->
-                                    Button(
-                                        onClick = {
-                                            viewModel.onSearchQueryChange(query)
-                                            keyboardController?.hide()
-                                        },
-                                        modifier = Modifier.padding(end = 8.dp)
-                                    ) { Text(query) }
+            PhoneChipRow {
+                PhoneChip(
+                    selected = searchMode == SearchMode.Name,
+                    label = stringResource(R.string.search_mode_name).displayCase(),
+                    onClick = { if (searchMode != SearchMode.Name) viewModel.toggleSearchMode() }
+                )
+                PhoneChip(
+                    selected = searchMode == SearchMode.Tag,
+                    label = stringResource(R.string.search_mode_tag).displayCase(),
+                    onClick = { if (searchMode != SearchMode.Tag) viewModel.toggleSearchMode() }
+                )
+                ChipDivider()
+                BitrateChips(
+                    selectedBitrates = selectedBitrates,
+                    onToggleFilter = { viewModel.toggleBitrateFilter(it) }
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Box(modifier = Modifier.weight(1f)) {
+                when {
+                    stations.isEmpty() && localSearchQuery.isEmpty() && tagSearchGroups.isEmpty() -> {
+                        if (recentSearches.isNotEmpty()) {
+                            Column(modifier = Modifier.padding(top = 8.dp)) {
+                                Text(
+                                    stringResource(R.string.recent_searches).uppercase(),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    letterSpacing = 1.2.sp,
+                                    modifier = Modifier.padding(start = 20.dp, bottom = 8.dp)
+                                )
+                                LazyRow(
+                                    contentPadding = PaddingValues(horizontal = 16.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    items(recentSearches) { query ->
+                                        AssistChip(
+                                            onClick = {
+                                                viewModel.onSearchQueryChange(query)
+                                                keyboardController?.hide()
+                                            },
+                                            label = { Text(query, maxLines = 1) },
+                                            leadingIcon = {
+                                                Icon(
+                                                    Icons.Default.History,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(AssistChipDefaults.IconSize)
+                                                )
+                                            },
+                                            shape = CircleShape
+                                        )
+                                    }
                                 }
                             }
-                        }
-                    } else {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text(stringResource(R.string.enter_search_query), style = MaterialTheme.typography.bodyLarge)
+                        } else {
+                            PhoneEmptyState(
+                                icon = Icons.Default.Search,
+                                message = stringResource(R.string.enter_search_query)
+                            )
                         }
                     }
-                }
-                searchMode == SearchMode.Tag && tagSearchGroups.isNotEmpty() && selectedSearchTag == null -> {
-                    Column(modifier = Modifier.fillMaxSize()) {
-                        Text(
-                            text = stringResource(R.string.found_stations, stations.size),
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(4.dp)
-                        )
-                        PhoneTagSearchGroupGrid(
-                            groups = tagSearchGroups,
-                            onGroupClick = { viewModel.selectSearchTag(it) },
-                            onGroupLongClick = onTagGroupLongClick
+                    searchMode == SearchMode.Tag && tagSearchGroups.isNotEmpty() && selectedSearchTag == null -> {
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            Text(
+                                text = stringResource(R.string.found_stations, stations.size),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
+                            )
+                            PhoneTagSearchGroupGrid(
+                                groups = tagSearchGroups,
+                                onGroupClick = { viewModel.selectSearchTag(it) },
+                                onGroupLongClick = onTagGroupLongClick
+                            )
+                        }
+                    }
+                    else -> {
+                        PhoneStationGrid(
+                            stations = stations,
+                            viewModel = viewModel,
+                            onLoadMore = if (hasMoreStations) {{ viewModel.loadMoreStations() }} else null,
+                            onLongClick = onLongClick
                         )
                     }
-                }
-                else -> {
-                    PhoneStationGrid(
-                        stations = stations,
-                        viewModel = viewModel,
-                        onLoadMore = if (hasMoreStations) {{ viewModel.loadMoreStations() }} else null,
-                        onLongClick = onLongClick
-                    )
                 }
             }
         }
-    }
 
-    if (isLoading) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.TopCenter
-        ) {
-            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        if (isLoading) {
+            LinearProgressIndicator(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(2.dp)
+                    .align(Alignment.TopCenter),
+                trackColor = Color.Transparent
+            )
         }
     }
 }
@@ -1013,22 +1130,23 @@ fun PhoneTagSearchGroupGrid(
     onGroupLongClick: ((String) -> Unit)? = null
 ) {
     if (groups.isEmpty()) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(stringResource(R.string.no_tag_groups_found))
-        }
+        PhoneEmptyState(
+            icon = Icons.Default.Search,
+            message = stringResource(R.string.no_tag_groups_found)
+        )
         return
     }
 
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = 160.dp),
-        contentPadding = PaddingValues(8.dp, 8.dp, 8.dp, 140.dp),
+        columns = GridCells.Adaptive(minSize = 156.dp),
+        contentPadding = GridPadding,
         modifier = Modifier.fillMaxSize(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(GridGap),
+        verticalArrangement = Arrangement.spacedBy(GridGap)
     ) {
         itemsIndexed(groups, key = { _, group -> group.genreName }) { _, group ->
             PhoneGenreGroupCard(
-                group = group.copy(genreName = group.genreName.lowercase().split(" ").joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }),
+                group = group.copy(genreName = group.genreName.displayCase()),
                 onClick = { onGroupClick(group.genreName) },
                 onLongClick = if (onGroupLongClick != null) {{ onGroupLongClick(group.genreName) }} else null
             )
@@ -1048,7 +1166,6 @@ fun PhoneGenresScreen(
 ) {
     val tagSearchQuery by viewModel.tagSearchQuery.collectAsState()
     val genreSortMode by viewModel.genreSortMode.collectAsState()
-    val selectedBitrates by viewModel.selectedBitrates.collectAsState()
     var localTagSearchQuery by remember { mutableStateOf(tagSearchQuery) }
     val keyboardController = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
 
@@ -1060,22 +1177,11 @@ fun PhoneGenresScreen(
 
     if (selectedTag != null) {
         Column(modifier = Modifier.fillMaxSize()) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = { viewModel.selectTag(null) }) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back_desc))
-                }
-                Text(
-                    text = selectedTag.name.lowercase().split(" ").joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } },
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Black,
-                    modifier = Modifier.weight(1f)
-                )
-            }
+            PhoneScreenHeader(
+                title = selectedTag.name.displayCase(),
+                subtitle = stringResource(R.string.stations_count, stations.size),
+                onBack = { viewModel.selectTag(null) }
+            )
             PhoneStationGrid(
                 stations = stations,
                 viewModel = viewModel,
@@ -1086,49 +1192,35 @@ fun PhoneGenresScreen(
         return
     }
 
-    Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(
-                value = localTagSearchQuery,
-                onValueChange = { localTagSearchQuery = it; viewModel.setTagSearchQuery(it) },
-                label = { Text(stringResource(R.string.search_hint)) },
-                modifier = Modifier.weight(1f),
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = { keyboardController?.hide() }),
-                trailingIcon = {
-                    if (localTagSearchQuery.isNotEmpty()) {
-                        IconButton(onClick = { viewModel.setTagSearchQuery(""); localTagSearchQuery = "" }) {
-                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.clear_desc))
-                        }
-                    }
-                },
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant
-                )
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(stringResource(R.string.sort_label), style = MaterialTheme.typography.bodySmall)
-            Spacer(modifier = Modifier.width(4.dp))
+    Column(modifier = Modifier.fillMaxSize()) {
+        PhoneScreenHeader(title = stringResource(R.string.nav_genres))
+        PhoneSearchField(
+            value = localTagSearchQuery,
+            onValueChange = { localTagSearchQuery = it; viewModel.setTagSearchQuery(it) },
+            placeholder = stringResource(R.string.search_hint),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            onSearch = { keyboardController?.hide() }
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        PhoneChipRow(caption = stringResource(R.string.sort_label)) {
             GenreSortMode.entries.forEach { mode ->
-                FilterChip(
+                PhoneChip(
                     selected = genreSortMode == mode,
-                    onClick = { viewModel.setGenreSortMode(mode) },
-                    label = { Text(if (mode == GenreSortMode.Name) "Name" else "Count", style = MaterialTheme.typography.labelSmall) },
-                    modifier = Modifier.padding(horizontal = 2.dp)
+                    label = if (mode == GenreSortMode.Name) stringResource(R.string.sort_name) else stringResource(R.string.sort_count),
+                    onClick = { viewModel.setGenreSortMode(mode) }
                 )
             }
         }
-
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         Box(modifier = Modifier.weight(1f)) {
-             PhoneTagGrid(
-                 tags = filteredTags,
-                 onTagClick = { viewModel.selectTag(it) },
-                 onTagLongClick = { tag -> viewModel.showGenreDialog(tag.name) }
-             )
+            PhoneTagGrid(
+                tags = filteredTags,
+                onTagClick = { viewModel.selectTag(it) },
+                onTagLongClick = { tag -> viewModel.showGenreDialog(tag.name) }
+            )
         }
     }
 }
@@ -1141,72 +1233,31 @@ fun PhoneTagGrid(
     onTagLongClick: ((Tag) -> Unit)? = null
 ) {
     if (tags.isEmpty()) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(stringResource(R.string.no_genres_found), style = MaterialTheme.typography.bodyLarge)
-        }
+        PhoneEmptyState(
+            icon = Icons.AutoMirrored.Filled.List,
+            message = stringResource(R.string.no_genres_found)
+        )
         return
     }
 
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = 160.dp),
-        contentPadding = PaddingValues(8.dp, 8.dp, 8.dp, 140.dp),
+        columns = GridCells.Adaptive(minSize = 156.dp),
+        contentPadding = GridPadding,
         modifier = Modifier.fillMaxSize(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(GridGap),
+        verticalArrangement = Arrangement.spacedBy(GridGap)
     ) {
         itemsIndexed(tags, key = { _, tag -> tag.name }) { _, tag ->
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(110.dp)
-                    .combinedClickable(
-                        onClick = { onTagClick(tag) },
-                        onLongClick = { onTagLongClick?.invoke(tag) }
-                    ),
-                shape = RoundedCornerShape(16.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
-                colors = CardDefaults.cardColors(containerColor = MediaUtils.getGenreColor(tag.name))
-            ) {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    AsyncImage(
-                        model = MediaUtils.getGenreImageUrl(tag.name),
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop,
-                        alpha = 0.3f
-                    )
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                Brush.verticalGradient(
-                                    colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f))
-                                )
-                            )
-                    )
-                    Column(
-                        modifier = Modifier.fillMaxSize().padding(12.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            text = tag.name.lowercase().split(" ").joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } },
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "${tag.stationcount} stations",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color.White.copy(alpha = 0.8f)
-                        )
-                    }
-                }
-            }
+            PhonePhotoTile(
+                title = tag.name.displayCase(),
+                caption = stringResource(R.string.stations_count, tag.stationcount),
+                imageUrl = MediaUtils.getGenreImageUrl(tag.name),
+                baseColor = MediaUtils.getGenreColor(tag.name),
+                height = 112.dp,
+                onClick = { onTagClick(tag) },
+                onLongClick = { onTagLongClick?.invoke(tag) },
+                imageAlpha = 0.6f
+            )
         }
     }
 }
@@ -1220,24 +1271,13 @@ fun PhoneCountriesScreen(
     hasMoreStations: Boolean,
     onStationLongClick: (Station) -> Unit
 ) {
-    val selectedBitrates by viewModel.selectedBitrates.collectAsState()
-
     if (selectedCountry != null) {
         Column(modifier = Modifier.fillMaxSize()) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = { viewModel.selectCountry(null) }) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back_desc))
-                }
-                Text(
-                    text = selectedCountry.name.lowercase().split(" ").joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } },
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f)
-                )
-            }
+            PhoneScreenHeader(
+                title = selectedCountry.name.displayCase(),
+                subtitle = stringResource(R.string.stations_count, stations.size),
+                onBack = { viewModel.selectCountry(null) }
+            )
             PhoneStationGrid(
                 stations = stations,
                 viewModel = viewModel,
@@ -1248,67 +1288,115 @@ fun PhoneCountriesScreen(
         return
     }
 
-    LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = 160.dp),
-        contentPadding = PaddingValues(8.dp, 8.dp, 8.dp, 140.dp),
-        modifier = Modifier.fillMaxSize(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        itemsIndexed(countries, key = { _, country -> country.iso_3166_1 }) { _, country ->
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(100.dp)
-                    .clickable { viewModel.selectCountry(country) },
-                shape = RoundedCornerShape(16.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
-                colors = CardDefaults.cardColors(containerColor = getPhoneGenreColor(country.name))
-            ) {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    val flagCode = country.iso_3166_1.lowercase().trim()
-                    AsyncImage(
-                        model = if (flagCode.isNotEmpty()) "https://flagcdn.com/w160/$flagCode.png"
-                                else "https://images.unsplash.com/photo-1526772662000-3f88f10405ff?q=80&w=600&auto=format&fit=crop",
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop,
-                        alpha = 0.25f
-                    )
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                Brush.verticalGradient(
-                                    colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f))
-                                )
-                            )
-                    )
-                    Column(
-                        modifier = Modifier.fillMaxSize().padding(12.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            text = country.name.lowercase().split(" ").joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } },
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "${country.stationcount} stations",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color.White.copy(alpha = 0.8f)
-                        )
-                    }
-                }
+    Column(modifier = Modifier.fillMaxSize()) {
+        PhoneScreenHeader(title = stringResource(R.string.nav_countries))
+        LazyVerticalGrid(
+            columns = GridCells.Adaptive(minSize = 200.dp),
+            contentPadding = GridPadding,
+            modifier = Modifier.fillMaxSize(),
+            horizontalArrangement = Arrangement.spacedBy(GridGap),
+            verticalArrangement = Arrangement.spacedBy(GridGap)
+        ) {
+            itemsIndexed(countries, key = { _, country -> country.iso_3166_1 }) { _, country ->
+                PhoneCountryTile(country = country, onClick = { viewModel.selectCountry(country) })
             }
         }
     }
+}
+
+@Composable
+private fun PhoneCountryTile(country: Country, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(18.dp)
+    Surface(
+        shape = shape,
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(72.dp)
+            .clip(shape)
+            .clickable(onClick = onClick)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            val flagUrl = MediaUtils.getCountryFlagUrl(country.iso_3166_1)
+            Box(
+                modifier = Modifier
+                    .size(width = 44.dp, height = 32.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                contentAlignment = Alignment.Center
+            ) {
+                if (flagUrl != null) {
+                    AsyncImage(
+                        model = flagUrl,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Icon(
+                        Icons.Default.Public,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = country.name.displayCase(),
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = stringResource(R.string.stations_count, country.stationcount),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Icon(
+                Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+            )
+        }
+    }
+}
+
+/** Bitrate chips only (no container) so they can share a row with other chips. */
+@Composable
+private fun BitrateChips(
+    selectedBitrates: Set<BitrateFilter>,
+    onToggleFilter: (BitrateFilter) -> Unit
+) {
+    BitrateFilter.entries.forEach { filter ->
+        val labelRes = when (filter) {
+            BitrateFilter.Low -> R.string.filter_low
+            BitrateFilter.High -> R.string.filter_high
+            BitrateFilter.FLAC -> R.string.filter_flac
+        }
+        PhoneChip(
+            selected = selectedBitrates.contains(filter),
+            label = stringResource(labelRes),
+            onClick = { onToggleFilter(filter) }
+        )
+    }
+}
+
+@Composable
+private fun ChipDivider() {
+    Box(
+        modifier = Modifier
+            .padding(horizontal = 4.dp)
+            .width(1.dp)
+            .height(20.dp)
+            .background(MaterialTheme.colorScheme.outlineVariant)
+    )
 }
 
 @Composable
@@ -1316,24 +1404,8 @@ fun PhoneBitrateFilters(
     selectedBitrates: Set<BitrateFilter>,
     onToggleFilter: (BitrateFilter) -> Unit
 ) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        Text(stringResource(R.string.filter_label), style = MaterialTheme.typography.labelSmall)
-        BitrateFilter.entries.forEach { filter ->
-            val labelRes = when (filter) {
-                BitrateFilter.Low -> R.string.filter_low
-                BitrateFilter.High -> R.string.filter_high
-                BitrateFilter.FLAC -> R.string.filter_flac
-            }
-            FilterChip(
-                selected = selectedBitrates.contains(filter),
-                onClick = { onToggleFilter(filter) },
-                label = { Text(stringResource(labelRes)) },
-                modifier = Modifier.padding(horizontal = 2.dp)
-            )
-        }
+    PhoneChipRow(caption = stringResource(R.string.filter_label)) {
+        BitrateChips(selectedBitrates = selectedBitrates, onToggleFilter = onToggleFilter)
     }
 }
 
@@ -1410,42 +1482,110 @@ fun PhoneSettingsScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/** Header + scrolling body shared by every settings page. */
+@Composable
+private fun PhoneSettingsPage(
+    title: String,
+    onBack: (() -> Unit)?,
+    content: LazyListScope.() -> Unit
+) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        PhoneScreenHeader(title = title, onBack = onBack)
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 32.dp),
+            content = content
+        )
+    }
+}
+
+/** Mini preview of a theme: background, a raised surface and the accent colour. */
+@Composable
+private fun ThemeSwatch(theme: AppTheme, size: androidx.compose.ui.unit.Dp = 40.dp) {
+    val palette = paletteFor(theme)
+    val shape = RoundedCornerShape(12.dp)
+    Box(
+        modifier = Modifier
+            .size(size)
+            .clip(shape)
+            .background(palette.background)
+            .border(1.dp, palette.outline.copy(alpha = 0.6f), shape)
+    ) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .fillMaxHeight(0.42f)
+                .background(palette.surfaceHighest)
+        )
+        Box(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .size(size * 0.42f)
+                .background(palette.primary, CircleShape)
+        )
+    }
+}
+
+@Composable
+private fun SettingsRadio(selected: Boolean) {
+    RadioButton(selected = selected, onClick = null)
+}
+
+@Composable
+private fun SettingsSwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Switch(checked = checked, onCheckedChange = onCheckedChange)
+}
+
 @Composable
 fun PhoneWaveformSettings(viewModel: MainViewModel) {
     val currentType by viewModel.waveformType.collectAsState()
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.settings_waveform)) },
-                navigationIcon = {
-                    IconButton(onClick = { viewModel.setSettingsSubMenu(null) }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
-                    }
-                }
-            )
-        }
-    ) { padding ->
-        LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
-            items(com.toxa.pureradio.ui.viewmodel.WaveformType.entries) { type ->
-                val labelRes = when (type) {
-                    com.toxa.pureradio.ui.viewmodel.WaveformType.Classic -> R.string.waveform_type_classic
-                    com.toxa.pureradio.ui.viewmodel.WaveformType.Mirrored -> R.string.waveform_type_mirrored
-                    com.toxa.pureradio.ui.viewmodel.WaveformType.BarsDots -> R.string.waveform_type_dots
-                    com.toxa.pureradio.ui.viewmodel.WaveformType.BarDotsLevelHold -> R.string.waveform_type_dots_hold
-                }
-                ListItem(
-                    headlineContent = { Text(stringResource(labelRes)) },
-                    trailingContent = {
-                        RadioButton(selected = currentType == type, onClick = { viewModel.setWaveformType(type) })
-                    },
-                    modifier = Modifier.clickable { viewModel.setWaveformType(type) }
-                )
-            }
-            item {
-                Spacer(modifier = Modifier.height(48.dp))
-                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+    PhoneSettingsPage(
+        title = stringResource(R.string.settings_waveform),
+        onBack = { viewModel.setSettingsSubMenu(null) }
+    ) {
+        item {
+            Surface(
+                shape = RoundedCornerShape(22.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            Brush.radialGradient(
+                                listOf(
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                                    Color.Transparent
+                                )
+                            )
+                        )
+                        .padding(vertical = 28.dp),
+                    contentAlignment = Alignment.Center
+                ) {
                     WaveformAnalyzer(isPlaying = true, type = currentType)
+                }
+            }
+        }
+        item {
+            PhoneSettingsSection(title = stringResource(R.string.settings_waveform_desc)) {
+                com.toxa.pureradio.ui.viewmodel.WaveformType.entries.forEachIndexed { index, type ->
+                    val labelRes = when (type) {
+                        com.toxa.pureradio.ui.viewmodel.WaveformType.Classic -> R.string.waveform_type_classic
+                        com.toxa.pureradio.ui.viewmodel.WaveformType.Mirrored -> R.string.waveform_type_mirrored
+                        com.toxa.pureradio.ui.viewmodel.WaveformType.BarsDots -> R.string.waveform_type_dots
+                        com.toxa.pureradio.ui.viewmodel.WaveformType.BarDotsLevelHold -> R.string.waveform_type_dots_hold
+                    }
+                    PhoneSettingsRow(
+                        title = stringResource(labelRes),
+                        showDivider = index > 0,
+                        onClick = { viewModel.setWaveformType(type) },
+                        trailing = { SettingsRadio(currentType == type) }
+                    )
                 }
             }
         }
@@ -1462,78 +1602,53 @@ fun PhoneSettingsMain(
     onImportPlaylist: () -> Unit, onExportPlaylist: () -> Unit,
     onPermissionRequest: () -> Unit
 ) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp, 8.dp, 16.dp, 140.dp)
-    ) {
+    PhoneSettingsPage(title = stringResource(R.string.settings_title), onBack = null) {
         item {
-            Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(16.dp))
+            PhoneSettingsSection(title = stringResource(R.string.settings_interface)) {
+                PhoneSettingsRow(
+                    title = stringResource(R.string.settings_theme),
+                    subtitle = stringResource(R.string.current_theme, stringResource(appTheme.labelRes)),
+                    leading = { ThemeSwatch(appTheme) },
+                    onClick = { viewModel.setSettingsSubMenu("AppTheme") },
+                    trailing = { SettingsChevron() }
+                )
+                PhoneSettingsRow(
+                    title = stringResource(R.string.settings_language),
+                    subtitle = stringResource(R.string.settings_language_desc),
+                    icon = Icons.Default.Public,
+                    showDivider = true,
+                    onClick = { viewModel.setSettingsSubMenu("AppLanguage") },
+                    trailing = { SettingsChevron() }
+                )
+                PhoneSettingsRow(
+                    title = stringResource(R.string.settings_home_genres),
+                    subtitle = stringResource(R.string.settings_home_genres_desc),
+                    icon = Icons.Default.Home,
+                    showDivider = true,
+                    onClick = { viewModel.setSettingsSubMenu("HomeGenres") },
+                    trailing = { SettingsChevron() }
+                )
+                PhoneSettingsRow(
+                    title = stringResource(R.string.settings_startup_category),
+                    subtitle = stringResource(R.string.current_category, stringResource(defaultStartupCategory.labelRes)),
+                    icon = Icons.Default.PlayArrow,
+                    showDivider = true,
+                    onClick = { viewModel.setSettingsSubMenu("DefaultCategory") },
+                    trailing = { SettingsChevron() }
+                )
+                PhoneSettingsRow(
+                    title = stringResource(R.string.settings_quit_confirmation),
+                    subtitle = stringResource(R.string.settings_quit_confirmation_desc),
+                    icon = Icons.AutoMirrored.Filled.ExitToApp,
+                    showDivider = true,
+                    onClick = { viewModel.setQuitConfirmationEnabled(!quitConfirmationEnabled) },
+                    trailing = {
+                        SettingsSwitch(quitConfirmationEnabled) { viewModel.setQuitConfirmationEnabled(it) }
+                    }
+                )
+            }
         }
 
-        item {
-            Text(stringResource(R.string.settings_interface).uppercase(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-            Spacer(modifier = Modifier.height(8.dp))
-        }
-        item {
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_theme)) },
-                supportingContent = { Text(stringResource(R.string.current_theme, stringResource(appTheme.labelRes))) },
-                leadingContent = { Icon(Icons.Default.TheaterComedy, contentDescription = null) },
-                trailingContent = { Icon(Icons.Default.ChevronRight, contentDescription = null) },
-                modifier = Modifier.clickable { viewModel.setSettingsSubMenu("AppTheme") }
-            )
-        }
-        item {
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_language)) },
-                supportingContent = { Text(stringResource(R.string.settings_language_desc)) },
-                leadingContent = { Icon(Icons.Default.Public, contentDescription = null) },
-                trailingContent = { Icon(Icons.Default.ChevronRight, contentDescription = null) },
-                modifier = Modifier.clickable { viewModel.setSettingsSubMenu("AppLanguage") }
-            )
-        }
-        item {
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_home_genres)) },
-                supportingContent = { Text(stringResource(R.string.settings_home_genres_desc)) },
-                leadingContent = { Icon(Icons.Default.Home, contentDescription = null) },
-                trailingContent = { Icon(Icons.Default.ChevronRight, contentDescription = null) },
-                modifier = Modifier.clickable { viewModel.setSettingsSubMenu("HomeGenres") }
-            )
-        }
-        item {
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_startup_category)) },
-                supportingContent = { Text(stringResource(R.string.current_category, stringResource(defaultStartupCategory.labelRes))) },
-                leadingContent = { Icon(Icons.Default.PlayArrow, contentDescription = null) },
-                trailingContent = { Icon(Icons.Default.ChevronRight, contentDescription = null) },
-                modifier = Modifier.clickable { viewModel.setSettingsSubMenu("DefaultCategory") }
-            )
-        }
-        item {
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_quit_confirmation)) },
-                supportingContent = { Text(stringResource(R.string.settings_quit_confirmation_desc)) },
-                leadingContent = { Icon(Icons.Default.Warning, contentDescription = null) },
-                trailingContent = { Switch(checked = quitConfirmationEnabled, onCheckedChange = { viewModel.setQuitConfirmationEnabled(it) }) }
-            )
-        }
-        item { HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp)) }
-
-        item {
-            Text(stringResource(R.string.settings_playback).uppercase(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-            Spacer(modifier = Modifier.height(8.dp))
-        }
-        item {
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_screensaver)) },
-                supportingContent = { Text(if (screensaverEnabled) stringResource(R.string.screensaver_enabled_fmt, screensaverTimeout) else stringResource(R.string.screensaver_disabled)) },
-                leadingContent = { Icon(Icons.Default.MusicVideo, contentDescription = null) },
-                trailingContent = { Icon(Icons.Default.ChevronRight, contentDescription = null) },
-                modifier = Modifier.clickable { viewModel.setSettingsSubMenu("Screensaver") }
-            )
-        }
         item {
             val waveformType by viewModel.waveformType.collectAsState()
             val waveformName = when (waveformType) {
@@ -1542,123 +1657,165 @@ fun PhoneSettingsMain(
                 com.toxa.pureradio.ui.viewmodel.WaveformType.BarsDots -> stringResource(R.string.waveform_type_dots)
                 com.toxa.pureradio.ui.viewmodel.WaveformType.BarDotsLevelHold -> stringResource(R.string.waveform_type_dots_hold)
             }
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_waveform)) },
-                supportingContent = { Text(stringResource(R.string.current_value, waveformName)) },
-                leadingContent = { Icon(Icons.Default.GraphicEq, contentDescription = null) },
-                trailingContent = { Icon(Icons.Default.ChevronRight, contentDescription = null) },
-                modifier = Modifier.clickable { viewModel.setSettingsSubMenu("Waveform") }
-            )
-        }
-        item {
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_audio_passthrough)) },
-                supportingContent = { Text(stringResource(R.string.settings_audio_passthrough_desc)) },
-                leadingContent = { Icon(Icons.Default.MusicNote, contentDescription = null) },
-                trailingContent = { Switch(checked = audioPassthrough, onCheckedChange = { viewModel.toggleAudioPassthrough() }) }
-            )
-        }
-        item {
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_resume_last)) },
-                supportingContent = { Text(stringResource(R.string.settings_resume_last_desc)) },
-                leadingContent = { Icon(Icons.Default.PlayArrow, contentDescription = null) },
-                trailingContent = { Switch(checked = resumeLastStation, onCheckedChange = { viewModel.setResumeLastStation(it) }) }
-            )
-        }
-        item { HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp)) }
-
-        item {
-            Text(stringResource(R.string.settings_database).uppercase(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-            Spacer(modifier = Modifier.height(8.dp))
-        }
-        item {
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.database_smart_filter)) },
-                supportingContent = { Text(stringResource(R.string.database_smart_filter_desc)) },
-                leadingContent = { Icon(Icons.Default.Public, contentDescription = null) },
-                trailingContent = { Switch(checked = hideBroken, onCheckedChange = { viewModel.toggleHideBroken() }) }
-            )
-        }
-        item {
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.database_min_tags)) },
-                supportingContent = { Text(stringResource(R.string.database_min_tags_desc)) },
-                leadingContent = { Icon(Icons.AutoMirrored.Filled.List, contentDescription = null) },
-                trailingContent = { Switch(checked = minTagFilter, onCheckedChange = { viewModel.toggleMinTagFilter() }) }
-            )
-        }
-        item {
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.database_sync)) },
-                supportingContent = { Text(stringResource(R.string.database_sync_desc)) },
-                leadingContent = { Icon(Icons.Default.History, contentDescription = null) },
-                trailingContent = { Icon(Icons.Default.ChevronRight, contentDescription = null) },
-                modifier = Modifier.clickable { viewModel.setSettingsSubMenu("AutoUpdate") }
-            )
-        }
-        item {
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.database_refresh)) },
-                supportingContent = {
-                    val dateStr = if (lastUpdate > 0) SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault()).format(Date(lastUpdate)) else "Never"
-                    Text("Last: $dateStr \u2022 ${serverStats?.stations ?: "..."} stations")
-                },
-                leadingContent = { Icon(Icons.Default.Radio, contentDescription = null) },
-                trailingContent = { Icon(Icons.Default.History, contentDescription = null) },
-                modifier = Modifier.clickable { viewModel.updateDatabase() }
-            )
-        }
-        item { HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp)) }
-
-        item {
-            Text(stringResource(R.string.data_management).uppercase(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-            Spacer(modifier = Modifier.height(8.dp))
-        }
-        item {
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.data_backup)) },
-                supportingContent = { Text(stringResource(R.string.data_backup_desc)) },
-                leadingContent = { Icon(Icons.Default.CloudUpload, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-                modifier = Modifier.clickable { onExportPlaylist() }
-            )
-        }
-        item {
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.data_restore)) },
-                supportingContent = { Text(stringResource(R.string.data_restore_desc)) },
-                leadingContent = { Icon(Icons.Default.CloudDownload, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-                modifier = Modifier.clickable { onImportPlaylist() }
-            )
-        }
-        item {
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.data_permissions)) },
-                supportingContent = { Text(stringResource(R.string.data_permissions_desc)) },
-                leadingContent = { Icon(Icons.Default.Settings, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-                modifier = Modifier.clickable { onPermissionRequest() }
-            )
+            PhoneSettingsSection(title = stringResource(R.string.settings_playback)) {
+                PhoneSettingsRow(
+                    title = stringResource(R.string.settings_screensaver),
+                    subtitle = if (screensaverEnabled) stringResource(R.string.screensaver_enabled_fmt, screensaverTimeout) else stringResource(R.string.screensaver_disabled),
+                    icon = Icons.Default.MusicVideo,
+                    onClick = { viewModel.setSettingsSubMenu("Screensaver") },
+                    trailing = { SettingsChevron() }
+                )
+                PhoneSettingsRow(
+                    title = stringResource(R.string.settings_waveform),
+                    subtitle = stringResource(R.string.current_value, waveformName),
+                    icon = Icons.Default.GraphicEq,
+                    showDivider = true,
+                    onClick = { viewModel.setSettingsSubMenu("Waveform") },
+                    trailing = { SettingsChevron() }
+                )
+                PhoneSettingsRow(
+                    title = stringResource(R.string.settings_audio_passthrough),
+                    subtitle = stringResource(R.string.settings_audio_passthrough_desc),
+                    icon = Icons.Default.MusicNote,
+                    showDivider = true,
+                    onClick = { viewModel.toggleAudioPassthrough() },
+                    trailing = {
+                        SettingsSwitch(audioPassthrough) { viewModel.toggleAudioPassthrough() }
+                    }
+                )
+                PhoneSettingsRow(
+                    title = stringResource(R.string.settings_resume_last),
+                    subtitle = stringResource(R.string.settings_resume_last_desc),
+                    icon = Icons.Default.Radio,
+                    showDivider = true,
+                    onClick = { viewModel.setResumeLastStation(!resumeLastStation) },
+                    trailing = {
+                        SettingsSwitch(resumeLastStation) { viewModel.setResumeLastStation(it) }
+                    }
+                )
+            }
         }
 
         item {
-            Spacer(modifier = Modifier.height(24.dp))
+            val dateStr = if (lastUpdate > 0) {
+                SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault()).format(Date(lastUpdate))
+            } else {
+                stringResource(R.string.last_update_never)
+            }
+            PhoneSettingsSection(title = stringResource(R.string.settings_database)) {
+                PhoneSettingsRow(
+                    title = stringResource(R.string.database_smart_filter),
+                    subtitle = stringResource(R.string.database_smart_filter_desc),
+                    icon = Icons.Default.Warning,
+                    onClick = { viewModel.toggleHideBroken() },
+                    trailing = {
+                        SettingsSwitch(hideBroken) { viewModel.toggleHideBroken() }
+                    }
+                )
+                PhoneSettingsRow(
+                    title = stringResource(R.string.database_min_tags),
+                    subtitle = stringResource(R.string.database_min_tags_desc),
+                    icon = Icons.AutoMirrored.Filled.List,
+                    showDivider = true,
+                    onClick = { viewModel.toggleMinTagFilter() },
+                    trailing = {
+                        SettingsSwitch(minTagFilter) { viewModel.toggleMinTagFilter() }
+                    }
+                )
+                PhoneSettingsRow(
+                    title = stringResource(R.string.database_sync),
+                    subtitle = stringResource(R.string.database_sync_desc),
+                    icon = Icons.Default.History,
+                    showDivider = true,
+                    onClick = { viewModel.setSettingsSubMenu("AutoUpdate") },
+                    trailing = { SettingsChevron() }
+                )
+                PhoneSettingsRow(
+                    title = stringResource(R.string.database_refresh),
+                    subtitle = stringResource(
+                        R.string.last_update_format,
+                        dateStr,
+                        serverStats?.stations?.toString() ?: "…"
+                    ),
+                    icon = Icons.Default.CloudDownload,
+                    showDivider = true,
+                    onClick = { viewModel.updateDatabase() }
+                )
+            }
+        }
+
+        item {
+            PhoneSettingsSection(title = stringResource(R.string.data_management)) {
+                PhoneSettingsRow(
+                    title = stringResource(R.string.data_backup),
+                    subtitle = stringResource(R.string.data_backup_desc),
+                    icon = Icons.Default.CloudUpload,
+                    onClick = { onExportPlaylist() }
+                )
+                PhoneSettingsRow(
+                    title = stringResource(R.string.data_restore),
+                    subtitle = stringResource(R.string.data_restore_desc),
+                    icon = Icons.Default.CloudDownload,
+                    showDivider = true,
+                    onClick = { onImportPlaylist() }
+                )
+                PhoneSettingsRow(
+                    title = stringResource(R.string.data_permissions),
+                    subtitle = stringResource(R.string.data_permissions_desc),
+                    icon = Icons.Default.Folder,
+                    showDivider = true,
+                    onClick = { onPermissionRequest() }
+                )
+            }
+        }
+
+        item {
             Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                shape = RoundedCornerShape(22.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             ) {
                 Column(
-                    modifier = Modifier.padding(24.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
+                                    Color.Transparent
+                                )
+                            )
+                        )
+                        .padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(Icons.Default.Radio, contentDescription = null, modifier = Modifier.size(40.dp), tint = MaterialTheme.colorScheme.primary)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("PURE RADIO", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                    Text("A Premium Retro Experience", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
-                    Spacer(modifier = Modifier.height(8.dp))
+                    androidx.compose.foundation.Image(
+                        painter = androidx.compose.ui.res.painterResource(R.drawable.ic_radio_logo),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(64.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        "Build: ${SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(BuildConfig.BUILD_TIME))} \u2022 v${BuildConfig.VERSION_NAME}",
-                        style = MaterialTheme.typography.labelSmall, color = Color.Gray
+                        "PURE RADIO",
+                        style = MaterialTheme.typography.titleMedium,
+                        letterSpacing = 3.sp,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        stringResource(R.string.splash_tagline),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    InfoPill(
+                        text = "v${BuildConfig.VERSION_NAME} · ${SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(BuildConfig.BUILD_TIME))}",
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -1674,34 +1831,37 @@ fun PhoneDefaultCategorySettings(
         it in setOf(NavigationItem.Home, NavigationItem.Popular, NavigationItem.Recent,
                      NavigationItem.Genres, NavigationItem.Countries, NavigationItem.Favourites)
     }
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp, 8.dp, 16.dp, 140.dp)
+    PhoneSettingsPage(
+        title = stringResource(R.string.settings_startup_category),
+        onBack = { viewModel.setSettingsSubMenu(null) }
     ) {
         item {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { viewModel.setSettingsSubMenu(null) }) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back_desc))
+            PhoneSettingsSection(title = null) {
+                validCategories.forEachIndexed { index, category ->
+                    PhoneSettingsRow(
+                        title = stringResource(category.labelRes),
+                        icon = navigationIconFor(category),
+                        showDivider = index > 0,
+                        onClick = { viewModel.setDefaultStartupCategory(category) },
+                        trailing = { SettingsRadio(category == currentCategory) }
+                    )
                 }
-                Text(stringResource(R.string.settings_startup_category), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-        }
-        validCategories.forEach { category ->
-            item {
-                ListItem(
-                    headlineContent = { Text(stringResource(category.labelRes)) },
-                    leadingContent = {
-                        RadioButton(
-                            selected = category == currentCategory,
-                            onClick = { viewModel.setDefaultStartupCategory(category) }
-                        )
-                    },
-                    modifier = Modifier.clickable { viewModel.setDefaultStartupCategory(category) }
-                )
             }
         }
     }
+}
+
+/** Shared icon mapping for navigation destinations (menu, settings). */
+fun navigationIconFor(item: NavigationItem): androidx.compose.ui.graphics.vector.ImageVector = when (item) {
+    NavigationItem.Home -> Icons.Default.Home
+    NavigationItem.Popular -> Icons.Default.Mic
+    NavigationItem.Recent -> Icons.Default.History
+    NavigationItem.Search -> Icons.Default.Search
+    NavigationItem.Genres -> Icons.AutoMirrored.Filled.List
+    NavigationItem.Countries -> Icons.Default.Place
+    NavigationItem.Favourites -> Icons.Default.Favorite
+    NavigationItem.Settings -> Icons.Default.Settings
+    NavigationItem.Exit -> Icons.AutoMirrored.Filled.ExitToApp
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -1712,64 +1872,52 @@ fun PhoneHomeGenresSettings(
     keyboardController: androidx.compose.ui.platform.SoftwareKeyboardController?,
     onTagSearchChange: (String) -> Unit
 ) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp, 8.dp, 16.dp, 140.dp)
+    PhoneSettingsPage(
+        title = stringResource(R.string.settings_personalize_home),
+        onBack = { viewModel.setSettingsSubMenu(null) }
     ) {
         item {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { viewModel.setSettingsSubMenu(null) }) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back_desc))
-                }
-                Text(stringResource(R.string.settings_personalize_home), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-        }
-        item {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(stringResource(R.string.sort_label), style = MaterialTheme.typography.bodySmall)
+            PhoneSearchField(
+                value = localTagSearchQuery,
+                onValueChange = onTagSearchChange,
+                placeholder = stringResource(R.string.search_hint),
+                modifier = Modifier.fillMaxWidth(),
+                onSearch = { keyboardController?.hide() }
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    stringResource(R.string.sort_label),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 GenreSortMode.entries.forEach { mode ->
-                    FilterChip(
+                    PhoneChip(
                         selected = genreSortMode == mode,
-                        onClick = { viewModel.setGenreSortMode(mode) },
-                        label = { Text(mode.name, style = MaterialTheme.typography.labelSmall) }
+                        label = if (mode == GenreSortMode.Name) stringResource(R.string.sort_name) else stringResource(R.string.sort_count),
+                        onClick = { viewModel.setGenreSortMode(mode) }
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(8.dp))
-        }
-        item {
-            OutlinedTextField(
-                value = localTagSearchQuery,
-                onValueChange = onTagSearchChange,
-                label = { Text(stringResource(R.string.search_hint)) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = { keyboardController?.hide() }),
-                trailingIcon = {
-                    if (localTagSearchQuery.isNotEmpty()) {
-                        IconButton(onClick = { onTagSearchChange("") }) {
-                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.clear_desc))
-                        }
-                    }
-                },
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant
-                )
+            Text(
+                stringResource(R.string.genres_section),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+                letterSpacing = 1.2.sp,
+                modifier = Modifier.padding(start = 12.dp, top = 16.dp, bottom = 4.dp)
             )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(stringResource(R.string.genres_section), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
         }
         items(filteredTags) { tag ->
-            ListItem(
-                headlineContent = {
-                    Text(tag.name.lowercase().split(" ").joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } })
-                },
-                supportingContent = { Text(stringResource(R.string.stations_count, tag.stationcount)) },
-                trailingContent = {
-                    Checkbox(checked = visibleGenres.contains(tag.name), onCheckedChange = { viewModel.toggleGenreVisibility(tag.name) })
+            val checked = visibleGenres.contains(tag.name)
+            PhoneSettingsRow(
+                title = tag.name.displayCase(),
+                subtitle = stringResource(R.string.stations_count, tag.stationcount),
+                onClick = { viewModel.toggleGenreVisibility(tag.name) },
+                trailing = {
+                    Checkbox(checked = checked, onCheckedChange = { viewModel.toggleGenreVisibility(tag.name) })
                 }
             )
         }
@@ -1783,29 +1931,20 @@ fun PhoneAutoUpdateSettings(viewModel: MainViewModel, autoUpdateInterval: Int) {
         12 to R.string.update_every_12h,
         24 to R.string.update_every_24h
     )
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp, 8.dp, 16.dp, 140.dp)
+    PhoneSettingsPage(
+        title = stringResource(R.string.settings_db_update_interval),
+        onBack = { viewModel.setSettingsSubMenu(null) }
     ) {
         item {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { viewModel.setSettingsSubMenu(null) }) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back_desc))
+            PhoneSettingsSection(title = null) {
+                options.forEachIndexed { index, (hours, labelRes) ->
+                    PhoneSettingsRow(
+                        title = stringResource(labelRes),
+                        showDivider = index > 0,
+                        onClick = { viewModel.setAutoUpdateInterval(hours); viewModel.setSettingsSubMenu(null) },
+                        trailing = { SettingsRadio(autoUpdateInterval == hours) }
+                    )
                 }
-                Text(stringResource(R.string.settings_db_update_interval), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            }
-        }
-        options.forEach { (hours, labelRes) ->
-            item {
-                ListItem(
-                    headlineContent = { Text(stringResource(labelRes)) },
-                    trailingContent = {
-                        if (autoUpdateInterval == hours) {
-                            Icon(Icons.Default.History, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        }
-                    },
-                    modifier = Modifier.clickable { viewModel.setAutoUpdateInterval(hours); viewModel.setSettingsSubMenu(null) }
-                )
             }
         }
     }
@@ -1817,58 +1956,48 @@ fun PhoneScreensaverSettings(
     screensaverTimeout: Int, screensaverMode: ScreensaverMode
 ) {
     val timeouts = listOf(1, 5, 10, 20, 30)
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp, 8.dp, 16.dp, 140.dp)
+    PhoneSettingsPage(
+        title = stringResource(R.string.settings_screensaver_prefs),
+        onBack = { viewModel.setSettingsSubMenu(null) }
     ) {
         item {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { viewModel.setSettingsSubMenu(null) }) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back_desc))
+            PhoneSettingsSection(title = null) {
+                PhoneSettingsRow(
+                    title = stringResource(R.string.screensaver_activate),
+                    subtitle = stringResource(R.string.screensaver_activate_desc),
+                    icon = Icons.Default.MusicVideo,
+                    onClick = { viewModel.toggleScreensaver(!screensaverEnabled) },
+                    trailing = {
+                        SettingsSwitch(screensaverEnabled) { viewModel.toggleScreensaver(it) }
+                    }
+                )
+            }
+        }
+        item {
+            PhoneSettingsSection(title = stringResource(R.string.screensaver_display_mode)) {
+                listOf(
+                    ScreensaverMode.StationInfo to R.string.screensaver_mode_retro,
+                    ScreensaverMode.BlackScreen to R.string.screensaver_mode_black
+                ).forEachIndexed { index, (mode, labelRes) ->
+                    PhoneSettingsRow(
+                        title = stringResource(labelRes),
+                        showDivider = index > 0,
+                        onClick = { viewModel.setScreensaverMode(mode) },
+                        trailing = { SettingsRadio(screensaverMode == mode) }
+                    )
                 }
-                Text(stringResource(R.string.settings_screensaver_prefs), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             }
         }
         item {
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.screensaver_activate)) },
-                supportingContent = { Text(stringResource(R.string.screensaver_activate_desc)) },
-                trailingContent = { Switch(checked = screensaverEnabled, onCheckedChange = { viewModel.toggleScreensaver(it) }) }
-            )
-        }
-        item {
-            Text(stringResource(R.string.screensaver_display_mode), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(vertical = 8.dp))
-        }
-        listOf(
-            ScreensaverMode.StationInfo to R.string.screensaver_mode_retro,
-            ScreensaverMode.BlackScreen to R.string.screensaver_mode_black
-        ).forEach { (mode, labelRes) ->
-            item {
-                ListItem(
-                    headlineContent = { Text(stringResource(labelRes)) },
-                    trailingContent = {
-                        if (screensaverMode == mode) {
-                            Icon(Icons.Default.GraphicEq, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        }
-                    },
-                    modifier = Modifier.clickable { viewModel.setScreensaverMode(mode) }
-                )
-            }
-        }
-        item {
-            Text(stringResource(R.string.screensaver_idle_timeout), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(vertical = 8.dp))
-        }
-        timeouts.forEach { minutes ->
-            item {
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.screensaver_minutes, minutes)) },
-                    trailingContent = {
-                        if (screensaverTimeout == minutes) {
-                            Icon(Icons.Default.History, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        }
-                    },
-                    modifier = Modifier.clickable { viewModel.setScreensaverTimeout(minutes); viewModel.setSettingsSubMenu(null) }
-                )
+            PhoneSettingsSection(title = stringResource(R.string.screensaver_idle_timeout)) {
+                timeouts.forEachIndexed { index, minutes ->
+                    PhoneSettingsRow(
+                        title = stringResource(R.string.screensaver_minutes, minutes),
+                        showDivider = index > 0,
+                        onClick = { viewModel.setScreensaverTimeout(minutes); viewModel.setSettingsSubMenu(null) },
+                        trailing = { SettingsRadio(screensaverTimeout == minutes) }
+                    )
+                }
             }
         }
     }
@@ -1876,29 +2005,23 @@ fun PhoneScreensaverSettings(
 
 @Composable
 fun PhoneAppThemeSettings(viewModel: MainViewModel, appTheme: AppTheme) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp, 8.dp, 16.dp, 140.dp)
+    PhoneSettingsPage(
+        title = stringResource(R.string.settings_application_theme),
+        onBack = { viewModel.setSettingsSubMenu(null) }
     ) {
         item {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { viewModel.setSettingsSubMenu(null) }) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back_desc))
+            PhoneSettingsSection(title = null) {
+                AppTheme.entries.forEachIndexed { index, theme ->
+                    PhoneSettingsRow(
+                        title = stringResource(theme.labelRes),
+                        subtitle = stringResource(theme.descRes),
+                        leading = { ThemeSwatch(theme, size = 44.dp) },
+                        showDivider = index > 0,
+                        onClick = { viewModel.setAppTheme(theme) },
+                        trailing = { SettingsRadio(appTheme == theme) }
+                    )
                 }
-                Text(stringResource(R.string.settings_application_theme), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             }
-        }
-        items(AppTheme.entries) { theme ->
-            ListItem(
-                headlineContent = { Text(stringResource(theme.labelRes)) },
-                supportingContent = { Text(stringResource(theme.descRes)) },
-                trailingContent = {
-                    if (appTheme == theme) {
-                        Icon(Icons.Default.GraphicEq, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                    }
-                },
-                modifier = Modifier.clickable { viewModel.setAppTheme(theme) }
-            )
         }
     }
 }
@@ -1906,28 +2029,21 @@ fun PhoneAppThemeSettings(viewModel: MainViewModel, appTheme: AppTheme) {
 @Composable
 fun PhoneAppLanguageSettings(viewModel: MainViewModel) {
     val currentLang by viewModel.appLanguage.collectAsState()
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp, 8.dp, 16.dp, 140.dp)
+    PhoneSettingsPage(
+        title = stringResource(R.string.settings_language),
+        onBack = { viewModel.setSettingsSubMenu(null) }
     ) {
         item {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { viewModel.setSettingsSubMenu(null) }) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back_desc))
+            PhoneSettingsSection(title = null) {
+                AppLanguage.entries.forEachIndexed { index, lang ->
+                    PhoneSettingsRow(
+                        title = lang.displayName,
+                        showDivider = index > 0,
+                        onClick = { viewModel.setAppLanguage(lang) },
+                        trailing = { SettingsRadio(currentLang == lang) }
+                    )
                 }
-                Text(stringResource(R.string.settings_language), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             }
-        }
-        items(AppLanguage.entries) { lang ->
-            ListItem(
-                headlineContent = { Text(lang.displayName) },
-                trailingContent = {
-                    if (currentLang == lang) {
-                        Icon(Icons.Default.GraphicEq, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                    }
-                },
-                modifier = Modifier.clickable { viewModel.setAppLanguage(lang) }
-            )
         }
     }
 }
@@ -2099,64 +2215,70 @@ fun PhoneNowPlayingBar(viewModel: MainViewModel, onClick: () -> Unit = {}) {
     val currentStation by viewModel.currentStation.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
     val mediaMetadata by viewModel.mediaMetadata.collectAsState()
-    val playbackTime by viewModel.playbackTime.collectAsState()
     val bufferedPosition by viewModel.bufferedPosition.collectAsState()
     val isLive by viewModel.isLive.collectAsState()
     val audioFormat by viewModel.audioFormat.collectAsState()
 
     currentStation?.let { station ->
+        val shape = RoundedCornerShape(22.dp)
+        val colors = MaterialTheme.colorScheme
         Surface(
-            tonalElevation = 12.dp,
             shadowElevation = 12.dp,
             modifier = Modifier
+                .navigationBarsPadding()
                 .padding(horizontal = 12.dp, vertical = 8.dp)
                 .fillMaxWidth()
-                .navigationBarsPadding()
-                .height(72.dp)
+                .height(76.dp)
+                .clip(shape)
                 .clickable { onClick() },
-            shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surfaceColorAtElevation(8.dp),
-            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+            shape = shape,
+            color = colors.surfaceContainerHigh,
+            border = BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.6f))
         ) {
-            Box(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(colors.primary.copy(alpha = 0.12f), Color.Transparent)
+                        )
+                    )
+            ) {
                 Row(
                     modifier = Modifier
-                        .padding(horizontal = 12.dp)
+                        .padding(start = 12.dp, end = 12.dp)
                         .fillMaxSize(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.size(48.dp),
-                        color = Color.White.copy(alpha = 0.1f)
+                    StationArtwork(
+                        model = mediaMetadata?.artworkUri ?: MediaUtils.getStationArtworkUrl(station.favicon, station.countryCode),
+                        modifier = Modifier.size(52.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        contentPadding = 7.dp
+                    )
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 12.dp)
                     ) {
-                        AsyncImage(
-                            model = mediaMetadata?.artworkUri ?: MediaUtils.getStationArtworkUrl(station.favicon, station.countryCode) ?: R.drawable.ic_radio_logo,
-                            contentDescription = null,
-                            modifier = Modifier.fillMaxSize().padding(6.dp),
-                            contentScale = ContentScale.Fit,
-                            error = coil.compose.rememberAsyncImagePainter(R.drawable.ic_radio_logo),
-                            placeholder = coil.compose.rememberAsyncImagePainter(R.drawable.ic_radio_logo)
-                        )
-                    }
-                    Column(modifier = Modifier.weight(1f).padding(horizontal = 12.dp)) {
-                        val title = mediaMetadata?.let { 
-                            if (!it.title.isNullOrEmpty()) it.title.toString()
-                            else if (!it.displayTitle.isNullOrEmpty()) it.displayTitle.toString()
-                            else null
-                        } ?: station.name
                         Text(
-                            text = title,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
+                            text = buildTitleText(mediaMetadata, station),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = colors.onSurface,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
+                        Spacer(modifier = Modifier.height(3.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
+                            MiniEqualizer(
+                                isPlaying = isPlaying,
+                                modifier = Modifier.size(width = 11.dp, height = 10.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = station.name,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = colors.onSurfaceVariant,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f, fill = false)
@@ -2172,39 +2294,43 @@ fun PhoneNowPlayingBar(viewModel: MainViewModel, onClick: () -> Unit = {}) {
                                     }
                                 }
                             } ?: if (station.bitrate > 0) "${station.bitrate}k" else ""
-                            
+
                             if (techInfo.isNotEmpty()) {
                                 Text(
-                                    text = " \u2022 $techInfo",
+                                    text = "  ·  $techInfo",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                                    color = colors.primary,
                                     maxLines = 1
                                 )
                             }
                         }
                     }
-                    
-                    IconButton(
-                        onClick = { viewModel.togglePlayPause() },
-                        modifier = Modifier
-                            .size(48.dp)
-                            .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
+
+                    Surface(
+                        shape = CircleShape,
+                        color = colors.primary,
+                        contentColor = colors.onPrimary,
+                        modifier = Modifier.size(48.dp)
                     ) {
-                        Icon(
-                            if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.size(28.dp)
-                        )
+                        IconButton(onClick = { viewModel.togglePlayPause() }) {
+                            Icon(
+                                if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                contentDescription = if (isPlaying) stringResource(R.string.pause_desc) else stringResource(R.string.play_desc),
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
                     }
                 }
 
                 if (isLive) {
-                    val progress = (bufferedPosition.toFloat() / com.toxa.pureradio.ui.viewmodel.MainViewModel.MAX_BUFFER_MS).coerceIn(0f, 1f)
+                    val progress = (bufferedPosition.toFloat() / MainViewModel.MAX_BUFFER_MS).coerceIn(0f, 1f)
                     LinearProgressIndicator(
                         progress = { progress },
-                        modifier = Modifier.fillMaxWidth().height(2.dp).align(Alignment.BottomCenter),
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(2.dp)
+                            .align(Alignment.BottomCenter),
+                        color = colors.primary.copy(alpha = 0.6f),
                         trackColor = Color.Transparent
                     )
                 }
@@ -2232,6 +2358,7 @@ fun PhoneNowPlayingDialog(
 
     currentStation?.let { station ->
         val isFavorite = favorites.contains(station.stationUuid)
+        val artworkModel: Any? = mediaMetadata?.artworkUri ?: MediaUtils.getStationArtworkUrl(station.favicon, station.countryCode)
         Dialog(
             onDismissRequest = onDismiss,
             properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -2240,43 +2367,92 @@ fun PhoneNowPlayingDialog(
                 modifier = Modifier.fillMaxSize(),
                 color = MaterialTheme.colorScheme.background
             ) {
-                BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-                    val compact = maxHeight < 640.dp && maxWidth >= 480.dp
-                    if (compact) {
-                        NowPlayingCompactContent(
-                            station = station,
-                            viewModel = viewModel,
-                            isFavorite = isFavorite,
-                            isPlaying = isPlaying,
-                            mediaMetadata = mediaMetadata,
-                            playbackTime = playbackTime,
-                            playbackDuration = playbackDuration,
-                            bufferedPosition = bufferedPosition,
-                            isLive = isLive,
-                            audioFormat = audioFormat,
-                            waveformType = waveformType,
-                            showWaveform = maxHeight >= 300.dp,
-                            onDismiss = onDismiss
-                        )
-                    } else {
-                        NowPlayingFullContent(
-                            station = station,
-                            viewModel = viewModel,
-                            isFavorite = isFavorite,
-                            isPlaying = isPlaying,
-                            mediaMetadata = mediaMetadata,
-                            playbackTime = playbackTime,
-                            playbackDuration = playbackDuration,
-                            bufferedPosition = bufferedPosition,
-                            isLive = isLive,
-                            audioFormat = audioFormat,
-                            waveformType = waveformType,
-                            onDismiss = onDismiss
-                        )
+                Box(modifier = Modifier.fillMaxSize()) {
+                    NowPlayingBackdrop(artworkModel = artworkModel)
+                    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                        val compact = maxHeight < 640.dp && maxWidth >= 480.dp
+                        if (compact) {
+                            NowPlayingCompactContent(
+                                station = station,
+                                viewModel = viewModel,
+                                artworkModel = artworkModel,
+                                isFavorite = isFavorite,
+                                isPlaying = isPlaying,
+                                mediaMetadata = mediaMetadata,
+                                playbackTime = playbackTime,
+                                playbackDuration = playbackDuration,
+                                bufferedPosition = bufferedPosition,
+                                isLive = isLive,
+                                audioFormat = audioFormat,
+                                waveformType = waveformType,
+                                showWaveform = maxHeight >= 300.dp,
+                                onDismiss = onDismiss
+                            )
+                        } else {
+                            NowPlayingFullContent(
+                                station = station,
+                                viewModel = viewModel,
+                                artworkModel = artworkModel,
+                                isFavorite = isFavorite,
+                                isPlaying = isPlaying,
+                                mediaMetadata = mediaMetadata,
+                                playbackTime = playbackTime,
+                                playbackDuration = playbackDuration,
+                                bufferedPosition = bufferedPosition,
+                                isLive = isLive,
+                                audioFormat = audioFormat,
+                                waveformType = waveformType,
+                                onDismiss = onDismiss
+                            )
+                        }
                     }
                 }
             }
         }
+    }
+}
+
+/**
+ * Ambient background for the player: a heavily blurred copy of the artwork (Android 12+,
+ * where RenderEffect blur is available) plus an accent glow, faded into the theme background.
+ */
+@Composable
+private fun NowPlayingBackdrop(artworkModel: Any?) {
+    val colors = MaterialTheme.colorScheme
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (artworkModel != null && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            AsyncImage(
+                model = artworkModel,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                alpha = 0.45f,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .blur(72.dp)
+            )
+        }
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(colors.primary.copy(alpha = 0.22f), Color.Transparent),
+                        center = androidx.compose.ui.geometry.Offset(0f, 0f),
+                        radius = 1400f
+                    )
+                )
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        0f to colors.background.copy(alpha = 0.35f),
+                        0.55f to colors.background.copy(alpha = 0.75f),
+                        1f to colors.background
+                    )
+                )
+        )
     }
 }
 
@@ -2293,15 +2469,50 @@ private fun buildTechInfo(audioFormat: Format?, station: Station): String =
         buildString {
             format.codecs?.let { append(it.uppercase()) }
             if (format.bitrate > 0) {
-                if (isNotEmpty()) append(" \u2022 ")
+                if (isNotEmpty()) append(" • ")
                 append("${format.bitrate / 1000}k")
             }
             if (format.sampleRate > 0) {
-                if (isNotEmpty()) append(" \u2022 ")
+                if (isNotEmpty()) append(" • ")
                 append("${format.sampleRate / 1000}kHz")
             }
         }
     } ?: if (station.bitrate > 0) "${station.bitrate}k" else station.codec?.uppercase() ?: ""
+
+@Composable
+private fun LivePill() {
+    Surface(
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.error.copy(alpha = 0.16f),
+        contentColor = MaterialTheme.colorScheme.error
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .background(MaterialTheme.colorScheme.error, CircleShape)
+            )
+            Spacer(modifier = Modifier.width(5.dp))
+            Text("LIVE", style = MaterialTheme.typography.labelSmall, letterSpacing = 1.sp)
+        }
+    }
+}
+
+@UnstableApi
+@Composable
+private fun NowPlayingInfoPills(isLive: Boolean, audioFormat: Format?, station: Station) {
+    val techInfo = buildTechInfo(audioFormat, station)
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (isLive) LivePill()
+        if (techInfo.isNotEmpty()) InfoPill(text = techInfo)
+    }
+}
 
 @Composable
 private fun PlaybackTimeLabel(playbackTime: Long) {
@@ -2310,7 +2521,7 @@ private fun PlaybackTimeLabel(playbackTime: Long) {
     Text(
         text = String.format(Locale.getDefault(), "%02d:%02d", timeMinutes, timeSeconds),
         style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.primary
+        color = MaterialTheme.colorScheme.onSurfaceVariant
     )
 }
 
@@ -2322,57 +2533,102 @@ private fun PlaybackProgressSection(
     playbackTime: Long,
     showBufferLabel: Boolean
 ) {
-    if (isLive) {
-        val progress = (bufferedPosition.toFloat() / MainViewModel.MAX_BUFFER_MS).coerceIn(0f, 1f)
-        LinearProgressIndicator(
-            progress = { progress },
-            modifier = Modifier.fillMaxWidth().height(4.dp),
-            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
-            trackColor = MaterialTheme.colorScheme.surfaceVariant
-        )
-        if (showBufferLabel) {
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "Buffer: ${bufferedPosition / 1000}s",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+    val trackModifier = Modifier
+        .fillMaxWidth()
+        .height(4.dp)
+        .clip(CircleShape)
+    Column(modifier = Modifier.fillMaxWidth()) {
+        if (isLive) {
+            val progress = (bufferedPosition.toFloat() / MainViewModel.MAX_BUFFER_MS).coerceIn(0f, 1f)
+            LinearProgressIndicator(
+                progress = { progress },
+                modifier = trackModifier,
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+            )
+        } else if (playbackDuration > 0) {
+            LinearProgressIndicator(
+                progress = { (playbackTime.toFloat() / playbackDuration.toFloat()).coerceIn(0f, 1f) },
+                modifier = trackModifier,
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
             )
         }
-    } else if (playbackDuration > 0) {
-        LinearProgressIndicator(
-            progress = { playbackTime.toFloat() / playbackDuration.toFloat() },
-            modifier = Modifier.fillMaxWidth().height(4.dp),
-        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            PlaybackTimeLabel(playbackTime)
+            Spacer(modifier = Modifier.weight(1f))
+            if (isLive && showBufferLabel) {
+                Text(
+                    text = "Buffer ${bufferedPosition / 1000}s",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
     }
 }
 
 @Composable
 private fun PlaybackControlsRow(viewModel: MainViewModel, isPlaying: Boolean, compact: Boolean) {
+    val sideSize = if (compact) 48.dp else 60.dp
+    val sideIcon = if (compact) 26.dp else 32.dp
+    val playSize = if (compact) 64.dp else 80.dp
+    val playIcon = if (compact) 34.dp else 42.dp
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceEvenly,
+        horizontalArrangement = Arrangement.spacedBy(if (compact) 20.dp else 28.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(onClick = { viewModel.playPrevious() }) {
-            Icon(Icons.Default.SkipPrevious, contentDescription = stringResource(R.string.previous_desc), modifier = Modifier.size(if (compact) 36.dp else 48.dp))
+        Surface(
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f),
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.size(sideSize)
+        ) {
+            IconButton(onClick = { viewModel.playPrevious() }) {
+                Icon(Icons.Default.SkipPrevious, contentDescription = stringResource(R.string.previous_desc), modifier = Modifier.size(sideIcon))
+            }
         }
         Surface(
             shape = CircleShape,
             color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(if (compact) 56.dp else 72.dp)
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+            shadowElevation = 10.dp,
+            modifier = Modifier.size(playSize)
         ) {
             IconButton(onClick = { viewModel.togglePlayPause() }) {
                 Icon(
                     if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                     contentDescription = if (isPlaying) stringResource(R.string.pause_desc) else stringResource(R.string.play_desc),
-                    tint = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(if (compact) 30.dp else 40.dp)
+                    modifier = Modifier.size(playIcon)
                 )
             }
         }
-        IconButton(onClick = { viewModel.playNext() }) {
-            Icon(Icons.Default.SkipNext, contentDescription = stringResource(R.string.next_desc), modifier = Modifier.size(if (compact) 36.dp else 48.dp))
+        Surface(
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f),
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.size(sideSize)
+        ) {
+            IconButton(onClick = { viewModel.playNext() }) {
+                Icon(Icons.Default.SkipNext, contentDescription = stringResource(R.string.next_desc), modifier = Modifier.size(sideIcon))
+            }
         }
+    }
+}
+
+@Composable
+private fun FavoriteToggle(isFavorite: Boolean, onToggle: () -> Unit) {
+    IconButton(onClick = onToggle) {
+        Icon(
+            if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+            contentDescription = if (isFavorite) stringResource(R.string.remove_from_fav_desc) else stringResource(R.string.add_to_fav_desc),
+            tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
@@ -2381,6 +2637,7 @@ private fun PlaybackControlsRow(viewModel: MainViewModel, isPlaying: Boolean, co
 private fun NowPlayingFullContent(
     station: Station,
     viewModel: MainViewModel,
+    artworkModel: Any?,
     isFavorite: Boolean,
     isPlaying: Boolean,
     mediaMetadata: MediaMetadata?,
@@ -2395,71 +2652,77 @@ private fun NowPlayingFullContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp)
             .navigationBarsPadding()
-            .statusBarsPadding(),
+            .statusBarsPadding()
+            .padding(horizontal = 24.dp, vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Row(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             IconButton(onClick = onDismiss) {
-                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close_desc))
+                Icon(
+                    Icons.Default.KeyboardArrowDown,
+                    contentDescription = stringResource(R.string.close_desc),
+                    modifier = Modifier.size(30.dp)
+                )
             }
-            Spacer(modifier = Modifier.weight(1f))
+            Text(
+                text = station.name.uppercase(),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                letterSpacing = 1.5.sp,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+            FavoriteToggle(isFavorite) { viewModel.toggleFavorite(station) }
         }
 
         Spacer(modifier = Modifier.weight(1f))
 
-        AsyncImage(
-            model = mediaMetadata?.artworkUri ?: MediaUtils.getStationArtworkUrl(station.favicon, station.countryCode) ?: R.drawable.ic_radio_logo,
-            contentDescription = null,
-            modifier = Modifier.size(200.dp),
-            contentScale = ContentScale.Fit,
-            error = coil.compose.rememberAsyncImagePainter(R.drawable.ic_radio_logo),
-            placeholder = coil.compose.rememberAsyncImagePainter(R.drawable.ic_radio_logo)
+        val artShape = RoundedCornerShape(32.dp)
+        StationArtwork(
+            model = artworkModel,
+            modifier = Modifier
+                .widthIn(max = 300.dp)
+                .fillMaxWidth(0.72f)
+                .aspectRatio(1f)
+                .shadow(
+                    elevation = 28.dp,
+                    shape = artShape,
+                    ambientColor = MaterialTheme.colorScheme.primary,
+                    spotColor = MaterialTheme.colorScheme.primary
+                ),
+            shape = artShape,
+            contentPadding = 28.dp
         )
-        Spacer(modifier = Modifier.height(24.dp))
+
+        Spacer(modifier = Modifier.height(32.dp))
 
         Text(
             text = buildTitleText(mediaMetadata, station),
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.headlineSmall,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center
         )
 
         if (!mediaMetadata?.artist.isNullOrEmpty()) {
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = mediaMetadata?.artist.toString(),
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            Spacer(modifier = Modifier.height(4.dp))
         }
 
-        Text(
-            text = station.name,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-
-        val techInfo = buildTechInfo(audioFormat, station)
-        if (techInfo.isNotEmpty()) {
-            Surface(
-                shape = RoundedCornerShape(4.dp),
-                color = MaterialTheme.colorScheme.primaryContainer
-            ) {
-                Text(
-                    text = techInfo,
-                    style = MaterialTheme.typography.labelSmall,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-            }
-        }
+        Spacer(modifier = Modifier.height(14.dp))
+        NowPlayingInfoPills(isLive = isLive, audioFormat = audioFormat, station = station)
 
         Spacer(modifier = Modifier.height(24.dp))
         WaveformAnalyzer(isPlaying = isPlaying, type = waveformType)
@@ -2473,27 +2736,9 @@ private fun NowPlayingFullContent(
             showBufferLabel = true
         )
 
-        PlaybackTimeLabel(playbackTime)
         Spacer(modifier = Modifier.height(24.dp))
-
         PlaybackControlsRow(viewModel, isPlaying, compact = false)
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        TextButton(onClick = { viewModel.toggleFavorite(station) }) {
-            Icon(
-                if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                contentDescription = if (isFavorite) stringResource(R.string.remove_from_fav_desc) else stringResource(R.string.add_to_fav_desc),
-                tint = if (isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.width(4.dp))
-            Text(
-                if (isFavorite) stringResource(R.string.fav_remove_full) else stringResource(R.string.fav_add_full),
-                color = if (isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(24.dp))
     }
 }
 
@@ -2502,6 +2747,7 @@ private fun NowPlayingFullContent(
 private fun NowPlayingCompactContent(
     station: Station,
     viewModel: MainViewModel,
+    artworkModel: Any?,
     isFavorite: Boolean,
     isPlaying: Boolean,
     mediaMetadata: MediaMetadata?,
@@ -2517,48 +2763,49 @@ private fun NowPlayingCompactContent(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
             .navigationBarsPadding()
             .statusBarsPadding()
+            .padding(horizontal = 24.dp, vertical = 12.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxSize(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    modifier = Modifier.size(96.dp)
-                ) {
-                    AsyncImage(
-                        model = mediaMetadata?.artworkUri ?: MediaUtils.getStationArtworkUrl(station.favicon, station.countryCode) ?: R.drawable.ic_radio_logo,
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize().padding(12.dp),
-                        contentScale = ContentScale.Fit,
-                        error = coil.compose.rememberAsyncImagePainter(R.drawable.ic_radio_logo),
-                        placeholder = coil.compose.rememberAsyncImagePainter(R.drawable.ic_radio_logo)
-                    )
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-                IconButton(onClick = { viewModel.toggleFavorite(station) }) {
-                    Icon(
-                        if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                        contentDescription = if (isFavorite) stringResource(R.string.remove_from_fav_desc) else stringResource(R.string.add_to_fav_desc),
-                        tint = if (isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-            }
+            val artShape = RoundedCornerShape(28.dp)
+            StationArtwork(
+                model = artworkModel,
+                modifier = Modifier
+                    .heightIn(max = 280.dp)
+                    .fillMaxHeight(0.8f)
+                    .aspectRatio(1f, matchHeightConstraintsFirst = true)
+                    .shadow(
+                        elevation = 24.dp,
+                        shape = artShape,
+                        ambientColor = MaterialTheme.colorScheme.primary,
+                        spotColor = MaterialTheme.colorScheme.primary
+                    ),
+                shape = artShape,
+                contentPadding = 22.dp
+            )
 
             Column(
-                modifier = Modifier.weight(1f).padding(start = 16.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 32.dp, end = 8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
+                    text = station.name.uppercase(),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    letterSpacing = 1.5.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
                     text = buildTitleText(mediaMetadata, station),
                     style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     textAlign = TextAlign.Center
@@ -2567,29 +2814,22 @@ private fun NowPlayingCompactContent(
                 if (!mediaMetadata?.artist.isNullOrEmpty()) {
                     Text(
                         text = mediaMetadata?.artist.toString(),
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
 
-                val techInfo = buildTechInfo(audioFormat, station)
-                if (techInfo.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = techInfo,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
-                    )
-                }
+                Spacer(modifier = Modifier.height(10.dp))
+                NowPlayingInfoPills(isLive = isLive, audioFormat = audioFormat, station = station)
 
                 if (showWaveform) {
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
                     WaveformAnalyzer(isPlaying = isPlaying, type = waveformType, compact = true)
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 PlaybackProgressSection(
                     isLive = isLive,
@@ -2599,19 +2839,16 @@ private fun NowPlayingCompactContent(
                     showBufferLabel = false
                 )
 
-                Spacer(modifier = Modifier.height(4.dp))
-                PlaybackTimeLabel(playbackTime)
-                Spacer(modifier = Modifier.height(8.dp))
-
+                Spacer(modifier = Modifier.height(10.dp))
                 PlaybackControlsRow(viewModel, isPlaying, compact = true)
             }
         }
 
-        IconButton(
-            onClick = onDismiss,
-            modifier = Modifier.align(Alignment.TopEnd).size(40.dp)
-        ) {
-            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close_desc), modifier = Modifier.size(20.dp))
+        Row(modifier = Modifier.align(Alignment.TopEnd)) {
+            FavoriteToggle(isFavorite) { viewModel.toggleFavorite(station) }
+            IconButton(onClick = onDismiss) {
+                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close_desc))
+            }
         }
     }
 }
@@ -2649,36 +2886,54 @@ fun PhoneScreensaver(viewModel: MainViewModel) {
                         modifier = Modifier.fillMaxWidth(0.9f).offset(x = (xOffset * 150).dp, y = (yOffset * 300).dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        AsyncImage(
-                            model = mediaMetadata?.artworkUri ?: if (station.favicon.isNotEmpty()) station.favicon else R.drawable.ic_radio_logo,
-                            contentDescription = null,
-                            modifier = Modifier.size(120.dp),
-                            contentScale = ContentScale.Fit,
-                            error = coil.compose.rememberAsyncImagePainter(R.drawable.ic_radio_logo)
+                        StationArtwork(
+                            model = mediaMetadata?.artworkUri ?: MediaUtils.getStationArtworkUrl(station.favicon, station.countryCode),
+                            modifier = Modifier.size(128.dp),
+                            shape = RoundedCornerShape(28.dp),
+                            contentPadding = 16.dp
                         )
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(20.dp))
                         Text(
                             text = displayTitle,
                             style = MaterialTheme.typography.headlineSmall,
                             color = Color.White,
-                            textAlign = TextAlign.Center,
-                            fontWeight = FontWeight.Bold
+                            textAlign = TextAlign.Center
                         )
-                        val timeMinutes = (playbackTime / 1000) / 60
-                        val timeSeconds = (playbackTime / 1000) % 60
-                        Text(
-                            text = if (isPlaying) "Playing \u2022 ${String.format(Locale.getDefault(), "%02d:%02d", timeMinutes, timeSeconds)}" else "Paused",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color.Gray
-                        )
-                        Spacer(modifier = Modifier.height(24.dp))
+                        if (displayTitle != station.name) {
+                            Text(
+                                text = station.name,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Color.White.copy(alpha = 0.6f),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            MiniEqualizer(
+                                isPlaying = isPlaying,
+                                modifier = Modifier.size(width = 12.dp, height = 11.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            val timeMinutes = (playbackTime / 1000) / 60
+                            val timeSeconds = (playbackTime / 1000) % 60
+                            Text(
+                                text = if (isPlaying) {
+                                    stringResource(R.string.playing_state_format, String.format(Locale.getDefault(), "%02d:%02d", timeMinutes, timeSeconds))
+                                } else {
+                                    stringResource(R.string.paused_state)
+                                },
+                                style = MaterialTheme.typography.labelLarge,
+                                color = Color.White.copy(alpha = 0.55f)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(28.dp))
                         WaveformAnalyzer(isPlaying = isPlaying, type = waveformType)
                     }
                 }
                 Text(
                     text = stringResource(R.string.tap_to_return),
                     style = MaterialTheme.typography.labelSmall,
-                    color = Color.Gray.copy(alpha = 0.5f),
+                    color = Color.White.copy(alpha = 0.3f),
                     modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 32.dp)
                 )
             }

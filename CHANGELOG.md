@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.4] - 2026-10-13
+
+### Changed
+- **Version bump**: `versionCode` 32 → 33, `versionName` 1.7.3 → 1.7.4.
+- **Visual Refresh (phone / Android Automotive UI)**:
+  - Complete colour schemes for all six themes — every Material 3 role (surface containers, outlines, secondary text, chips, dialogs, menus) is now defined, so the stock purple-grey defaults no longer leak into the UI. Blue Neon now uses the brand navy from the app icon and splash screen instead of warm brown-black.
+  - Montserrat (OFL) headings to match the "Pure Radio" wordmark; body text stays on the system font.
+  - Redesigned station cards (larger artwork, flag, favourite badge, animated now-playing equalizer, votes and codec/bitrate), photo tiles for genres/tags, and flag tiles for countries.
+  - Consistent screen headers with back buttons and station counts; pill search fields; scrollable filter chips with check marks.
+  - Settings grouped into rounded sections with icon badges, radio buttons for choices, and theme previews (swatches) in the theme picker.
+  - Now Playing: ambient blurred-artwork backdrop (Android 12+), glowing artwork card, LIVE / codec pills, rounded progress bar and larger transport controls; the landscape (car display) layout gets a full-height artwork.
+  - Now-playing bar, loading overlay, empty states and the navigation menu (current section highlighted) restyled.
+- **TV theme**: TV screens now follow the selected app theme (previously they always used the default TV palette).
+
+### Fixed
+- **Errors on phone**: Error messages are now shown as a dismissible banner instead of being silently cleared.
+- **Back navigation**: System back from a genre/country station list returns to the list instead of leaving the section.
+
 ## [1.7.3] - 2026-09-08
 
 ### Changed

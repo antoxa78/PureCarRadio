@@ -65,6 +65,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.draw.clip
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material.icons.Icons
@@ -396,6 +399,8 @@ fun PhoneMainLayout(isPip: Boolean, showSplash: Boolean, viewModel: MainViewMode
     val settingsSubMenu by viewModel.settingsSubMenu.collectAsState()
     val filePickerState by viewModel.filePickerState.collectAsState()
     val pendingImportStations by viewModel.pendingImportStations.collectAsState()
+    val selectedTag by viewModel.selectedTag.collectAsState()
+    val selectedCountry by viewModel.selectedCountry.collectAsState()
     var showExitDialog by remember { mutableStateOf(false) }
     var showNowPlaying by remember { mutableStateOf(false) }
 
@@ -405,6 +410,10 @@ fun PhoneMainLayout(isPip: Boolean, showSplash: Boolean, viewModel: MainViewMode
             pendingImportStations != null -> viewModel.cancelRestore()
             filePickerState != null -> viewModel.closeFilePicker()
             settingsSubMenu != null -> viewModel.setSettingsSubMenu(null)
+            selectedTag != null &&
+                (selectedNavItem == NavigationItem.Home || selectedNavItem == NavigationItem.Genres) -> viewModel.selectTag(null)
+            selectedCountry != null &&
+                (selectedNavItem == NavigationItem.Home || selectedNavItem == NavigationItem.Countries) -> viewModel.selectCountry(null)
             selectedNavItem != NavigationItem.Home -> viewModel.selectNavigationItem(NavigationItem.Home)
             else -> {
                 if (quitConfirmationEnabled) {
@@ -487,58 +496,87 @@ fun PhoneTopBar(
     var menuExpanded by remember { mutableStateOf(false) }
 
     TopAppBar(
-        title = { 
+        title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
+                androidx.compose.foundation.Image(
                     painter = androidx.compose.ui.res.painterResource(R.drawable.ic_radio_logo),
                     contentDescription = null,
-                    modifier = Modifier.size(32.dp),
-                    tint = Color.Unspecified
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(RoundedCornerShape(9.dp))
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 PhoneText(
                     text = "PURE RADIO",
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = 1.5.sp,
-                    style = PhoneMaterialTheme.typography.titleLarge
+                    letterSpacing = 2.5.sp,
+                    style = PhoneMaterialTheme.typography.titleMedium,
+                    color = PhoneMaterialTheme.colorScheme.onSurface
                 )
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = PhoneMaterialTheme.colorScheme.surface
+            containerColor = PhoneMaterialTheme.colorScheme.background,
+            scrolledContainerColor = PhoneMaterialTheme.colorScheme.surfaceContainer
         ),
         navigationIcon = {
             Box {
-                IconButton(onClick = { 
+                IconButton(onClick = {
                     viewModel.resetScreensaverTimer()
-                    menuExpanded = true 
+                    menuExpanded = true
                 }) {
                     PhoneIcon(
-                        Icons.Default.MoreVert, 
+                        Icons.Default.Menu,
                         contentDescription = "Menu",
                         tint = PhoneMaterialTheme.colorScheme.onSurface
                     )
                 }
                 DropdownMenu(
                     expanded = menuExpanded,
-                    onDismissRequest = { menuExpanded = false }
+                    onDismissRequest = { menuExpanded = false },
+                    modifier = Modifier.width(260.dp)
                 ) {
                     NavigationItem.entries.forEach { item ->
-                        val icon = when (item) {
-                            NavigationItem.Home -> Icons.Default.Home
-                            NavigationItem.Popular -> Icons.Default.Mic
-                            NavigationItem.Recent -> Icons.Default.History
-                            NavigationItem.Search -> Icons.Default.Search
-                            NavigationItem.Genres -> Icons.AutoMirrored.Filled.List
-                            NavigationItem.Countries -> Icons.Default.Place
-                            NavigationItem.Favourites -> Icons.Default.Favorite
-                            NavigationItem.Settings -> Icons.Default.Settings
-                            NavigationItem.Exit -> Icons.AutoMirrored.Filled.ExitToApp
+                        val isSelected = item == selectedNavItem
+                        val isExit = item == NavigationItem.Exit
+                        if (isExit) {
+                            HorizontalDivider(
+                                modifier = Modifier.padding(vertical = 4.dp),
+                                color = PhoneMaterialTheme.colorScheme.outlineVariant
+                            )
+                        }
+                        val tint = when {
+                            isExit -> PhoneMaterialTheme.colorScheme.error
+                            isSelected -> PhoneMaterialTheme.colorScheme.primary
+                            else -> PhoneMaterialTheme.colorScheme.onSurfaceVariant
                         }
                         DropdownMenuItem(
-                            text = { PhoneText(stringResource(item.labelRes), style = PhoneMaterialTheme.typography.titleMedium) },
-                            leadingIcon = { PhoneIcon(icon, contentDescription = null, modifier = Modifier.size(28.dp)) },
-                            modifier = Modifier.height(56.dp),
+                            text = {
+                                PhoneText(
+                                    stringResource(item.labelRes),
+                                    style = PhoneMaterialTheme.typography.titleSmall,
+                                    color = when {
+                                        isExit -> PhoneMaterialTheme.colorScheme.error
+                                        isSelected -> PhoneMaterialTheme.colorScheme.primary
+                                        else -> PhoneMaterialTheme.colorScheme.onSurface
+                                    }
+                                )
+                            },
+                            leadingIcon = {
+                                PhoneIcon(
+                                    com.toxa.pureradio.ui.navigationIconFor(item),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(24.dp),
+                                    tint = tint
+                                )
+                            },
+                            modifier = Modifier
+                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                                .height(52.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(
+                                    if (isSelected) PhoneMaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                    else Color.Transparent
+                                ),
                             onClick = {
                                 if (item == NavigationItem.Exit) {
                                     if (quitConfirmationEnabled) {

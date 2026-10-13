@@ -1,124 +1,114 @@
 package com.toxa.pureradio.ui.theme
 
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import androidx.tv.material3.ExperimentalTvMaterial3Api
 import com.toxa.pureradio.ui.viewmodel.AppTheme
+import androidx.tv.material3.MaterialTheme as TvMaterialTheme
+import androidx.tv.material3.darkColorScheme as tvDarkColorScheme
 
+fun paletteFor(theme: AppTheme): PurePalette = when (theme) {
+    AppTheme.BlueNeon -> BlueNeonPalette
+    AppTheme.Violet -> VioletPalette
+    AppTheme.Monochrome -> MonochromePalette
+    AppTheme.Forest -> ForestPalette
+    AppTheme.Contrast -> ContrastPalette
+    AppTheme.Black -> BlackPalette
+}
 
-private val BlueNeonColorScheme = darkColorScheme(
-    primary = BluePrimary,
-    secondary = BlueSecondary,
-    tertiary = BlueTertiary,
-    background = Black,
-    surface = DarkGrey,
-    surfaceVariant = SurfaceGrey,
-    onPrimary = White,
-    onSecondary = White,
-    onTertiary = Black,
-    onBackground = White,
-    onSurface = White,
-    primaryContainer = BlueDark,
-    onPrimaryContainer = BlueTertiary
+private fun PurePalette.toColorScheme(): ColorScheme = darkColorScheme(
+    primary = primary,
+    onPrimary = onPrimary,
+    primaryContainer = primaryContainer,
+    onPrimaryContainer = onPrimaryContainer,
+    inversePrimary = primaryContainer,
+    secondary = secondary,
+    onSecondary = onSecondary,
+    secondaryContainer = secondaryContainer,
+    onSecondaryContainer = onSecondaryContainer,
+    tertiary = tertiary,
+    onTertiary = onTertiary,
+    tertiaryContainer = primaryContainer,
+    onTertiaryContainer = onPrimaryContainer,
+    background = background,
+    onBackground = onSurface,
+    surface = surface,
+    onSurface = onSurface,
+    surfaceVariant = surfaceVariant,
+    onSurfaceVariant = onSurfaceVariant,
+    surfaceTint = primary,
+    inverseSurface = onSurface,
+    inverseOnSurface = surface,
+    error = ErrorTone,
+    onError = OnErrorTone,
+    errorContainer = ErrorContainerTone,
+    onErrorContainer = OnErrorContainerTone,
+    outline = outline,
+    outlineVariant = outlineVariant,
+    scrim = Color.Black,
+    surfaceBright = surfaceHighest,
+    surfaceDim = background,
+    surfaceContainerLowest = surfaceLowest,
+    surfaceContainerLow = surfaceLow,
+    surfaceContainer = surfaceContainer,
+    surfaceContainerHigh = surfaceHigh,
+    surfaceContainerHighest = surfaceHighest,
 )
 
-private val VioletColorScheme = darkColorScheme(
-    primary = Color(0xFFBB86FC),
-    secondary = Color(0xFF9C27B0),
-    tertiary = Color(0xFFCE93D8),
-    background = Black,
-    surface = DarkGrey,
-    surfaceVariant = SurfaceGrey,
-    onPrimary = Black,
-    onSecondary = White,
-    onTertiary = Black,
-    onBackground = White,
-    onSurface = White,
-    primaryContainer = Color(0xFF1A0D2E),
-    onPrimaryContainer = Color(0xFFBB86FC)
+/** Same palette for the androidx.tv Material theme, so TV screens follow the selected app theme too. */
+@OptIn(ExperimentalTvMaterial3Api::class)
+private fun PurePalette.toTvColorScheme() = tvDarkColorScheme(
+    primary = primary,
+    onPrimary = onPrimary,
+    primaryContainer = primaryContainer,
+    onPrimaryContainer = onPrimaryContainer,
+    secondary = secondary,
+    onSecondary = onSecondary,
+    secondaryContainer = secondaryContainer,
+    onSecondaryContainer = onSecondaryContainer,
+    tertiary = tertiary,
+    onTertiary = onTertiary,
+    background = background,
+    onBackground = onSurface,
+    surface = surfaceContainer,
+    onSurface = onSurface,
+    surfaceVariant = surfaceHigh,
+    onSurfaceVariant = onSurfaceVariant,
+    error = ErrorTone,
+    onError = OnErrorTone,
+    border = outline,
+    borderVariant = outlineVariant,
 )
 
-private val MonochromeColorScheme = darkColorScheme(
-    primary = Grey,
-    secondary = Color(0xFFBDBDBD),
-    tertiary = Color(0xFFE0E0E0),
-    background = Color(0xFF121212),
-    surface = Color(0xFF1E1E1E),
-    surfaceVariant = Color(0xFF2C2C2C),
-    onPrimary = Black,
-    onSecondary = Black,
-    onTertiary = Black,
-    onBackground = White,
-    onSurface = White,
-    primaryContainer = Color(0xFF333333),
-    onPrimaryContainer = Grey
+val PureShapes = Shapes(
+    extraSmall = RoundedCornerShape(6.dp),
+    small = RoundedCornerShape(10.dp),
+    medium = RoundedCornerShape(14.dp),
+    large = RoundedCornerShape(20.dp),
+    extraLarge = RoundedCornerShape(28.dp),
 )
 
-private val ForestColorScheme = darkColorScheme(
-    primary = Color(0xFF4CAF50),
-    secondary = Color(0xFF2E7D32),
-    tertiary = Color(0xFF81C784),
-    background = Black,
-    surface = DarkGrey,
-    surfaceVariant = SurfaceGrey,
-    onPrimary = White,
-    onSecondary = White,
-    onTertiary = Black,
-    onBackground = White,
-    onSurface = White,
-    primaryContainer = ForestDark,
-    onPrimaryContainer = Color(0xFF81C784)
-)
-
-private val BlackColorScheme = darkColorScheme(
-    primary = White,
-    secondary = Color(0xFFCCCCCC),
-    tertiary = Color(0xFFAAAAAA),
-    background = Color(0xFF000000),
-    surface = Color(0xFF000000),
-    surfaceVariant = Color(0xFF111111),
-    onPrimary = Color(0xFF000000),
-    onSecondary = Color(0xFF000000),
-    onTertiary = Color(0xFF000000),
-    onBackground = White,
-    onSurface = White,
-    primaryContainer = Color(0xFF1A1A1A),
-    onPrimaryContainer = White
-)
-
-private val ContrastColorScheme = darkColorScheme(
-    primary = White,
-    secondary = Color(0xFFBDBDBD),
-    tertiary = Grey,
-    background = Color(0xFF000000),
-    surface = Color(0xFF111111),
-    surfaceVariant = Color(0xFF222222),
-    onPrimary = Black,
-    onSecondary = Black,
-    onTertiary = Black,
-    onBackground = White,
-    onSurface = White,
-    primaryContainer = Color(0xFF333333),
-    onPrimaryContainer = White
-)
-
+@OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 fun PureRadioTheme(
     theme: AppTheme = AppTheme.BlueNeon,
     content: @Composable () -> Unit,
 ) {
-    val colorScheme = when (theme) {
-        AppTheme.BlueNeon -> BlueNeonColorScheme
-        AppTheme.Violet -> VioletColorScheme
-        AppTheme.Monochrome -> MonochromeColorScheme
-        AppTheme.Forest -> ForestColorScheme
-        AppTheme.Contrast -> ContrastColorScheme
-        AppTheme.Black -> BlackColorScheme
-    }
+    val palette = paletteFor(theme)
+    val colorScheme = remember(theme) { palette.toColorScheme() }
+    val tvColorScheme = remember(theme) { palette.toTvColorScheme() }
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
-        content = content
-    )
+        shapes = PureShapes,
+    ) {
+        TvMaterialTheme(colorScheme = tvColorScheme, content = content)
+    }
 }
