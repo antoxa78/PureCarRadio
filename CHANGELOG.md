@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+## [1.8.0] - 2026-10-14
+
+### Added
+- **Check for updates**: New "About → Check for updates" item in Settings (phone/Automotive and TV). It queries the latest GitHub release, compares it with the installed version and, if newer, shows the release notes with a Download button (opens the APK link in the browser; on devices without a browser the link is shown instead).
+- **Automatic update check**: On app start (at most once a day, a few seconds after launch) the app checks GitHub in the background and shows the update dialog only when a newer version exists. "Later" skips that version until an even newer one is released; failures are silent. Can be turned off with Settings → About → "Check for updates automatically" (on by default). The dialog never appears over the screensaver.
+
+### Changed
+- **Faster Home genres on slow connections**:
+  - Home tiles appear immediately (last known counts are saved on the device) and each tile updates as soon as its own data arrives instead of waiting for every genre.
+  - Home tiles now use a single tag/country request per page instead of tag + name search; loaded tiles are cached in memory for 15 minutes so returning to Home doesn't re-download.
+  - One shared HTTP client (connection pool) for all Radio Browser mirrors and for the car media browser; the last working mirror is remembered and tried first.
+  - Successful empty results are no longer retried on every mirror (previously 5 round trips per empty page); the tag + name searches for station lists run in parallel.
+
 ## [1.7.4] - 2026-10-13
 
 ### Changed

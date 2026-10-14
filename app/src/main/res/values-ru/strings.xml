@@ -201,4 +201,20 @@
     <string name="waveform_type_mirrored">Зеркальные полосы</string>
     <string name="waveform_type_dots">Точечные полосы</string>
     <string name="waveform_type_dots_hold">Точки с удержанием пика</string>
+
+    <!-- App update check -->
+    <string name="settings_about">О приложении</string>
+    <string name="update_check">Проверить обновления</string>
+    <string name="update_current_version">Текущая версия: %1$s</string>
+    <string name="update_checking">Проверка…</string>
+    <string name="update_up_to_date">Установлена последняя версия (%1$s)</string>
+    <string name="update_available_short">Доступна версия %1$s — нажмите, чтобы скачать</string>
+    <string name="update_available_title">Доступно обновление</string>
+    <string name="update_available_message">Доступна версия %1$s. У вас установлена %2$s.</string>
+    <string name="update_download">Скачать</string>
+    <string name="update_later">Позже</string>
+    <string name="update_check_failed">Не удалось проверить обновления. Проверьте подключение.</string>
+    <string name="update_no_browser">Браузер не найден. Скачайте обновление здесь: %1$s</string>
+    <string name="update_auto_check">Проверять обновления автоматически</string>
+    <string name="update_auto_check_desc">Раз в день при запуске приложения</string>
 </resources>

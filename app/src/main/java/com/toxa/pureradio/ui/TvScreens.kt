@@ -60,6 +60,7 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Mic
@@ -142,8 +143,10 @@ import com.toxa.pureradio.network.Country
 import com.toxa.pureradio.network.Tag
 import com.toxa.pureradio.ui.viewmodel.AppLanguage
 import com.toxa.pureradio.ui.viewmodel.AppTheme
+import com.toxa.pureradio.ui.viewmodel.AppUpdateState
 import com.toxa.pureradio.ui.viewmodel.BitrateFilter
 import com.toxa.pureradio.ui.viewmodel.GenreGroup
+import com.toxa.pureradio.ui.viewmodel.countCaption
 import com.toxa.pureradio.ui.viewmodel.GenreSortMode
 import com.toxa.pureradio.ui.viewmodel.MainViewModel
 import com.toxa.pureradio.ui.viewmodel.NavigationItem
@@ -917,6 +920,37 @@ GenreGroupGrid(
         }
     }
 
+    val appUpdate by viewModel.appUpdateDialog.collectAsState()
+    // App-wide so the automatic check can prompt from any screen (never over the screensaver).
+    appUpdate?.takeIf { !isScreensaverShowing }?.let { info ->
+        val downloadFocusRequester = remember { FocusRequester() }
+        Dialog(onDismissRequest = { viewModel.dismissAppUpdateDialog() }) {
+            Surface(modifier = Modifier.width(520.dp), shape = MaterialTheme.shapes.extraLarge,
+                colors = SurfaceDefaults.colors(containerColor = MaterialTheme.colorScheme.surface, contentColor = MaterialTheme.colorScheme.onSurface),
+                border = androidx.tv.material3.Border(border = androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)), shape = MaterialTheme.shapes.extraLarge)
+            ) {
+                Column(modifier = Modifier.padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(modifier = Modifier.size(80.dp).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), CircleShape), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.SystemUpdate, contentDescription = null, modifier = Modifier.size(40.dp), tint = MaterialTheme.colorScheme.primary)
+                    }
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Text(stringResource(R.string.update_available_title), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(stringResource(R.string.update_available_message, info.version, viewModel.currentAppVersion), style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    // TVs often have no browser, so show the link as well.
+                    Text(info.releasePageUrl, style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.height(32.dp))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Button(onClick = { viewModel.dismissAppUpdateDialog() }, modifier = Modifier.weight(1f), colors = ButtonDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurfaceVariant)) { Text(stringResource(R.string.update_later), modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center) }
+                        Button(onClick = { viewModel.dismissAppUpdateDialog(skipVersion = false); openUpdateUrl(context, info.downloadUrl, viewModel) }, modifier = Modifier.weight(1f).focusRequester(downloadFocusRequester)) { Text(stringResource(R.string.update_download), modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center, fontWeight = FontWeight.Bold) }
+                    }
+                    LaunchedEffect(Unit) { try { downloadFocusRequester.requestFocus() } catch (_: Exception) {} }
+                }
+            }
+        }
+    }
+
     if (showExitDialog) {
         Dialog(onDismissRequest = { showExitDialog = false }) {
             Surface(shape = MaterialTheme.shapes.medium, colors = SurfaceDefaults.colors(containerColor = MaterialTheme.colorScheme.surface)) {
@@ -1421,6 +1455,25 @@ fun TvSettingsMain(viewModel: MainViewModel, appTheme: AppTheme, quitConfirmatio
                 headlineContent = { Text(stringResource(R.string.settings_home_genres)) }, supportingContent = { Text(stringResource(R.string.settings_home_genres_desc)) },
                 leadingContent = { Icon(Icons.Default.Home, contentDescription = null) },
                 trailingContent = { Icon(Icons.Default.ChevronRight, contentDescription = null) })
+        }
+        item {
+            val updateState by viewModel.appUpdateState.collectAsState()
+            Text(stringResource(R.string.settings_about).uppercase(), style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(bottom = 8.dp), color = MaterialTheme.colorScheme.primary)
+            ListItem(selected = false,
+                onClick = {
+                    if (updateState is AppUpdateState.Available) viewModel.showAppUpdateDialog()
+                    else viewModel.checkForAppUpdate()
+                },
+                headlineContent = { Text(stringResource(R.string.update_check)) },
+                supportingContent = { Text(appUpdateSubtitle(updateState, viewModel.currentAppVersion)) },
+                leadingContent = { Icon(Icons.Default.SystemUpdate, contentDescription = null) })
+            val autoUpdateCheck by viewModel.autoUpdateCheckEnabled.collectAsState()
+            ListItem(selected = false, onClick = { viewModel.toggleAutoUpdateCheck() },
+                headlineContent = { Text(stringResource(R.string.update_auto_check)) },
+                supportingContent = { Text(stringResource(R.string.update_auto_check_desc)) },
+                leadingContent = { Icon(Icons.Default.History, contentDescription = null) },
+                trailingContent = { Switch(checked = autoUpdateCheck, onCheckedChange = null) })
+            Spacer(modifier = Modifier.height(16.dp))
         }
         item {
             Row(modifier = Modifier.fillMaxWidth().padding(bottom = 32.dp), horizontalArrangement = Arrangement.Center) {
@@ -2169,7 +2222,7 @@ fun GenreGroupCardContent(group: GenreGroup) {
             Text(text = group.genreName, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = Color.White, textAlign = TextAlign.Center)
             Spacer(modifier = Modifier.height(4.dp))
             Surface(shape = MaterialTheme.shapes.extraSmall, colors = SurfaceDefaults.colors(containerColor = Color.White.copy(alpha = 0.2f))) {
-                Text(text = "${group.filteredCount} / ${group.totalStations}", style = MaterialTheme.typography.labelSmall, color = Color.White, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                Text(text = group.countCaption(), style = MaterialTheme.typography.labelSmall, color = Color.White, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
             }
         }
     }

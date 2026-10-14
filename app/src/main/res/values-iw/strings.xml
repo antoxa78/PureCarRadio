@@ -180,4 +180,20 @@
     <string name="waveform_type_mirrored">פסים במראה</string>
     <string name="waveform_type_dots">פסים נקודתיים</string>
     <string name="waveform_type_dots_hold">נקודות עם החזקת שיא</string>
+
+    <!-- App update check -->
+    <string name="settings_about">אודות</string>
+    <string name="update_check">בדיקת עדכונים</string>
+    <string name="update_current_version">גרסה נוכחית: %1$s</string>
+    <string name="update_checking">בודק…</string>
+    <string name="update_up_to_date">מותקנת הגרסה האחרונה (%1$s)</string>
+    <string name="update_available_short">גרסה %1$s זמינה — הקישו להורדה</string>
+    <string name="update_available_title">עדכון זמין</string>
+    <string name="update_available_message">גרסה %1$s זמינה. הגרסה המותקנת: %2$s.</string>
+    <string name="update_download">הורדה</string>
+    <string name="update_later">אחר כך</string>
+    <string name="update_check_failed">לא ניתן לבדוק עדכונים. בדקו את החיבור.</string>
+    <string name="update_no_browser">לא נמצא דפדפן. ניתן להוריד את העדכון מ: %1$s</string>
+    <string name="update_auto_check">בדיקת עדכונים אוטומטית</string>
+    <string name="update_auto_check_desc">פעם ביום בעת הפעלת האפליקציה</string>
 </resources>

@@ -223,4 +223,20 @@
     <string name="waveform_type_mirrored">Mirrored Bars</string>
     <string name="waveform_type_dots">Bars Dots</string>
     <string name="waveform_type_dots_hold">Dots with Peak Hold</string>
+
+    <!-- App update check -->
+    <string name="settings_about">About</string>
+    <string name="update_check">Check for updates</string>
+    <string name="update_current_version">Current version: %1$s</string>
+    <string name="update_checking">Checking…</string>
+    <string name="update_up_to_date">You have the latest version (%1$s)</string>
+    <string name="update_available_short">Version %1$s is available — tap to download</string>
+    <string name="update_available_title">Update available</string>
+    <string name="update_available_message">Version %1$s is available. You have %2$s.</string>
+    <string name="update_download">Download</string>
+    <string name="update_later">Later</string>
+    <string name="update_check_failed">Couldn\'t check for updates. Check your connection.</string>
+    <string name="update_no_browser">No browser found. Download the update from: %1$s</string>
+    <string name="update_auto_check">Check for updates automatically</string>
+    <string name="update_auto_check_desc">Once a day when the app starts</string>
 </resources>

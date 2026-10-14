@@ -31,9 +31,12 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -68,8 +71,17 @@ data class GenreGroup(
     val stations: List<Station>,
     val totalStations: Int = 0,
     val filteredCount: Int = 0,
-    val isCountry: Boolean = false
+    val isCountry: Boolean = false,
+    /** False while this tile's counts are still being fetched (counts may be stale/unknown). */
+    val isLoaded: Boolean = true
 )
+
+/** "filtered / total" for Home tiles; unknown values (still loading) show as an ellipsis. */
+fun GenreGroup.countCaption(): String {
+    val filtered = if (filteredCount < 0) "…" else filteredCount.toString()
+    val total = if (totalStations <= 0 && !isLoaded) "…" else totalStations.toString()
+    return "$filtered / $total"
+}
 
 enum class ScreensaverMode {
     StationInfo, BlackScreen
@@ -94,6 +106,15 @@ enum class AppTheme(val labelRes: Int, val descRes: Int) {
 
 enum class WaveformType {
     Classic, Mirrored, BarsDots, BarDotsLevelHold
+}
+
+/** State of the manual "Check for updates" action in Settings. */
+sealed class AppUpdateState {
+    object Idle : AppUpdateState()
+    object Checking : AppUpdateState()
+    data class UpToDate(val currentVersion: String) : AppUpdateState()
+    data class Available(val info: com.toxa.pureradio.network.AppUpdateInfo, val currentVersion: String) : AppUpdateState()
+    object Failed : AppUpdateState()
 }
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -300,7 +321,38 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _searchFocusTrigger = MutableStateFlow(0)
     val searchFocusTrigger: StateFlow<Int> = _searchFocusTrigger
 
+    private var homeJob: kotlinx.coroutines.Job? = null
+
+    /** In-memory cache of loaded Home tiles so returning to Home doesn't re-download. */
+    private data class CachedGroup(val group: GenreGroup, val time: Long)
+    private val homeGroupCache = java.util.concurrent.ConcurrentHashMap<String, CachedGroup>()
+    private val homeGroupCacheTtlMs = 15 * 60 * 1000L
+
+    /** Last known counts, persisted so a cold start can show complete tiles instantly. */
+    private data class SavedCounts(val filtered: Int, val total: Int)
+    private val savedHomeCounts: MutableMap<String, SavedCounts> = loadSavedHomeCounts()
+
+
+    // ---- App update check state (declared before init, which schedules the auto check)
+    private val _appUpdateState = MutableStateFlow<AppUpdateState>(AppUpdateState.Idle)
+    val appUpdateState: StateFlow<AppUpdateState> = _appUpdateState
+
+    /** Shown as a dialog when a newer release is found; null when nothing to show. */
+    private val _appUpdateDialog = MutableStateFlow<com.toxa.pureradio.network.AppUpdateInfo?>(null)
+    val appUpdateDialog: StateFlow<com.toxa.pureradio.network.AppUpdateInfo?> = _appUpdateDialog
+
+    val currentAppVersion: String =
+        com.toxa.pureradio.network.UpdateChecker.normalizeVersion(com.toxa.pureradio.BuildConfig.VERSION_NAME)
+
+    private val _autoUpdateCheckEnabled = MutableStateFlow(prefs.getBoolean("auto_update_check", true))
+    val autoUpdateCheckEnabled: StateFlow<Boolean> = _autoUpdateCheckEnabled
+
     init {
+        viewModelScope.launch {
+            // Let startup network requests (genres, stations) go first.
+            delay(5_000)
+            autoCheckForAppUpdate()
+        }
         initializePlayer()
         loadTags()
         loadStats()
@@ -946,6 +998,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
             _tags.value = repository.getTags(limit = 500)
             _countries.value = repository.getCountries()
+            refreshHomeTotals()
         } catch (e: Exception) {
             _error.value = str(R.string.error_database_update)
         } finally {
@@ -1122,6 +1175,90 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setSettingsSubMenu(menu: String?) {
         _settingsSubMenu.value = menu
     }
+
+    // ---- App update check ----------------------------------------------------------------
+
+    fun checkForAppUpdate() {
+        if (_appUpdateState.value is AppUpdateState.Checking) return
+        _appUpdateState.value = AppUpdateState.Checking
+        viewModelScope.launch {
+            _appUpdateState.value = try {
+                val latest = com.toxa.pureradio.network.UpdateChecker.fetchLatestRelease()
+                if (com.toxa.pureradio.network.UpdateChecker.isNewer(latest.version, currentAppVersion)) {
+                    _appUpdateDialog.value = latest
+                    AppUpdateState.Available(latest, currentAppVersion)
+                } else {
+                    AppUpdateState.UpToDate(currentAppVersion)
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                AppUpdateState.Failed
+            }
+        }
+    }
+
+    fun showAppUpdateDialog() {
+        (_appUpdateState.value as? AppUpdateState.Available)?.let { _appUpdateDialog.value = it.info }
+    }
+
+    /**
+     * Closes the update dialog. With [skipVersion] (the "Later" button, back, tap outside)
+     * the automatic check won't prompt for this version again; it will prompt again only
+     * when an even newer release appears. "Download" passes false so that if the user
+     * doesn't finish installing, they are reminded on the next daily check.
+     */
+    fun dismissAppUpdateDialog(skipVersion: Boolean = true) {
+        val info = _appUpdateDialog.value
+        if (skipVersion && info != null) {
+            prefs.edit().putString("update_skipped_version", info.version).apply()
+        }
+        _appUpdateDialog.value = null
+    }
+
+    fun toggleAutoUpdateCheck() {
+        val newValue = !_autoUpdateCheckEnabled.value
+        _autoUpdateCheckEnabled.value = newValue
+        prefs.edit().putBoolean("auto_update_check", newValue).apply()
+    }
+
+    /**
+     * Background check on app start: at most once every 24 hours, silent on failure,
+     * and only prompts for a version the user hasn't already dismissed with "Later".
+     */
+    private suspend fun autoCheckForAppUpdate() {
+        if (!_autoUpdateCheckEnabled.value) return
+        val now = System.currentTimeMillis()
+        val lastCheck = prefs.getLong("last_app_update_check", 0L)
+        if (now - lastCheck < 24 * 60 * 60 * 1000L && now >= lastCheck) return
+        if (_appUpdateState.value is AppUpdateState.Checking) return
+
+        val latest = try {
+            com.toxa.pureradio.network.UpdateChecker.fetchLatestRelease()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            return // offline / GitHub unreachable: stay quiet, try again next launch
+        }
+        prefs.edit().putLong("last_app_update_check", now).apply()
+
+        if (!com.toxa.pureradio.network.UpdateChecker.isNewer(latest.version, currentAppVersion)) {
+            if (_appUpdateState.value is AppUpdateState.Idle) {
+                _appUpdateState.value = AppUpdateState.UpToDate(currentAppVersion)
+            }
+            return
+        }
+        // Settings row shows "Version X is available" even if the dialog is skipped.
+        _appUpdateState.value = AppUpdateState.Available(latest, currentAppVersion)
+
+        val skipped = prefs.getString("update_skipped_version", null)
+        if (skipped != null && !com.toxa.pureradio.network.UpdateChecker.isNewer(latest.version, skipped)) return
+
+        // Never pop up over the screensaver: wait until it is dismissed.
+        _isScreensaverShowing.first { !it }
+        if (_appUpdateDialog.value == null) _appUpdateDialog.value = latest
+    }
+
 
     fun setError(message: String) {
         _error.value = message
@@ -1303,7 +1440,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _stations.value = _allStations.value.filter { matchesBitrateFilter(it, bitrates) }
         
         _genreGroups.value = _genreGroups.value.map { group ->
-            group.copy(filteredCount = group.stations.count { matchesBitrateFilter(it, bitrates) })
+            if (!group.isLoaded) group
+            else group.copy(filteredCount = group.stations.count { matchesBitrateFilter(it, bitrates) })
         }
 
         _tagSearchGroups.value = _tagSearchGroups.value.map { group ->
@@ -1399,20 +1537,87 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun loadTopStations() {
-        viewModelScope.launch {
-            _isLoading.value = true
+    // ---- Home genre/country tiles -------------------------------------------------------
 
-            if (_genreGroups.value.isNotEmpty()) {
-                applyFilters()
+    private fun homeCacheKey(name: String, isCountry: Boolean, hideBroken: Boolean, bitrates: Set<BitrateFilter>): String =
+        "${if (isCountry) "c" else "g"}|${name.lowercase()}|$hideBroken|${bitrates.map { it.name }.sorted().joinToString(",")}"
+
+    // Stored as "filtered|total|key" strings (no reflection, so it is safe under R8/minify).
+    private fun loadSavedHomeCounts(): MutableMap<String, SavedCounts> {
+        val map = java.util.concurrent.ConcurrentHashMap<String, SavedCounts>()
+        try {
+            prefs.getStringSet("home_group_counts", emptySet())?.forEach { entry ->
+                val parts = entry.split("|", limit = 3)
+                if (parts.size == 3) {
+                    val filtered = parts[0].toIntOrNull()
+                    val total = parts[1].toIntOrNull()
+                    if (filtered != null && total != null) map[parts[2]] = SavedCounts(filtered, total)
+                }
             }
+        } catch (_: Exception) {}
+        return map
+    }
 
-            try {
-                val selectedGenres = _visibleGenres.value
-                val selectedCountries = _visibleCountries.value
-                val hideBroken = _hideBrokenStations.value
-                
-                if (selectedGenres.isEmpty() && selectedCountries.isEmpty()) {
+    private fun persistHomeCounts() {
+        try {
+            val set = savedHomeCounts.entries.map { (key, c) -> "${c.filtered}|${c.total}|$key" }.toSet()
+            prefs.edit().putStringSet("home_group_counts", set).apply()
+        } catch (_: Exception) {}
+    }
+
+    private fun knownTotal(name: String, isCountry: Boolean): Int? =
+        if (isCountry) _countries.value.find { it.name.equals(name, ignoreCase = true) }?.stationcount
+        else _tags.value.find { it.name.equals(name, ignoreCase = true) }?.stationcount
+
+    /** Re-applies station totals to Home tiles once the tag/country lists arrive. */
+    private fun refreshHomeTotals() {
+        if (_genreGroups.value.isEmpty()) return
+        _genreGroups.update { groups ->
+            groups.map { g -> knownTotal(g.genreName, g.isCountry)?.let { g.copy(totalStations = it) } ?: g }
+        }
+    }
+
+    private suspend fun fetchHomeGroup(
+        name: String,
+        isCountry: Boolean,
+        hideBroken: Boolean,
+        bitrates: Set<BitrateFilter>
+    ): GenreGroup {
+        // Single request per page (tag or country only). The Home tile shows only counts,
+        // so the extra name-search done by searchStations() would double the download.
+        suspend fun page(offset: Int) =
+            if (isCountry) repository.searchStationsSimple(country = name, limit = 100, offset = offset, hideBroken = hideBroken)
+            else repository.searchStationsSimple(tag = name, limit = 100, offset = offset, hideBroken = hideBroken)
+
+        var offset = 0
+        var allStations = page(offset)
+        var filteredCount = allStations.count { matchesBitrateFilter(it, bitrates) }
+        var retries = 0
+        while (retries < 5 && allStations.size >= 100 && filteredCount < 100) {
+            offset += 100
+            val moreStations = page(offset)
+            if (moreStations.isEmpty()) break
+            allStations = (allStations + moreStations).distinctBy { it.stationUuid }
+            filteredCount = allStations.count { matchesBitrateFilter(it, bitrates) }
+            retries++
+        }
+        val total = knownTotal(name, isCountry) ?: allStations.size
+        return GenreGroup(name, allStations, total, filteredCount, isCountry = isCountry, isLoaded = true)
+    }
+
+    private fun loadTopStations() {
+        homeJob?.cancel()
+        homeJob = viewModelScope.launch {
+            val selectedGenres = _visibleGenres.value
+            val selectedCountries = _visibleCountries.value
+            val hideBroken = _hideBrokenStations.value
+
+            if (selectedGenres.isEmpty() && selectedCountries.isEmpty()) {
+                _isLoading.value = true
+                if (_genreGroups.value.isNotEmpty()) {
+                    applyFilters()
+                }
+                try {
                     _genreGroups.value = emptyList()
                     _stationOffset.value = 0
                     val topStations = repository.getTopStations(hideBroken = hideBroken)
@@ -1423,59 +1628,78 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     } else {
                         updateStations(topStations)
                     }
-                } else {
-                    val bitrates = _selectedBitrates.value
-                    val groups = mutableListOf<GenreGroup>()
-                    
-                    val genreDeferred = selectedGenres.map { genre ->
-                        async(Dispatchers.IO) {
-                            var offset = 0
-                            var allStations = repository.searchStations(tag = genre, limit = 100, offset = offset, hideBroken = hideBroken)
-                            var filteredCount = allStations.count { matchesBitrateFilter(it, bitrates) }
-                            var retries = 0
-                            while (retries < 5 && allStations.size >= 100 && filteredCount < 100) {
-                                offset += 100
-                                val moreStations = repository.searchStations(tag = genre, limit = 100, offset = offset, hideBroken = hideBroken)
-                                if (moreStations.isEmpty()) break
-                                allStations = (allStations + moreStations).distinctBy { it.stationUuid }
-                                filteredCount = allStations.count { matchesBitrateFilter(it, bitrates) }
-                                retries++
-                            }
-                            val total = _tags.value.find { it.name.equals(genre, ignoreCase = true) }?.stationcount ?: allStations.size
-                            GenreGroup(genre, allStations, total, filteredCount, isCountry = false)
-                        }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    _error.value = str(R.string.error_load_stations)
+                } finally {
+                    _isLoading.value = false
+                    if (_genreGroups.value.isEmpty()) {
+                        applyFilters()
                     }
-                    
-                    val countryDeferred = selectedCountries.map { country ->
-                        async(Dispatchers.IO) {
-                            var offset = 0
-                            var allStations = repository.searchStations(country = country, limit = 100, offset = offset, hideBroken = hideBroken)
-                            var filteredCount = allStations.count { matchesBitrateFilter(it, bitrates) }
-                            var retries = 0
-                            while (retries < 5 && allStations.size >= 100 && filteredCount < 100) {
-                                offset += 100
-                                val moreStations = repository.searchStations(country = country, limit = 100, offset = offset, hideBroken = hideBroken)
-                                if (moreStations.isEmpty()) break
-                                allStations = (allStations + moreStations).distinctBy { it.stationUuid }
-                                filteredCount = allStations.count { matchesBitrateFilter(it, bitrates) }
-                                retries++
-                            }
-                            val total = _countries.value.find { it.name.equals(country, ignoreCase = true) }?.stationcount ?: allStations.size
-                            GenreGroup(country, allStations, total, filteredCount, isCountry = true)
-                        }
-                    }
-                    
-                    groups.addAll((genreDeferred + countryDeferred).awaitAll())
-                    _genreGroups.value = groups
                 }
-            } catch (e: Exception) {
-                _error.value = str(R.string.error_load_stations)
-            } finally {
-                _isLoading.value = false
-                if (_genreGroups.value.isEmpty()) {
-                    applyFilters()
+                return@launch
+            }
+
+            val bitrates = _selectedBitrates.value
+            val now = System.currentTimeMillis()
+            val entries = selectedGenres.map { it to false } + selectedCountries.map { it to true }
+
+            // 1. Show every tile immediately: fresh in-memory cache first, then the last
+            //    counts saved on disk, otherwise a "loading" placeholder.
+            val toFetch = mutableListOf<Pair<String, Boolean>>()
+            _genreGroups.value = entries.map { (name, isCountry) ->
+                val key = homeCacheKey(name, isCountry, hideBroken, bitrates)
+                val cached = homeGroupCache[key]
+                if (cached != null && now - cached.time < homeGroupCacheTtlMs) {
+                    cached.group
+                } else {
+                    toFetch += name to isCountry
+                    val saved = savedHomeCounts[key]
+                    GenreGroup(
+                        genreName = name,
+                        stations = emptyList(),
+                        totalStations = knownTotal(name, isCountry) ?: saved?.total ?: 0,
+                        filteredCount = saved?.filtered ?: -1,
+                        isCountry = isCountry,
+                        isLoaded = false
+                    )
                 }
             }
+            _isLoading.value = false
+            if (toFetch.isEmpty()) return@launch
+
+            // 2. Fetch the rest in parallel and update each tile as soon as it arrives,
+            //    instead of waiting for the slowest genre before showing anything.
+            toFetch.map { (name, isCountry) ->
+                launch(Dispatchers.IO) {
+                    val key = homeCacheKey(name, isCountry, hideBroken, bitrates)
+                    val loaded = try {
+                        fetchHomeGroup(name, isCountry, hideBroken, bitrates)
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        null
+                    }
+                    val saved = savedHomeCounts[key]
+                    val result = when {
+                        // All mirrors failed / nothing came back: keep last known counts rather than "0".
+                        (loaded == null || loaded.stations.isEmpty()) && saved != null ->
+                            GenreGroup(name, emptyList(), knownTotal(name, isCountry) ?: saved.total, saved.filtered, isCountry, isLoaded = true)
+                        loaded == null ->
+                            GenreGroup(name, emptyList(), knownTotal(name, isCountry) ?: 0, 0, isCountry, isLoaded = true)
+                        else -> {
+                            homeGroupCache[key] = CachedGroup(loaded, System.currentTimeMillis())
+                            savedHomeCounts[key] = SavedCounts(loaded.filteredCount, loaded.totalStations)
+                            loaded
+                        }
+                    }
+                    _genreGroups.update { groups ->
+                        groups.map { if (it.genreName == name && it.isCountry == isCountry) result else it }
+                    }
+                }
+            }.joinAll()
+            persistHomeCounts()
         }
     }
 
@@ -1485,6 +1709,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _isLoading.value = true
                 try {
                     _tags.value = repository.getTags()
+                    refreshHomeTotals()
                 } catch (e: Exception) {
                     _error.value = str(R.string.error_load_genres)
                 } finally {
@@ -1500,6 +1725,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _isLoading.value = true
                 try {
                     _countries.value = repository.getCountries()
+                    refreshHomeTotals()
                 } catch (e: Exception) {
                     _error.value = str(R.string.error_load_countries)
                 } finally {

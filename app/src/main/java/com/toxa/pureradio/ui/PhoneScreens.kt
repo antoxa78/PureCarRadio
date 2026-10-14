@@ -15,6 +15,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -84,6 +86,7 @@ import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.TheaterComedy
@@ -150,8 +153,10 @@ import com.toxa.pureradio.data.model.Station
 import com.toxa.pureradio.network.Country
 import com.toxa.pureradio.network.Tag
 import com.toxa.pureradio.ui.viewmodel.AppTheme
+import com.toxa.pureradio.ui.viewmodel.AppUpdateState
 import com.toxa.pureradio.ui.viewmodel.BitrateFilter
 import com.toxa.pureradio.ui.viewmodel.GenreGroup
+import com.toxa.pureradio.ui.viewmodel.countCaption
 import com.toxa.pureradio.ui.viewmodel.GenreSortMode
 import com.toxa.pureradio.ui.viewmodel.AppLanguage
 import com.toxa.pureradio.ui.viewmodel.MainViewModel
@@ -490,6 +495,43 @@ fun PhoneMainScreen(viewModel: MainViewModel) {
             onNavigateUp = { viewModel.navigateUpFilePicker() },
             onSelected = { viewModel.handleFileSelection(it) },
             onDismiss = { viewModel.closeFilePicker() }
+        )
+    }
+
+    val appUpdate by viewModel.appUpdateDialog.collectAsState()
+    // App-wide so the automatic check can prompt from any screen (never over the screensaver).
+    appUpdate?.takeIf { !isScreensaverShowing }?.let { info ->
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissAppUpdateDialog() },
+            icon = { Icon(Icons.Default.SystemUpdate, contentDescription = null) },
+            title = { Text(stringResource(R.string.update_available_title)) },
+            text = {
+                Column {
+                    Text(stringResource(R.string.update_available_message, info.version, viewModel.currentAppVersion))
+                    if (info.releaseNotes.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = info.releaseNotes.take(2000),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier
+                                .heightIn(max = 260.dp)
+                                .verticalScroll(rememberScrollState())
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.dismissAppUpdateDialog(skipVersion = false)
+                    openUpdateUrl(context, info.downloadUrl, viewModel)
+                }) { Text(stringResource(R.string.update_download)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissAppUpdateDialog() }) {
+                    Text(stringResource(R.string.update_later))
+                }
+            }
         )
     }
 
@@ -947,7 +989,7 @@ private fun PhonePhotoTile(
 fun PhoneGenreGroupCard(group: GenreGroup, onClick: () -> Unit, onLongClick: (() -> Unit)? = null) {
     PhonePhotoTile(
         title = group.genreName,
-        caption = "${group.filteredCount} / ${group.totalStations}",
+        caption = group.countCaption(),
         imageUrl = MediaUtils.getGenreImageUrl(group.genreName),
         baseColor = MediaUtils.getGenreColor(group.genreName),
         height = 132.dp,
@@ -1765,6 +1807,37 @@ fun PhoneSettingsMain(
                     icon = Icons.Default.Folder,
                     showDivider = true,
                     onClick = { onPermissionRequest() }
+                )
+            }
+        }
+
+        item {
+            val updateState by viewModel.appUpdateState.collectAsState()
+            PhoneSettingsSection(title = stringResource(R.string.settings_about)) {
+                PhoneSettingsRow(
+                    title = stringResource(R.string.update_check),
+                    subtitle = appUpdateSubtitle(updateState, viewModel.currentAppVersion),
+                    icon = Icons.Default.SystemUpdate,
+                    onClick = {
+                        if (updateState is AppUpdateState.Available) viewModel.showAppUpdateDialog()
+                        else viewModel.checkForAppUpdate()
+                    },
+                    trailing = {
+                        if (updateState is AppUpdateState.Checking) {
+                            CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
+                        }
+                    }
+                )
+                val autoUpdateCheck by viewModel.autoUpdateCheckEnabled.collectAsState()
+                PhoneSettingsRow(
+                    title = stringResource(R.string.update_auto_check),
+                    subtitle = stringResource(R.string.update_auto_check_desc),
+                    icon = Icons.Default.History,
+                    showDivider = true,
+                    onClick = { viewModel.toggleAutoUpdateCheck() },
+                    trailing = {
+                        SettingsSwitch(autoUpdateCheck) { viewModel.toggleAutoUpdateCheck() }
+                    }
                 )
             }
         }
@@ -3045,5 +3118,29 @@ fun PhoneFilePicker(
                 }
             }
         }
+    }
+}
+
+/** Settings subtitle for the "Check for updates" row. */
+@Composable
+fun appUpdateSubtitle(state: AppUpdateState, currentVersion: String): String = when (state) {
+    AppUpdateState.Idle -> stringResource(R.string.update_current_version, currentVersion)
+    AppUpdateState.Checking -> stringResource(R.string.update_checking)
+    is AppUpdateState.UpToDate -> stringResource(R.string.update_up_to_date, state.currentVersion)
+    is AppUpdateState.Available -> stringResource(R.string.update_available_short, state.info.version)
+    AppUpdateState.Failed -> stringResource(R.string.update_check_failed)
+}
+
+/**
+ * Opens the release download in a browser. Android Automotive and some TVs have no
+ * browser, so fall back to showing the link as an error banner the user can read.
+ */
+fun openUpdateUrl(context: android.content.Context, url: String, viewModel: MainViewModel) {
+    try {
+        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        context.startActivity(intent)
+    } catch (e: Exception) {
+        viewModel.setError(context.getString(R.string.update_no_browser, url))
     }
 }

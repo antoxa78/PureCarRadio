@@ -180,4 +180,20 @@
     <string name="waveform_type_mirrored">Дзеркальні смуги</string>
     <string name="waveform_type_dots">Точкові смуги</string>
     <string name="waveform_type_dots_hold">Точки з утриманням піку</string>
+
+    <!-- App update check -->
+    <string name="settings_about">Про застосунок</string>
+    <string name="update_check">Перевірити оновлення</string>
+    <string name="update_current_version">Поточна версія: %1$s</string>
+    <string name="update_checking">Перевірка…</string>
+    <string name="update_up_to_date">Встановлено останню версію (%1$s)</string>
+    <string name="update_available_short">Доступна версія %1$s — натисніть, щоб завантажити</string>
+    <string name="update_available_title">Доступне оновлення</string>
+    <string name="update_available_message">Доступна версія %1$s. У вас встановлена %2$s.</string>
+    <string name="update_download">Завантажити</string>
+    <string name="update_later">Пізніше</string>
+    <string name="update_check_failed">Не вдалося перевірити оновлення. Перевірте з\'єднання.</string>
+    <string name="update_no_browser">Браузер не знайдено. Завантажте оновлення тут: %1$s</string>
+    <string name="update_auto_check">Перевіряти оновлення автоматично</string>
+    <string name="update_auto_check_desc">Раз на день під час запуску застосунку</string>
 </resources>
