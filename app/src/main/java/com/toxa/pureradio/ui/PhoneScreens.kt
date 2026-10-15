@@ -2204,16 +2204,21 @@ fun WaveformAnalyzer(
     isPlaying: Boolean,
     modifier: Modifier = Modifier,
     type: com.toxa.pureradio.ui.viewmodel.WaveformType = com.toxa.pureradio.ui.viewmodel.WaveformType.Classic,
-    compact: Boolean = false
+    compact: Boolean = false,
+    // When true the caller sizes the analyzer through [modifier]; no default size is applied.
+    fillAvailable: Boolean = false
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "Waveform")
     val barCount = 40
     Row(
         modifier = modifier.then(
-            if (compact) Modifier.width(200.dp).height(44.dp)
-            else Modifier.width(260.dp).height(60.dp)
+            when {
+                fillAvailable -> Modifier
+                compact -> Modifier.width(200.dp).height(44.dp)
+                else -> Modifier.width(260.dp).height(60.dp)
+            }
         ),
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        horizontalArrangement = Arrangement.spacedBy(if (fillAvailable) 3.dp else 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         repeat(barCount) { i ->
@@ -2243,7 +2248,7 @@ fun WaveformAnalyzer(
                                 .align(Alignment.BottomCenter)
                                 .background(
                                     brush = Brush.verticalGradient(listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f))),
-                                    shape = RoundedCornerShape(1.dp)
+                                    shape = RoundedCornerShape(if (fillAvailable) 2.dp else 1.dp)
                                 )
                         )
                     }
@@ -2261,7 +2266,7 @@ fun WaveformAnalyzer(
                                             MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
                                         )
                                     ),
-                                    shape = RoundedCornerShape(1.dp)
+                                    shape = RoundedCornerShape(if (fillAvailable) 2.dp else 1.dp)
                                 )
                         )
                     }
@@ -2335,10 +2340,12 @@ fun WaveformDots(heightScale: Float, isPlaying: Boolean, holdPeak: Boolean) {
                 else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
             }
             
+            // Dots share the column's height and width so the meter scales with its container
+            // instead of overflowing short boxes or leaving tiny dots in tall ones.
             Box(
                 modifier = Modifier
-                    .width(4.dp)
-                    .height(2.dp)
+                    .weight(1f)
+                    .fillMaxWidth()
                     .background(color, RoundedCornerShape(0.5.dp))
             )
         }
@@ -2951,8 +2958,10 @@ private fun NowPlayingCompactContent(
                 Column(
                     modifier = Modifier
                         .weight(1f, fill = false)
+                        .fillMaxWidth()
                         .clipToBounds(),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
                 ) {
                     Text(
                         text = station.name.uppercase(),
@@ -2985,8 +2994,28 @@ private fun NowPlayingCompactContent(
                     NowPlayingInfoPills(isLive = isLive, audioFormat = audioFormat, station = station)
 
                     if (showWaveform) {
-                        Spacer(modifier = Modifier.height(10.dp))
-                        WaveformAnalyzer(isPlaying = isPlaying, type = waveformType, compact = true)
+                        // Measured after the text, so the analyzer takes whatever height is left
+                        // (up to a cap) and spans the column width instead of a fixed tiny box.
+                        BoxWithConstraints(
+                            modifier = Modifier
+                                .weight(1f, fill = false)
+                                .fillMaxWidth(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            val available = maxHeight - 12.dp
+                            if (available >= 28.dp) {
+                                WaveformAnalyzer(
+                                    isPlaying = isPlaying,
+                                    type = waveformType,
+                                    fillAvailable = true,
+                                    modifier = Modifier
+                                        .padding(top = 12.dp)
+                                        .widthIn(max = 440.dp)
+                                        .fillMaxWidth()
+                                        .height(available.coerceAtMost(120.dp))
+                                )
+                            }
+                        }
                     }
                 }
 

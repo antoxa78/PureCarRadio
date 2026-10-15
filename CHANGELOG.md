@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.8.4] - 2026-10-15
+
+### Changed
+- **Version bump**: `versionCode` 37 → 38, `versionName` 1.8.3 → 1.8.4.
+
+### Fixed
+- **Now Playing waveform in the compact (landscape / short screen) layout**: the waveform analyzer was locked to a fixed 200×44 dp box, leaving empty space around it. It now grows to fill the space left below the station text — spanning the full column width (up to 440 dp) and up to 120 dp tall — and the waveform dots scale with their container instead of overflowing short boxes or shrinking to tiny dots in tall ones. The text/waveform block is clipped to its bounds so it can no longer overlap the progress bar and transport controls.
+
 ## [1.8.3] - 2026-10-15
 
 ### Changed
