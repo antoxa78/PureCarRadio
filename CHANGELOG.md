@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.8.2] - 2026-10-15
+
+### Changed
+- **Version bump**: `versionCode` 35 → 36, `versionName` 1.8.1 → 1.8.2.
+
+### Fixed
+- **Now Playing after rotating**: Rotating the phone while Now Playing was open left the full-screen player window at its old size, so Previous, Play/Pause and Next stopped responding in landscape. The player now rebuilds itself for the new orientation.
+
 ## [1.8.1] - 2026-10-15
 
 ### Changed

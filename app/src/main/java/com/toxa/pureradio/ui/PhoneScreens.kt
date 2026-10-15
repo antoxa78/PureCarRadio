@@ -145,6 +145,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.window.DialogProperties
 import androidx.media3.common.Format
 import androidx.media3.common.MediaMetadata
@@ -2506,9 +2507,15 @@ fun PhoneNowPlayingDialog(
     val bufferedPosition by viewModel.bufferedPosition.collectAsState()
     val waveformType by viewModel.waveformType.collectAsState()
 
+    // The activity handles rotation itself (configChanges), and a full-screen Dialog window
+    // does not resize when that happens: after rotating with the player open, the window kept
+    // its old size and taps on the controls were lost. Rebuild the dialog when the screen changes.
+    val configuration = LocalConfiguration.current
+
     currentStation?.let { station ->
         val isFavorite = favorites.contains(station.stationUuid)
         val artworkModel: Any? = mediaMetadata?.artworkUri ?: MediaUtils.getStationArtworkUrl(station.favicon, station.countryCode)
+        key(configuration.orientation, configuration.screenWidthDp, configuration.screenHeightDp) {
         Dialog(
             onDismissRequest = onDismiss,
             properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -2558,6 +2565,7 @@ fun PhoneNowPlayingDialog(
                     }
                 }
             }
+        }
         }
     }
 }
