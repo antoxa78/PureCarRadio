@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.8.3] - 2026-10-15
+
+### Changed
+- **Version bump**: `versionCode` 36 → 37, `versionName` 1.8.2 → 1.8.3.
+
+### Fixed
+- **Now Playing in landscape**: Previous, Play/Pause and Next still stopped responding in landscape (the 1.8.2 fix did not help). The full-screen player is now drawn inside the app window instead of a separate dialog window, and in the landscape layout the transport controls always keep their full size (the title/waveform area shrinks instead on short screens). Taps on the player now also keep the screensaver from starting.
+
 ## [1.8.2] - 2026-10-15
 
 ### Changed

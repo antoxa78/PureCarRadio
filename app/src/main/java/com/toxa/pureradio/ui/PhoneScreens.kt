@@ -144,9 +144,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.activity.compose.BackHandler
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.window.DialogProperties
 import androidx.media3.common.Format
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.util.UnstableApi
@@ -2492,7 +2492,7 @@ fun PhoneNowPlayingBar(viewModel: MainViewModel, onClick: () -> Unit = {}) {
 
 @UnstableApi
 @Composable
-fun PhoneNowPlayingDialog(
+fun PhoneNowPlayingScreen(
     viewModel: MainViewModel,
     onDismiss: () -> Unit
 ) {
@@ -2507,65 +2507,57 @@ fun PhoneNowPlayingDialog(
     val bufferedPosition by viewModel.bufferedPosition.collectAsState()
     val waveformType by viewModel.waveformType.collectAsState()
 
-    // The activity handles rotation itself (configChanges), and a full-screen Dialog window
-    // does not resize when that happens: after rotating with the player open, the window kept
-    // its old size and taps on the controls were lost. Rebuild the dialog when the screen changes.
-    val configuration = LocalConfiguration.current
-
     currentStation?.let { station ->
         val isFavorite = favorites.contains(station.stationUuid)
         val artworkModel: Any? = mediaMetadata?.artworkUri ?: MediaUtils.getStationArtworkUrl(station.favicon, station.countryCode)
-        key(configuration.orientation, configuration.screenWidthDp, configuration.screenHeightDp) {
-        Dialog(
-            onDismissRequest = onDismiss,
-            properties = DialogProperties(usePlatformDefaultWidth = false)
+        // Drawn as a full-screen layer in the activity's own window rather than a Dialog:
+        // the separate dialog window stopped delivering taps to the controls in landscape.
+        // The opaque Surface also keeps taps from reaching the screen underneath.
+        BackHandler(onBack = onDismiss)
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background
         ) {
-            Surface(
-                modifier = Modifier.fillMaxSize(),
-                color = MaterialTheme.colorScheme.background
-            ) {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    NowPlayingBackdrop(artworkModel = artworkModel)
-                    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-                        val compact = maxHeight < 640.dp && maxWidth >= 480.dp
-                        if (compact) {
-                            NowPlayingCompactContent(
-                                station = station,
-                                viewModel = viewModel,
-                                artworkModel = artworkModel,
-                                isFavorite = isFavorite,
-                                isPlaying = isPlaying,
-                                mediaMetadata = mediaMetadata,
-                                playbackTime = playbackTime,
-                                playbackDuration = playbackDuration,
-                                bufferedPosition = bufferedPosition,
-                                isLive = isLive,
-                                audioFormat = audioFormat,
-                                waveformType = waveformType,
-                                showWaveform = maxHeight >= 300.dp,
-                                onDismiss = onDismiss
-                            )
-                        } else {
-                            NowPlayingFullContent(
-                                station = station,
-                                viewModel = viewModel,
-                                artworkModel = artworkModel,
-                                isFavorite = isFavorite,
-                                isPlaying = isPlaying,
-                                mediaMetadata = mediaMetadata,
-                                playbackTime = playbackTime,
-                                playbackDuration = playbackDuration,
-                                bufferedPosition = bufferedPosition,
-                                isLive = isLive,
-                                audioFormat = audioFormat,
-                                waveformType = waveformType,
-                                onDismiss = onDismiss
-                            )
-                        }
+            Box(modifier = Modifier.fillMaxSize()) {
+                NowPlayingBackdrop(artworkModel = artworkModel)
+                BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                    val compact = maxHeight < 640.dp && maxWidth >= 480.dp
+                    if (compact) {
+                        NowPlayingCompactContent(
+                            station = station,
+                            viewModel = viewModel,
+                            artworkModel = artworkModel,
+                            isFavorite = isFavorite,
+                            isPlaying = isPlaying,
+                            mediaMetadata = mediaMetadata,
+                            playbackTime = playbackTime,
+                            playbackDuration = playbackDuration,
+                            bufferedPosition = bufferedPosition,
+                            isLive = isLive,
+                            audioFormat = audioFormat,
+                            waveformType = waveformType,
+                            showWaveform = maxHeight >= 300.dp,
+                            onDismiss = onDismiss
+                        )
+                    } else {
+                        NowPlayingFullContent(
+                            station = station,
+                            viewModel = viewModel,
+                            artworkModel = artworkModel,
+                            isFavorite = isFavorite,
+                            isPlaying = isPlaying,
+                            mediaMetadata = mediaMetadata,
+                            playbackTime = playbackTime,
+                            playbackDuration = playbackDuration,
+                            bufferedPosition = bufferedPosition,
+                            isLive = isLive,
+                            audioFormat = audioFormat,
+                            waveformType = waveformType,
+                            onDismiss = onDismiss
+                        )
                     }
                 }
             }
-        }
         }
     }
 }
@@ -2949,42 +2941,53 @@ private fun NowPlayingCompactContent(
             Column(
                 modifier = Modifier
                     .weight(1f)
+                    .fillMaxHeight()
                     .padding(start = 32.dp, end = 8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
-                Text(
-                    text = station.name.uppercase(),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    letterSpacing = 1.5.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = buildTitleText(mediaMetadata, station),
-                    style = MaterialTheme.typography.titleLarge,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    textAlign = TextAlign.Center
-                )
-
-                if (!mediaMetadata?.artist.isNullOrEmpty()) {
+                // The text/waveform block is weighted, so it is measured last and gives way on
+                // short screens; progress and the transport buttons always keep their full size.
+                Column(
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .clipToBounds(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
                     Text(
-                        text = mediaMetadata?.artist.toString(),
-                        style = MaterialTheme.typography.bodyMedium,
+                        text = station.name.uppercase(),
+                        style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        letterSpacing = 1.5.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = buildTitleText(mediaMetadata, station),
+                        style = MaterialTheme.typography.titleLarge,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center
+                    )
 
-                Spacer(modifier = Modifier.height(10.dp))
-                NowPlayingInfoPills(isLive = isLive, audioFormat = audioFormat, station = station)
+                    if (!mediaMetadata?.artist.isNullOrEmpty()) {
+                        Text(
+                            text = mediaMetadata?.artist.toString(),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
 
-                if (showWaveform) {
                     Spacer(modifier = Modifier.height(10.dp))
-                    WaveformAnalyzer(isPlaying = isPlaying, type = waveformType, compact = true)
+                    NowPlayingInfoPills(isLive = isLive, audioFormat = audioFormat, station = station)
+
+                    if (showWaveform) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        WaveformAnalyzer(isPlaying = isPlaying, type = waveformType, compact = true)
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))

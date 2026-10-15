@@ -199,7 +199,7 @@ import com.toxa.pureradio.network.Tag
 import com.toxa.pureradio.ui.theme.PureRadioTheme
 import com.toxa.pureradio.ui.PhoneMainScreen
 import com.toxa.pureradio.ui.PhoneNowPlayingBar
-import com.toxa.pureradio.ui.PhoneNowPlayingDialog
+import com.toxa.pureradio.ui.PhoneNowPlayingScreen
 import com.toxa.pureradio.ui.viewmodel.BitrateFilter
 import com.toxa.pureradio.ui.viewmodel.GenreGroup
 import com.toxa.pureradio.ui.viewmodel.MainViewModel
@@ -453,17 +453,18 @@ fun PhoneMainLayout(isPip: Boolean, showSplash: Boolean, viewModel: MainViewMode
             }
         }
 
+        // Full-screen player as a layer in this window (above the app, below the screensaver).
+        if (showNowPlaying) {
+            PhoneNowPlayingScreen(
+                viewModel = viewModel,
+                onDismiss = { showNowPlaying = false }
+            )
+        }
+
         val isScreensaverShowing by viewModel.isScreensaverShowing.collectAsState()
         if (isScreensaverShowing) {
             com.toxa.pureradio.ui.PhoneScreensaver(viewModel)
         }
-    }
-
-    if (showNowPlaying) {
-        PhoneNowPlayingDialog(
-            viewModel = viewModel,
-            onDismiss = { showNowPlaying = false }
-        )
     }
 
     if (showExitDialog) {
