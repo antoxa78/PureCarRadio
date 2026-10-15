@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -152,7 +153,9 @@ fun PhoneScreenHeader(
 fun PhoneEmptyState(
     icon: ImageVector,
     message: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null
 ) {
     Column(
         modifier = modifier
@@ -181,6 +184,12 @@ fun PhoneEmptyState(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
         )
+        if (actionLabel != null && onAction != null) {
+            Spacer(modifier = Modifier.height(16.dp))
+            FilledTonalButton(onClick = onAction, shape = CircleShape) {
+                Text(actionLabel)
+            }
+        }
     }
 }
 
@@ -326,7 +335,8 @@ fun PhoneChip(
     selected: Boolean,
     label: String,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    showCheck: Boolean = true
 ) {
     FilterChip(
         selected = selected,
@@ -334,7 +344,7 @@ fun PhoneChip(
         label = { Text(label, maxLines = 1) },
         modifier = modifier,
         shape = CircleShape,
-        leadingIcon = if (selected) {
+        leadingIcon = if (selected && showCheck) {
             {
                 Icon(
                     Icons.Default.Check,

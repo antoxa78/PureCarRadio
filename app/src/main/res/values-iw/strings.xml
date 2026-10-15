@@ -157,9 +157,12 @@
 
     <!-- Bitrate filter -->
     <string name="filter_label">סינון:</string>
-    <string name="filter_low">נמוך</string>
-    <string name="filter_high">גבוה</string>
-    <string name="filter_flac">FLAC</string>
+    <string name="filter_low">עד 192k</string>
+    <string name="filter_high">192k ומעלה</string>
+    <string name="filter_flac">ללא אובדן</string>
+    <string name="no_stations_match_filter">אין תחנות שתואמות את סינון האיכות</string>
+    <string name="clear_filters">ניקוי מסננים</string>
+    <string name="stations_count_filtered">%1$d מתוך %2$d תחנות</string>
 
     <!-- Settings inline values -->
     <string name="current_theme">נוכחית: %s</string>

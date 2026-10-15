@@ -20,6 +20,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -221,6 +224,7 @@ fun PhoneMainScreen(viewModel: MainViewModel) {
                 stations = stations,
                 viewModel = viewModel,
                 hasMoreStations = hasMoreStations,
+                showFilters = true,
                 onLongClick = { stationToFavorite = it }
             )
             NavigationItem.Recent -> PhoneStationListScreen(
@@ -583,7 +587,6 @@ fun PhoneHomeScreen(
     hasMoreStations: Boolean,
     onStationLongClick: (Station) -> Unit
 ) {
-    val selectedBitrates by viewModel.selectedBitrates.collectAsState()
     val tags by viewModel.tags.collectAsState()
     val countries by viewModel.countries.collectAsState()
 
@@ -597,7 +600,7 @@ fun PhoneHomeScreen(
 
         PhoneScreenHeader(
             title = title,
-            subtitle = if (isDeepDive) stringResource(R.string.stations_count, stations.size) else null,
+            subtitle = if (isDeepDive) stationsSubtitle(viewModel, stations.size) else null,
             onBack = if (isDeepDive) {
                 {
                     if (selectedTag != null) viewModel.selectTag(null) else viewModel.selectCountry(null)
@@ -605,10 +608,8 @@ fun PhoneHomeScreen(
             } else null
         )
 
-        PhoneBitrateFilters(
-            selectedBitrates = selectedBitrates,
-            onToggleFilter = { viewModel.toggleBitrateFilter(it) }
-        )
+        // Counts only make sense when a station list is on screen, not over the tiles.
+        BitrateFilterBar(viewModel = viewModel, showCounts = isDeepDive || genreGroups.isEmpty())
         Spacer(modifier = Modifier.height(8.dp))
 
         Box(modifier = Modifier.weight(1f)) {
@@ -673,13 +674,25 @@ fun PhoneStationGrid(
     val currentStation by viewModel.currentStation.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val selectedBitrates by viewModel.selectedBitrates.collectAsState()
+    val loadedCount by viewModel.loadedStationCount.collectAsState()
 
     if (stations.isEmpty()) {
         if (!isLoading) {
-            PhoneEmptyState(
-                icon = Icons.Default.Radio,
-                message = stringResource(R.string.no_stations_found)
-            )
+            if (selectedBitrates.isNotEmpty() && loadedCount > 0) {
+                // Stations were loaded but the bitrate filter hides all of them.
+                PhoneEmptyState(
+                    icon = Icons.Default.Radio,
+                    message = stringResource(R.string.no_stations_match_filter),
+                    actionLabel = stringResource(R.string.clear_filters),
+                    onAction = { viewModel.clearBitrateFilters() }
+                )
+            } else {
+                PhoneEmptyState(
+                    icon = Icons.Default.Radio,
+                    message = stringResource(R.string.no_stations_found)
+                )
+            }
         }
         return
     }
@@ -1008,13 +1021,18 @@ fun PhoneStationListScreen(
     stations: List<Station>,
     viewModel: MainViewModel,
     hasMoreStations: Boolean = false,
+    showFilters: Boolean = false,
     onLongClick: (Station) -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         PhoneScreenHeader(
             title = title,
-            subtitle = if (stations.isNotEmpty()) stringResource(R.string.stations_count, stations.size) else null
+            subtitle = if (stations.isNotEmpty()) stationsSubtitle(viewModel, stations.size) else null
         )
+        if (showFilters) {
+            BitrateFilterBar(viewModel = viewModel)
+            Spacer(modifier = Modifier.height(8.dp))
+        }
         Box(modifier = Modifier.weight(1f)) {
             PhoneStationGrid(
                 stations = stations,
@@ -1039,7 +1057,6 @@ fun PhoneSearchScreen(
     val searchMode by viewModel.searchMode.collectAsState()
     val tagSearchGroups by viewModel.tagSearchGroups.collectAsState()
     val selectedSearchTag by viewModel.selectedSearchTag.collectAsState()
-    val selectedBitrates by viewModel.selectedBitrates.collectAsState()
     val hasMoreStations by viewModel.hasMoreStations.collectAsState()
     var localSearchQuery by remember { mutableStateOf(searchQuery) }
     val keyboardController = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
@@ -1076,12 +1093,9 @@ fun PhoneSearchScreen(
                     label = stringResource(R.string.search_mode_tag).displayCase(),
                     onClick = { if (searchMode != SearchMode.Tag) viewModel.toggleSearchMode() }
                 )
-                ChipDivider()
-                BitrateChips(
-                    selectedBitrates = selectedBitrates,
-                    onToggleFilter = { viewModel.toggleBitrateFilter(it) }
-                )
             }
+            Spacer(modifier = Modifier.height(4.dp))
+            BitrateFilterBar(viewModel = viewModel)
             Spacer(modifier = Modifier.height(8.dp))
 
             Box(modifier = Modifier.weight(1f)) {
@@ -1221,15 +1235,19 @@ fun PhoneGenresScreen(
         Column(modifier = Modifier.fillMaxSize()) {
             PhoneScreenHeader(
                 title = selectedTag.name.displayCase(),
-                subtitle = stringResource(R.string.stations_count, stations.size),
+                subtitle = stationsSubtitle(viewModel, stations.size),
                 onBack = { viewModel.selectTag(null) }
             )
-            PhoneStationGrid(
-                stations = stations,
-                viewModel = viewModel,
-                onLoadMore = if (hasMoreStations) {{ viewModel.loadMoreStations() }} else null,
-                onLongClick = onStationLongClick
-            )
+            BitrateFilterBar(viewModel = viewModel)
+            Spacer(modifier = Modifier.height(8.dp))
+            Box(modifier = Modifier.weight(1f)) {
+                PhoneStationGrid(
+                    stations = stations,
+                    viewModel = viewModel,
+                    onLoadMore = if (hasMoreStations) {{ viewModel.loadMoreStations() }} else null,
+                    onLongClick = onStationLongClick
+                )
+            }
         }
         return
     }
@@ -1317,15 +1335,19 @@ fun PhoneCountriesScreen(
         Column(modifier = Modifier.fillMaxSize()) {
             PhoneScreenHeader(
                 title = selectedCountry.name.displayCase(),
-                subtitle = stringResource(R.string.stations_count, stations.size),
+                subtitle = stationsSubtitle(viewModel, stations.size),
                 onBack = { viewModel.selectCountry(null) }
             )
-            PhoneStationGrid(
-                stations = stations,
-                viewModel = viewModel,
-                onLoadMore = if (hasMoreStations) {{ viewModel.loadMoreStations() }} else null,
-                onLongClick = onStationLongClick
-            )
+            BitrateFilterBar(viewModel = viewModel)
+            Spacer(modifier = Modifier.height(8.dp))
+            Box(modifier = Modifier.weight(1f)) {
+                PhoneStationGrid(
+                    stations = stations,
+                    viewModel = viewModel,
+                    onLoadMore = if (hasMoreStations) {{ viewModel.loadMoreStations() }} else null,
+                    onLongClick = onStationLongClick
+                )
+            }
         }
         return
     }
@@ -1410,44 +1432,99 @@ private fun PhoneCountryTile(country: Country, onClick: () -> Unit) {
     }
 }
 
-/** Bitrate chips only (no container) so they can share a row with other chips. */
+private fun bitrateLabelRes(filter: BitrateFilter): Int = when (filter) {
+    BitrateFilter.Low -> R.string.filter_low
+    BitrateFilter.High -> R.string.filter_high
+    BitrateFilter.FLAC -> R.string.filter_flac
+}
+
+/**
+ * Bitrate chips (no container) so they can share a row with other chips.
+ * [counts] = loaded stations each chip matches, shown as "192k+ · 41"; null hides them.
+ * A "Clear" chip appears whenever a filter is on.
+ */
 @Composable
 private fun BitrateChips(
     selectedBitrates: Set<BitrateFilter>,
-    onToggleFilter: (BitrateFilter) -> Unit
+    counts: Map<BitrateFilter, Int>?,
+    onToggleFilter: (BitrateFilter) -> Unit,
+    onClear: () -> Unit
 ) {
     BitrateFilter.entries.forEach { filter ->
-        val labelRes = when (filter) {
-            BitrateFilter.Low -> R.string.filter_low
-            BitrateFilter.High -> R.string.filter_high
-            BitrateFilter.FLAC -> R.string.filter_flac
-        }
+        val label = stringResource(bitrateLabelRes(filter))
+        val count = counts?.get(filter)
         PhoneChip(
             selected = selectedBitrates.contains(filter),
-            label = stringResource(labelRes),
-            onClick = { onToggleFilter(filter) }
+            label = if (count != null) "$label · $count" else label,
+            onClick = { onToggleFilter(filter) },
+            // The selected fill is enough here; the check mark would make the row too wide.
+            showCheck = false
+        )
+    }
+    if (selectedBitrates.isNotEmpty()) {
+        // Icon-only to save width; the label is read out by TalkBack.
+        AssistChip(
+            onClick = onClear,
+            label = {
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = stringResource(R.string.clear_filters),
+                    modifier = Modifier.size(AssistChipDefaults.IconSize)
+                )
+            },
+            shape = CircleShape
         )
     }
 }
 
+/**
+ * The bitrate filter bar shared by every phone screen whose station list it filters
+ * (Home, Popular, Genres, Countries, Search), so they all look and behave the same.
+ * It wraps onto a second line instead of running off narrow screens or long translations.
+ * [showCounts] = false where no station list is visible (e.g. the Home tiles).
+ */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ChipDivider() {
-    Box(
+fun BitrateFilterBar(
+    viewModel: MainViewModel,
+    showCounts: Boolean = true
+) {
+    val selectedBitrates by viewModel.selectedBitrates.collectAsState()
+    val counts by viewModel.bitrateCounts.collectAsState()
+    val loadedCount by viewModel.loadedStationCount.collectAsState()
+
+    FlowRow(
         modifier = Modifier
-            .padding(horizontal = 4.dp)
-            .width(1.dp)
-            .height(20.dp)
-            .background(MaterialTheme.colorScheme.outlineVariant)
-    )
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Icon(
+            Icons.Default.FilterList,
+            contentDescription = stringResource(R.string.filter_label),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier
+                .align(Alignment.CenterVertically)
+                .size(20.dp)
+        )
+        BitrateChips(
+            selectedBitrates = selectedBitrates,
+            counts = counts.takeIf { showCounts && loadedCount > 0 },
+            onToggleFilter = { viewModel.toggleBitrateFilter(it) },
+            onClear = { viewModel.clearBitrateFilters() }
+        )
+    }
 }
 
+/** "34 of 100 stations" while a bitrate filter hides some loaded stations, else "100 stations". */
 @Composable
-fun PhoneBitrateFilters(
-    selectedBitrates: Set<BitrateFilter>,
-    onToggleFilter: (BitrateFilter) -> Unit
-) {
-    PhoneChipRow(caption = stringResource(R.string.filter_label)) {
-        BitrateChips(selectedBitrates = selectedBitrates, onToggleFilter = onToggleFilter)
+private fun stationsSubtitle(viewModel: MainViewModel, shown: Int): String {
+    val selectedBitrates by viewModel.selectedBitrates.collectAsState()
+    val loadedCount by viewModel.loadedStationCount.collectAsState()
+    return if (selectedBitrates.isNotEmpty() && loadedCount > shown) {
+        stringResource(R.string.stations_count_filtered, shown, loadedCount)
+    } else {
+        stringResource(R.string.stations_count, shown)
     }
 }
 

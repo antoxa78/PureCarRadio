@@ -2263,24 +2263,3 @@ fun getGenreColor(genre: String): Color = MediaUtils.getGenreColor(genre)
 
 fun getGenreImageUrl(genre: String): String = MediaUtils.getGenreImageUrl(genre)
 
-@Composable
-fun BitrateFilters(selectedBitrates: Set<BitrateFilter>, onToggleFilter: (BitrateFilter) -> Unit) {
-    val context = LocalContext.current
-    val isTv = (context as? MainActivity)?.isTv() == true
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 8.dp)) {
-        Text(androidx.compose.ui.res.stringResource(R.string.filter_label), style = MaterialTheme.typography.labelLarge)
-        BitrateFilter.entries.forEach { filter ->
-            val labelRes = when (filter) { BitrateFilter.Low -> R.string.filter_low; BitrateFilter.High -> R.string.filter_high; BitrateFilter.FLAC -> R.string.filter_flac }
-            val label = androidx.compose.ui.res.stringResource(labelRes)
-            val isSelected = selectedBitrates.contains(filter)
-            if (isTv) {
-                Button(onClick = { onToggleFilter(filter) }, modifier = Modifier.padding(horizontal = 4.dp),
-                    scale = if (isSelected) ButtonDefaults.scale(focusedScale = 1.1f) else ButtonDefaults.scale(),
-                    colors = if (isSelected) ButtonDefaults.colors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary) else ButtonDefaults.colors()
-                ) { Text(label) }
-            } else {
-                androidx.compose.material3.FilterChip(selected = isSelected, onClick = { onToggleFilter(filter) }, label = { androidx.compose.material3.Text(label) }, modifier = Modifier.padding(horizontal = 4.dp))
-            }
-        }
-    }
-}

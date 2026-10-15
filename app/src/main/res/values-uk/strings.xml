@@ -157,9 +157,12 @@
 
     <!-- Bitrate filter -->
     <string name="filter_label">Фільтр:</string>
-    <string name="filter_low">Низький</string>
-    <string name="filter_high">Високий</string>
-    <string name="filter_flac">FLAC</string>
+    <string name="filter_low">&lt; 192k</string>
+    <string name="filter_high">192k+</string>
+    <string name="filter_flac">Без втрат</string>
+    <string name="no_stations_match_filter">Немає станцій, що відповідають фільтру якості</string>
+    <string name="clear_filters">Скинути фільтри</string>
+    <string name="stations_count_filtered">%1$d з %2$d станцій</string>
 
     <!-- Settings inline values -->
     <string name="current_theme">Поточна: %s</string>

@@ -30,7 +30,9 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -135,6 +137,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _selectedBitrates = MutableStateFlow<Set<BitrateFilter>>(loadBitrateFilters())
     val selectedBitrates: StateFlow<Set<BitrateFilter>> = _selectedBitrates
+
+    /** Number of loaded stations before the bitrate filter (for "34 of 100 stations"). */
+    val loadedStationCount: StateFlow<Int> = _allStations
+        .map { it.size }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, 0)
+
+    /** How many loaded stations each bitrate chip would match on its own. */
+    val bitrateCounts: StateFlow<Map<BitrateFilter, Int>> = _allStations
+        .map { list ->
+            BitrateFilter.entries.associateWith { f -> list.count { matchesBitrateFilter(it, setOf(f)) } }
+        }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
 
     private val _currentStation = MutableStateFlow<Station?>(null)
     val currentStation: StateFlow<Station?> = _currentStation
@@ -317,6 +331,43 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var lastInteractionTime = System.currentTimeMillis()
     private var consecutiveErrors = 0
     private var searchJob: kotlinx.coroutines.Job? = null
+
+    /** Current station-list load (popular / genre / country); a newer load cancels it. */
+    private var stationsJob: kotlinx.coroutines.Job? = null
+    private var loadMoreJob: kotlinx.coroutines.Job? = null
+    /** Waits for the user to stop tapping filter chips before reloading. */
+    private var filterRefreshJob: kotlinx.coroutines.Job? = null
+    private val filterRefreshDelayMs = 300L
+
+    /** Cancels any in-flight list load so an older, slower response can't replace newer results. */
+    private fun startStationsLoad(block: suspend CoroutineScope.() -> Unit) {
+        stationsJob?.cancel()
+        loadMoreJob?.cancel()
+        stationsJob = viewModelScope.launch(block = block)
+    }
+
+    /** Stops list loads when leaving a list, so late results can't land on another screen. */
+    private fun cancelStationLoads() {
+        filterRefreshJob?.cancel()
+        val wasRunning = stationsJob?.isActive == true || loadMoreJob?.isActive == true
+        stationsJob?.cancel()
+        loadMoreJob?.cancel()
+        // Cancelled loads skip their own cleanup, so release the spinner here.
+        if (wasRunning) _isLoading.value = false
+    }
+
+    /**
+     * Stops the Home load when leaving the Home tab, so Home's top stations can't land
+     * in another tab's list. Not used for Back from an opened tile: the tiles must keep loading.
+     */
+    private fun cancelHomeLoad() {
+        val job = homeJob ?: return
+        if (job.isActive) {
+            job.cancel()
+            _isLoading.value = false
+        }
+        homeJob = null
+    }
 
     private val _searchFocusTrigger = MutableStateFlow(0)
     val searchFocusTrigger: StateFlow<Int> = _searchFocusTrigger
@@ -1340,7 +1391,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun refreshCurrentContent() {
         when (_selectedNavItem.value) {
-            NavigationItem.Home -> loadTopStations()
+            NavigationItem.Home -> {
+                // A tile opened from Home shows its own station list: reload that list,
+                // not just the tiles (otherwise the open list keeps the old filter).
+                // Refetch rather than only re-filter: the FLAC filter adds extra results.
+                val tag = _selectedTag.value
+                val country = _selectedCountry.value
+                when {
+                    tag != null -> selectTag(tag)
+                    country != null -> selectCountry(country)
+                    else -> loadTopStations()
+                }
+            }
             NavigationItem.Popular -> loadPopularStations()
             NavigationItem.Genres -> {
                 _selectedTag.value?.let { selectTag(it) }
@@ -1359,6 +1421,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val isNewItem = _selectedNavItem.value != item
         if (!isNewItem && !force && item != NavigationItem.Search) return
         
+        cancelStationLoads()
+        cancelHomeLoad()
         _selectedNavItem.value = item
         _error.value = null
         _selectedTag.value = null
@@ -1429,16 +1493,46 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         } else {
             current.add(filter)
         }
-        _selectedBitrates.value = current
-        saveBitrateFilters(current)
-        
-        refreshCurrentContent()
+        setBitrateFilters(current)
     }
 
+    fun clearBitrateFilters() {
+        if (_selectedBitrates.value.isNotEmpty()) setBitrateFilters(emptySet())
+    }
+
+    private fun setBitrateFilters(filters: Set<BitrateFilter>) {
+        _selectedBitrates.value = filters
+        saveBitrateFilters(filters)
+
+        // Instant feedback from what is already loaded, then one reload once the user
+        // stops tapping (each tap used to start its own network request).
+        if (_selectedNavItem.value in filterableNavItems) applyFiltersLocally()
+        filterRefreshJob?.cancel()
+        filterRefreshJob = viewModelScope.launch {
+            delay(filterRefreshDelayMs)
+            refreshCurrentContent()
+        }
+    }
+
+    /** Screens whose station lists the bitrate filter applies to (Favourites/Recent show everything). */
+    private val filterableNavItems = setOf(
+        NavigationItem.Home, NavigationItem.Popular, NavigationItem.Genres,
+        NavigationItem.Countries, NavigationItem.Search
+    )
+
     private fun applyFilters() {
+        applyFiltersLocally()
+
+        if (!_isLoading.value && _stations.value.size < 100 && _hasMoreStations.value) {
+            loadMoreStations(5)
+        }
+    }
+
+    /** Re-filters the loaded stations and tile counts without loading anything. */
+    private fun applyFiltersLocally() {
         val bitrates = _selectedBitrates.value
         _stations.value = _allStations.value.filter { matchesBitrateFilter(it, bitrates) }
-        
+
         _genreGroups.value = _genreGroups.value.map { group ->
             if (!group.isLoaded) group
             else group.copy(filteredCount = group.stations.count { matchesBitrateFilter(it, bitrates) })
@@ -1446,10 +1540,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         _tagSearchGroups.value = _tagSearchGroups.value.map { group ->
             group.copy(filteredCount = group.stations.count { matchesBitrateFilter(it, bitrates) })
-        }
-
-        if (!_isLoading.value && _stations.value.size < 100 && _hasMoreStations.value) {
-            loadMoreStations(5)
         }
     }
 
@@ -1467,7 +1557,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun loadPopularStations() {
-        viewModelScope.launch {
+        startStationsLoad {
             _isLoading.value = true
             _stationOffset.value = 0
             _hasMoreStations.value = true
@@ -1475,17 +1565,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val stations = repository.searchStations(limit = 100, offset = 0, hideBroken = _hideBrokenStations.value)
                 _hasMoreStations.value = stations.size >= 100
                 updateStations(stations)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _error.value = str(R.string.error_load_popular)
             } finally {
-                _isLoading.value = false
-                applyFilters()
+                // A cancelled load must not clear the newer load's spinner or touch its list.
+                if (isActive) {
+                    _isLoading.value = false
+                    applyFilters()
+                }
             }
         }
     }
 
     fun loadMoreStations(remainingRetries: Int = 0) {
-        viewModelScope.launch {
+        loadMoreJob = viewModelScope.launch {
             if (!_hasMoreStations.value || _isLoading.value) return@launch
             _isLoading.value = true
             try {
@@ -1525,10 +1620,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _stationOffset.value = newOffset
                 _allStations.value = (_allStations.value + newStations).distinctBy { it.stationUuid }
                 applyFilters()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _error.value = str(R.string.error_load_more)
             } finally {
-                _isLoading.value = false
+                if (isActive) _isLoading.value = false
             }
 
             if (remainingRetries > 0 && _stations.value.size < 100 && _hasMoreStations.value) {
@@ -1538,6 +1635,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // ---- Home genre/country tiles -------------------------------------------------------
+
+    /** Filters the Home tiles were last built with; null until tiles are built. */
+    private var homeTilesFilterKey: String? = null
+
+    private fun homeFilterKey(hideBroken: Boolean, bitrates: Set<BitrateFilter>): String =
+        "$hideBroken|${bitrates.map { it.name }.sorted().joinToString(",")}"
+
+    /**
+     * Filters can change while a tile's station list is open. When the user goes back
+     * to the Home tiles, rebuild them so the counts match the current filters
+     * (cheap when the in-memory cache already has them).
+     */
+    private fun refreshHomeTilesIfStale() {
+        if (_selectedNavItem.value != NavigationItem.Home) return
+        if (_genreGroups.value.isEmpty()) return
+        val key = homeFilterKey(_hideBrokenStations.value, _selectedBitrates.value)
+        if (homeTilesFilterKey != null && homeTilesFilterKey != key) loadTopStations()
+    }
 
     private fun homeCacheKey(name: String, isCountry: Boolean, hideBroken: Boolean, bitrates: Set<BitrateFilter>): String =
         "${if (isCountry) "c" else "g"}|${name.lowercase()}|$hideBroken|${bitrates.map { it.name }.sorted().joinToString(",")}"
@@ -1613,6 +1728,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val hideBroken = _hideBrokenStations.value
 
             if (selectedGenres.isEmpty() && selectedCountries.isEmpty()) {
+                // This list replaces _allStations, so stop a "load more" for the old list.
+                loadMoreJob?.cancel()
                 _isLoading.value = true
                 if (_genreGroups.value.isNotEmpty()) {
                     applyFilters()
@@ -1633,15 +1750,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 } catch (e: Exception) {
                     _error.value = str(R.string.error_load_stations)
                 } finally {
-                    _isLoading.value = false
-                    if (_genreGroups.value.isEmpty()) {
-                        applyFilters()
+                    // A cancelled load (newer Home load or tab switch) must not clear the
+                    // next screen's spinner or re-filter its list.
+                    if (isActive) {
+                        _isLoading.value = false
+                        if (_genreGroups.value.isEmpty()) {
+                            applyFilters()
+                        }
                     }
                 }
                 return@launch
             }
 
             val bitrates = _selectedBitrates.value
+            homeTilesFilterKey = homeFilterKey(hideBroken, bitrates)
             val now = System.currentTimeMillis()
             val entries = selectedGenres.map { it to false } + selectedCountries.map { it to true }
 
@@ -1917,14 +2039,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun selectTag(tag: Tag?) {
         val isNewTag = _selectedTag.value != tag
         _selectedTag.value = tag
-        if (tag == null) return
+        if (tag == null) {
+            cancelStationLoads()
+            refreshHomeTilesIfStale()
+            return
+        }
         if (isNewTag) {
             _allStations.value = emptyList()
             _stations.value = emptyList()
         }
         _stationOffset.value = 0
         _hasMoreStations.value = true
-        viewModelScope.launch {
+        startStationsLoad {
             _isLoading.value = true
             try {
                 val isFlacFilter = _selectedBitrates.value.contains(BitrateFilter.FLAC)
@@ -1936,11 +2062,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 } else {
                     updateStations(stations)
                 }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _error.value = str(R.string.error_load_genre_stations)
             } finally {
-                _isLoading.value = false
-                applyFilters()
+                if (isActive) {
+                    _isLoading.value = false
+                    applyFilters()
+                }
             }
         }
     }
@@ -1948,14 +2078,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun selectCountry(country: Country?) {
         val isNewCountry = _selectedCountry.value != country
         _selectedCountry.value = country
-        if (country == null) return
+        if (country == null) {
+            cancelStationLoads()
+            refreshHomeTilesIfStale()
+            return
+        }
         if (isNewCountry) {
             _allStations.value = emptyList()
             _stations.value = emptyList()
         }
         _stationOffset.value = 0
         _hasMoreStations.value = true
-        viewModelScope.launch {
+        startStationsLoad {
             _isLoading.value = true
             try {
                 val isFlacFilter = _selectedBitrates.value.contains(BitrateFilter.FLAC)
@@ -1967,11 +2101,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 } else {
                     updateStations(stations)
                 }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _error.value = str(R.string.error_load_country_stations)
             } finally {
-                _isLoading.value = false
-                applyFilters()
+                if (isActive) {
+                    _isLoading.value = false
+                    applyFilters()
+                }
             }
         }
     }
@@ -2237,24 +2375,34 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun playNext(isAuto: Boolean = false) {
-        player?.let {
-            if (it.hasNextMediaItem()) {
-                it.seekToNextMediaItem()
-            } else {
-                it.seekToDefaultPosition(0)
-            }
-        }
-    }
+    fun playNext(isAuto: Boolean = false) = skipStation(+1)
 
-    fun playPrevious() {
-        player?.let {
-            if (it.hasPreviousMediaItem()) {
-                it.seekToPreviousMediaItem()
+    fun playPrevious() = skipStation(-1)
+
+    /**
+     * Moves to the next/previous station, wrapping around at the ends.
+     * When the player holds only one station (it was resumed at startup, or started from the
+     * notification / car UI), seeking did nothing but restart it. In that case step through the
+     * list on screen, then favourites, then recents — whichever contains the current station.
+     */
+    private fun skipStation(step: Int) {
+        val p = player ?: return
+        if (p.mediaItemCount > 1) {
+            if (step > 0) {
+                if (p.hasNextMediaItem()) p.seekToNextMediaItem() else p.seekToDefaultPosition(0)
             } else {
-                it.seekToDefaultPosition(it.mediaItemCount - 1)
+                if (p.hasPreviousMediaItem()) p.seekToPreviousMediaItem() else p.seekToDefaultPosition(p.mediaItemCount - 1)
             }
+            return
         }
+        val current = _currentStation.value ?: return
+        val list = listOf(_stations.value, _favoriteStations.value, _recentStations.value)
+            .firstOrNull { l -> l.size > 1 && l.any { it.stationUuid == current.stationUuid } }
+            ?: return
+        val index = list.indexOfFirst { it.stationUuid == current.stationUuid }
+        val target = list[Math.floorMod(index + step, list.size)]
+        // Load the whole list so further taps use the normal playlist path above.
+        playStation(target, list)
     }
 
     fun togglePlayPause() {

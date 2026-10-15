@@ -1,5 +1,7 @@
 package com.toxa.pureradio
 
+import android.app.PendingIntent
+import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import androidx.annotation.OptIn
@@ -885,7 +887,25 @@ class PlaybackService : MediaLibraryService() {
                     }
                 }
             }
-        }).setPeriodicPositionUpdateEnabled(false).build()
+        })
+            // Tapping the notification / system media controls opens the app. Without this
+            // the session had no activity and Android fell back to another media app (e.g. YouTube).
+            .setSessionActivity(createSessionActivityIntent())
+            .setPeriodicPositionUpdateEnabled(false)
+            .build()
+    }
+
+    private fun createSessionActivityIntent(): PendingIntent {
+        val intent = Intent(this, MainActivity::class.java).apply {
+            action = Intent.ACTION_MAIN
+            addCategory(Intent.CATEGORY_LAUNCHER)
+            // Bring the running app to the front instead of starting a new copy.
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        }
+        return PendingIntent.getActivity(
+            this, 0, intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
     }
 
     private fun formatBrowseTitle(name: String): String {

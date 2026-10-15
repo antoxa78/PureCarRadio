@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.8.1] - 2026-10-15
+
+### Changed
+- **Version bump**: `versionCode` 34 → 35, `versionName` 1.8.0 → 1.8.1.
+- **Bitrate filters (phone / Android Automotive UI)**:
+  - The filter chips are now shown on every screen they apply to: Popular and opened Genres/Countries lists got them (previously the saved filter was applied there with no visible chips).
+  - Clearer labels: "< 192k", "192k+" and "Lossless" instead of "Low", "High" and "FLAC" (translated for Russian, Ukrainian and Hebrew; also used on TV).
+  - Each chip shows how many loaded stations it matches (e.g. "192k+ · 41"), and a clear (✕) chip appears while any filter is on.
+  - The filter bar always fits the screen: on Search it has its own row below Name/Tag, the chips are more compact (filter icon instead of the "Filter:" caption, no check marks), and the chips wrap onto a second line on narrow screens or with long translations.
+  - List headers show "34 of 100 stations" while a filter hides some stations, and a list emptied by the filter shows "No stations match the quality filter" with a "Clear filters" button.
+  - One shared filter bar for Home, Popular, Genres, Countries and Search; removed an unused TV filter component.
+
+### Fixed
+- **Notification tap**: Tapping the playback notification or the system media controls now opens Pure Radio. The media session had no app screen set, so some phones opened another media app (e.g. YouTube) instead.
+- **Previous / Next**: The buttons now work when the player holds a single station, e.g. after "Resume last station" started playback (common on car / landscape displays). Previously they only restarted the same station; now they step through the list on screen, or favourites, or recent stations — whichever contains the playing station.
+- **Filter taps**: The list updates instantly from the loaded stations and reloads once after you stop tapping (previously every tap started its own request). A newer load now cancels the previous one, so a slower old response can no longer replace the newer list, and leaving a list cancels its pending loads so late results don't land on another screen. Switching away from Home also stops its top-stations load, which could previously replace the next tab's list.
+- **Home filters**: Changing the bitrate filters (or "Hide broken stations") while a genre/country opened from a Home tile is showing now updates its station list. Previously only the Home tiles were reloaded and the open list kept the old filter. Tile counts are also refreshed when going back to the tiles.
+
 ## [1.8.0] - 2026-10-14
 
 ### Added

@@ -157,9 +157,12 @@
 
     <!-- Bitrate filter -->
     <string name="filter_label">Filter:</string>
-    <string name="filter_low">Low</string>
-    <string name="filter_high">High</string>
-    <string name="filter_flac">FLAC</string>
+    <string name="filter_low">&lt; 192k</string>
+    <string name="filter_high">192k+</string>
+    <string name="filter_flac">Lossless</string>
+    <string name="no_stations_match_filter">No stations match the quality filter</string>
+    <string name="clear_filters">Clear filters</string>
+    <string name="stations_count_filtered">%1$d of %2$d stations</string>
 
     <!-- Settings inline values -->
     <string name="current_theme">Current: %s</string>
