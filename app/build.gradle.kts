@@ -12,8 +12,8 @@ android {
         minSdk = 29
         //noinspection OldTargetApi
         targetSdk = 36
-        versionCode = 39
-        versionName = "1.9.0"
+        versionCode = 40
+        versionName = "1.9.1"
 
         buildConfigField("Long", "BUILD_TIME", "${System.currentTimeMillis()}L")
     }

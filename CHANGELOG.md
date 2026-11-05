@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.9.1] - 2026-11-05
+
+### Changed
+- **Version bump**: `versionCode` 39 → 40, `versionName` 1.9.0 → 1.9.1.
+
+### Fixed
+- **Duplicate Genre Artwork**: every genre category now gets its own image. Common genres keep their curated photos, while all other categories use deterministic artwork generated from the category name, so the same fallback photo no longer appears on multiple tiles.
+
 ## [1.9.0] - 2026-11-05
 
 ### Added
