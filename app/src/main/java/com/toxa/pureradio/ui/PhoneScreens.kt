@@ -142,6 +142,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.activity.compose.BackHandler
@@ -195,6 +196,7 @@ fun PhoneMainScreen(viewModel: MainViewModel) {
     val isScreensaverShowing by viewModel.isScreensaverShowing.collectAsState()
 
     val context = LocalContext.current
+    val systemPickerUnavailable = stringResource(R.string.error_system_picker_unavailable)
     var stationToFavorite by remember { mutableStateOf<Station?>(null) }
 
     val importLauncher = rememberLauncherForActivityResult(
@@ -270,14 +272,14 @@ fun PhoneMainScreen(viewModel: MainViewModel) {
                 onImportPlaylist = {
                     try { importLauncher.launch(arrayOf("*/*")) }
                     catch (e: Exception) {
-                        viewModel.setError(context.getString(R.string.error_system_picker_unavailable))
+                        viewModel.setError(systemPickerUnavailable)
                         viewModel.openFilePicker(isExport = false)
                     }
                 },
                 onExportPlaylist = {
                     try { exportLauncher.launch("pure_radio_favorites.m3u") }
                     catch (e: Exception) {
-                        viewModel.setError(context.getString(R.string.error_system_picker_unavailable))
+                        viewModel.setError(systemPickerUnavailable)
                         viewModel.openFilePicker(isExport = true, suggestedFileName = "pure_radio_favorites.m3u")
                     }
                 }
@@ -1538,6 +1540,8 @@ fun PhoneSettingsScreen(
     onExportPlaylist: () -> Unit
 ) {
     val context = LocalContext.current
+    val permissionAlreadyGranted = stringResource(R.string.error_permission_already_granted)
+    val permissionAlreadyRequested = stringResource(R.string.error_permission_already_requested)
     val onPermissionRequest = {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
             if (!android.os.Environment.isExternalStorageManager()) {
@@ -1551,10 +1555,10 @@ fun PhoneSettingsScreen(
                     } catch (e2: Exception) {}
                 }
             } else {
-                viewModel.setError(context.getString(R.string.error_permission_already_granted))
+                viewModel.setError(permissionAlreadyGranted)
             }
         } else {
-            viewModel.setError(context.getString(R.string.error_permission_already_requested))
+            viewModel.setError(permissionAlreadyRequested)
         }
     }
 
@@ -3073,7 +3077,12 @@ fun PhoneScreensaver(viewModel: MainViewModel) {
                 currentStation?.let { station ->
                     val displayTitle = if (!mediaMetadata?.title.isNullOrEmpty()) mediaMetadata?.title.toString() else station.name
                     Column(
-                        modifier = Modifier.fillMaxWidth(0.9f).offset(x = (xOffset * 150).dp, y = (yOffset * 300).dp),
+                        modifier = Modifier.fillMaxWidth(0.9f).offset {
+                            IntOffset(
+                                x = (xOffset * 150).dp.roundToPx(),
+                                y = (yOffset * 300).dp.roundToPx()
+                            )
+                        },
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         StationArtwork(

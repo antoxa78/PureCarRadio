@@ -112,6 +112,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -161,6 +162,7 @@ import java.util.Date
 import java.util.Locale
 import kotlin.system.exitProcess
 
+@UnstableApi
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 fun TvMainLayout(isPip: Boolean, showSplash: Boolean, viewModel: MainViewModel) {
@@ -293,6 +295,7 @@ fun PipContent(viewModel: MainViewModel) {
 }
 
 @OptIn(ExperimentalTvMaterial3Api::class)
+@UnstableApi
 @Composable
 fun TvMainScreen(viewModel: MainViewModel) {
     val context = LocalContext.current
@@ -325,6 +328,9 @@ fun TvMainScreen(viewModel: MainViewModel) {
     val pendingImportStations by viewModel.pendingImportStations.collectAsState()
     val quitConfirmationEnabled by viewModel.quitConfirmationEnabled.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
+
+    val systemPickerUnavailable = stringResource(R.string.error_system_picker_unavailable)
+    val allFilesAccessGranted = stringResource(R.string.error_all_files_access_granted)
 
     val importLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
@@ -711,14 +717,14 @@ GenreGroupGrid(
                                     onImportPlaylist = {
                                         try { importLauncher.launch(arrayOf("*/*")) }
                                         catch (e: Exception) {
-                                            viewModel.setError(context.getString(R.string.error_system_picker_unavailable))
+                                            viewModel.setError(systemPickerUnavailable)
                                             viewModel.openFilePicker(isExport = false)
                                         }
                                     },
                                     onExportPlaylist = {
                                         try { exportLauncher.launch("pure_radio_favorites.m3u") }
                                         catch (e: Exception) {
-                                            viewModel.setError(context.getString(R.string.error_system_picker_unavailable))
+                                            viewModel.setError(systemPickerUnavailable)
                                             viewModel.openFilePicker(isExport = true, suggestedFileName = "pure_radio_favorites.m3u")
                                         }
                                     },
@@ -735,7 +741,7 @@ GenreGroupGrid(
                                                     } catch (e2: Exception) {}
                                                 }
                                             } else {
-                                                viewModel.setError(context.getString(R.string.error_all_files_access_granted))
+                                                viewModel.setError(allFilesAccessGranted)
                                             }
                                         } else {
                                             permissionLauncher.launch(android.Manifest.permission.READ_EXTERNAL_STORAGE)
@@ -1045,7 +1051,7 @@ fun GenreGroupGrid(groups: List<GenreGroup>, autoFocus: Boolean = true, onGroupC
 
 @OptIn(ExperimentalTvMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-fun TvGenreGroupCard(group: GenreGroup, onClick: () -> Unit, onLongClick: (() -> Unit)? = null, modifier: Modifier = Modifier) {
+fun TvGenreGroupCard(group: GenreGroup, onClick: () -> Unit, modifier: Modifier = Modifier, onLongClick: (() -> Unit)? = null) {
     Card(
         onClick = onClick,
         onLongClick = onLongClick,
@@ -1742,7 +1748,8 @@ fun TvSearchScreen(viewModel: MainViewModel, onLongClick: (Station) -> Unit = {}
     }
 }
 
-@OptIn(ExperimentalTvMaterial3Api::class, UnstableApi::class)
+@UnstableApi
+@OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 fun TvScreensaver(viewModel: MainViewModel) {
     val currentStation by viewModel.currentStation.collectAsState()
@@ -1767,7 +1774,12 @@ fun TvScreensaver(viewModel: MainViewModel) {
     ) {
         if (screensaverMode == ScreensaverMode.StationInfo) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(modifier = Modifier.fillMaxWidth(0.8f).align(Alignment.Center).offset(x = (xOffset * 400).dp, y = (yOffset * 200).dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(modifier = Modifier.fillMaxWidth(0.8f).align(Alignment.Center).offset {
+                    IntOffset(
+                        x = (xOffset * 400).dp.roundToPx(),
+                        y = (yOffset * 200).dp.roundToPx()
+                    )
+                }, horizontalAlignment = Alignment.CenterHorizontally) {
                     currentStation?.let { station ->
                         Box(contentAlignment = Alignment.Center) {
                             AsyncImage(
@@ -1873,7 +1885,8 @@ fun TvFilePicker(
     }
 }
 
-@OptIn(ExperimentalTvMaterial3Api::class, UnstableApi::class)
+@UnstableApi
+@OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 fun TvNowPlayingBar(
     station: Station,
@@ -2206,10 +2219,10 @@ fun SplashScreenPreview() {
 }
 
 @Composable
-fun GenreGroupCard(group: GenreGroup, onClick: () -> Unit, onLongClick: (() -> Unit)? = null, modifier: Modifier = Modifier) {
+fun GenreGroupCard(group: GenreGroup, onClick: () -> Unit, modifier: Modifier = Modifier, onLongClick: (() -> Unit)? = null) {
     val context = LocalContext.current
     val isTv = (context as? MainActivity)?.isTv() == true
-    if (isTv) TvGenreGroupCard(group, onClick, onLongClick, modifier)
+    if (isTv) TvGenreGroupCard(group, onClick, modifier, onLongClick)
     else PhoneGenreGroupCard(group, onClick, onLongClick)
 }
 

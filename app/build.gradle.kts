@@ -12,8 +12,8 @@ android {
         minSdk = 29
         //noinspection OldTargetApi
         targetSdk = 36
-        versionCode = 38
-        versionName = "1.8.4"
+        versionCode = 39
+        versionName = "1.9.0"
 
         buildConfigField("Long", "BUILD_TIME", "${System.currentTimeMillis()}L")
     }
@@ -52,6 +52,12 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+    bundle {
+        language {
+            // The app has an in-app language switcher; locale splits would hide languages.
+            enableSplit = false
+        }
     }
 }
 

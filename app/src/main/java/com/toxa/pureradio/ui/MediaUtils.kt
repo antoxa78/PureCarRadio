@@ -9,16 +9,30 @@ object MediaUtils {
     @Volatile
     private var appIconBytesCache: ByteArray? = null
 
+    @Volatile
+    private var appIconBitmapCache: android.graphics.Bitmap? = null
+
     /** URL-encode a genre/country name so it can be safely embedded in a MediaItem ID. */
     fun encodeBrowseName(name: String): String = URLEncoder.encode(name, "UTF-8")
 
     /** Decode a genre/country name that was embedded in a MediaItem ID. */
     fun decodeBrowseName(encoded: String): String = URLDecoder.decode(encoded, "UTF-8")
 
+    fun getAppIconBitmap(context: android.content.Context): android.graphics.Bitmap? {
+        appIconBitmapCache?.let { return it }
+        val bytes = getAppIconArtworkBytes(context) ?: return null
+        return android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.also {
+            appIconBitmapCache = it
+        }
+    }
+
     fun getAppIconArtworkBytes(context: android.content.Context): ByteArray? {
         appIconBytesCache?.let { return it }
         return try {
-            val drawable = context.resources.getDrawable(R.drawable.ic_radio_logo, context.theme)
+            val drawable = androidx.appcompat.content.res.AppCompatResources.getDrawable(
+                context,
+                R.drawable.ic_radio_logo
+            ) ?: return null
             val width = drawable.intrinsicWidth.coerceAtLeast(1)
             val height = drawable.intrinsicHeight.coerceAtLeast(1)
             val bitmap = android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ARGB_8888)
@@ -27,7 +41,9 @@ object MediaUtils {
             drawable.draw(canvas)
             val stream = java.io.ByteArrayOutputStream()
             if (bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, stream)) {
-                stream.toByteArray().also { appIconBytesCache = it }
+                val bytes = stream.toByteArray()
+                appIconBytesCache = bytes
+                bytes
             } else null
         } catch (_: Exception) { null }
     }

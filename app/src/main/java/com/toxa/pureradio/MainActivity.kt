@@ -238,6 +238,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    @UnstableApi
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
@@ -356,6 +357,9 @@ class MainActivity : ComponentActivity() {
 
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
                 builder.setAutoEnterEnabled(true)
+                val sourceRect = android.graphics.Rect()
+                window.decorView.getGlobalVisibleRect(sourceRect)
+                if (!sourceRect.isEmpty) builder.setSourceRectHint(sourceRect)
             }
 
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
@@ -386,6 +390,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@UnstableApi
 @kotlin.OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun PhoneMainLayout(isPip: Boolean, showSplash: Boolean, viewModel: MainViewModel) {

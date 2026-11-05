@@ -64,10 +64,6 @@ enum class AppLanguage(val code: String, val displayName: String) {
     Hebrew("iw", "עברית")
 }
 
-enum class BitrateFilter {
-    Low, High, FLAC
-}
-
 data class GenreGroup(
     val genreName: String,
     val stations: List<Station>,
@@ -1475,12 +1471,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         applyFilters()
     }
 
-    private fun loadBitrateFilters(): Set<BitrateFilter> {
-        val saved = prefs.getStringSet("bitrate_filters", null) ?: return emptySet()
-        return saved.mapNotNull { 
-            try { BitrateFilter.valueOf(it) } catch (e: Exception) { null }
-        }.toSet()
-    }
+    private fun loadBitrateFilters(): Set<BitrateFilter> = readBitrateFilters(prefs)
 
     private fun saveBitrateFilters(filters: Set<BitrateFilter>) {
         prefs.edit().putStringSet("bitrate_filters", filters.map { it.name }.toSet()).apply()
@@ -1541,19 +1532,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _tagSearchGroups.value = _tagSearchGroups.value.map { group ->
             group.copy(filteredCount = group.stations.count { matchesBitrateFilter(it, bitrates) })
         }
-    }
-
-    private fun matchesBitrateFilter(station: Station, bitrates: Set<BitrateFilter>): Boolean {
-        if (bitrates.isEmpty()) return true
-        val br = station.bitrate
-        val isFlac = station.codec.equals("FLAC", ignoreCase = true) || 
-                     station.tags.contains("flac", ignoreCase = true) ||
-                     station.name.contains("flac", ignoreCase = true) ||
-                     br >= 900
-        
-        return (bitrates.contains(BitrateFilter.Low) && br < 192 && !isFlac) ||
-                (bitrates.contains(BitrateFilter.High) && br >= 192 && !isFlac) ||
-                (bitrates.contains(BitrateFilter.FLAC) && isFlac)
     }
 
     private fun loadPopularStations() {
@@ -1811,9 +1789,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         loaded == null ->
                             GenreGroup(name, emptyList(), knownTotal(name, isCountry) ?: 0, 0, isCountry, isLoaded = true)
                         else -> {
-                            homeGroupCache[key] = CachedGroup(loaded, System.currentTimeMillis())
-                            savedHomeCounts[key] = SavedCounts(loaded.filteredCount, loaded.totalStations)
-                            loaded
+                            // Tags/countries may have finished loading after this tile's
+                            // page was fetched. Prefer the known total now instead of the
+                            // number of stations this fetch happened to return (often 100).
+                            val resolved = loaded.copy(
+                                totalStations = knownTotal(name, isCountry) ?: loaded.totalStations
+                            )
+                            homeGroupCache[key] = CachedGroup(resolved, System.currentTimeMillis())
+                            savedHomeCounts[key] = SavedCounts(resolved.filteredCount, resolved.totalStations)
+                            resolved
                         }
                     }
                     _genreGroups.update { groups ->
@@ -1821,6 +1805,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
             }.joinAll()
+
+            // The tag/country list can arrive while the tiles are still loading. Refresh
+            // once more at the end so every tile gets its real total, then persist it.
+            refreshHomeTotals()
+            _genreGroups.value.forEach { group ->
+                val key = homeCacheKey(group.genreName, group.isCountry, hideBroken, bitrates)
+                savedHomeCounts[key] = SavedCounts(group.filteredCount, group.totalStations)
+                homeGroupCache[key]?.let { homeGroupCache[key] = it.copy(group = group) }
+            }
             persistHomeCounts()
         }
     }

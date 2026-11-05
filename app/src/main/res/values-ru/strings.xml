@@ -220,4 +220,17 @@
     <string name="update_no_browser">Браузер не найден. Скачайте обновление здесь: %1$s</string>
     <string name="update_auto_check">Проверять обновления автоматически</string>
     <string name="update_auto_check_desc">Раз в день при запуске приложения</string>
+    <string name="current_value">Текущая: %s</string>
+    <string name="error_all_files_access_granted">Доступ ко всем файлам уже предоставлен</string>
+    <string name="error_permission_already_granted">Разрешение на доступ к хранилищу уже предоставлено</string>
+    <string name="error_permission_already_requested">Разрешение на доступ к хранилищу уже запрошено</string>
+    <string name="error_system_picker_unavailable">Системный выбор файлов недоступен</string>
+    <string name="last_update_format">Последнее: %1$s • станций: %2$s</string>
+    <string name="last_update_never">Никогда</string>
+    <string name="paused_state">Пауза</string>
+    <string name="playing_state_format">Играет • %s</string>
+    <string name="screensaver_status_disabled">Отключена</string>
+    <string name="screensaver_status_enabled">Включена (%d мин)</string>
+    <string name="sort_count">Количество</string>
+    <string name="sort_name">Название</string>
 </resources>

@@ -2,6 +2,7 @@ package com.toxa.pureradio
 
 import android.app.PendingIntent
 import android.content.Intent
+import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
 import androidx.annotation.OptIn
@@ -15,7 +16,9 @@ import androidx.media3.common.MimeTypes
 import androidx.media3.common.Player
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Tracks
+import androidx.media3.common.util.BitmapLoader
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DataSourceBitmapLoader
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
@@ -26,19 +29,26 @@ import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionCommand
-import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.Futures
+import com.google.common.util.concurrent.MoreExecutors
+import com.google.common.util.concurrent.SettableFuture
 import com.google.common.collect.ImmutableList
 import com.toxa.pureradio.data.repository.RadioRepository
 import com.toxa.pureradio.data.model.Station
 import com.toxa.pureradio.ui.MediaUtils
+import com.toxa.pureradio.ui.viewmodel.BitrateFilter
+import com.toxa.pureradio.ui.viewmodel.bitrateFilterKey
+import com.toxa.pureradio.ui.viewmodel.matchesBitrateFilter
+import com.toxa.pureradio.ui.viewmodel.readBitrateFilters
 import androidx.media3.extractor.metadata.icy.IcyInfo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -57,6 +67,48 @@ class PlaybackService : MediaLibraryService() {
         const val CMD_ICY_TITLE = "com.toxa.pureradio.ICY_TITLE"
         const val EXTRA_ICY_TITLE = "icy_title"
         const val EXTRA_STATION_UUID = "station_uuid"
+    }
+
+    /**
+     * Loads station artwork, falling back to the local app icon when a favicon URL
+     * is dead or returns non-image data. Without this the media notification and
+     * legacy media controllers logged "Could not decode image data" and showed
+     * no artwork at all.
+     */
+    @UnstableApi
+    private class FallbackBitmapLoader(
+        private val delegate: BitmapLoader,
+        private val fallback: Bitmap?
+    ) : BitmapLoader {
+        override fun supportsMimeType(mimeType: String): Boolean = delegate.supportsMimeType(mimeType)
+
+        override fun decodeBitmap(data: ByteArray): ListenableFuture<Bitmap> =
+            delegate.decodeBitmap(data).withFallback()
+
+        override fun loadBitmap(uri: Uri): ListenableFuture<Bitmap> =
+            delegate.loadBitmap(uri).withFallback()
+
+        override fun loadBitmapFromMetadata(metadata: MediaMetadata): ListenableFuture<Bitmap>? {
+            val future = delegate.loadBitmapFromMetadata(metadata)
+            return when {
+                future != null -> future.withFallback()
+                fallback != null -> Futures.immediateFuture(fallback)
+                else -> null
+            }
+        }
+
+        private fun ListenableFuture<Bitmap>.withFallback(): ListenableFuture<Bitmap> {
+            val icon = fallback ?: return this
+            val result = SettableFuture.create<Bitmap>()
+            addListener({
+                try {
+                    result.set(get())
+                } catch (_: Exception) {
+                    result.set(icon)
+                }
+            }, MoreExecutors.directExecutor())
+            return result
+        }
     }
 
     private var mediaLibrarySession: MediaLibrarySession? = null
@@ -81,9 +133,71 @@ class PlaybackService : MediaLibraryService() {
         fun put(parentId: String, items: List<MediaItem>) {
             cache[parentId] = System.currentTimeMillis() to items
         }
+
+        /** Finds an already-browsed item by its exact media ID, including its parent context. */
+        fun find(mediaId: String): MediaItem? {
+            val now = System.currentTimeMillis()
+            for ((parentId, entry) in cache) {
+                if (now - entry.first > CACHE_TIMEOUT_MS) {
+                    cache.remove(parentId)
+                    continue
+                }
+                entry.second.firstOrNull { it.mediaId == mediaId }?.let { return it }
+            }
+            return null
+        }
     }
 
     private val browseCache = BrowseCache()
+
+    // When a bitrate filter is active, load a larger pool in one request so the
+    // filtered car list still has enough stations to fill a screen.
+    private val filteredBrowseLimit = 300
+
+    private fun currentBitrateFilters(): Set<BitrateFilter> =
+        readBitrateFilters(getSharedPreferences("pure_radio_prefs", MODE_PRIVATE))
+
+    /** Cache key that changes with the phone's bitrate selection, invalidating stale lists. */
+    private fun browseCacheKey(parentId: String, filters: Set<BitrateFilter>): String =
+        "$parentId|bitrates:${bitrateFilterKey(filters)}"
+
+    private fun isFilterableParent(parentId: String): Boolean =
+        parentId == "popular" ||
+            parentId.startsWith("genre_") ||
+            parentId.startsWith("country_") ||
+            parentId.startsWith("search_")
+
+    private fun filterStations(
+        stations: List<Station>,
+        filters: Set<BitrateFilter>
+    ): List<Station> = if (filters.isEmpty()) stations else stations.filter {
+        matchesBitrateFilter(it, filters)
+    }
+
+    /** Search the station database, applying the phone's bitrate selection. */
+    private suspend fun fetchSearchResults(
+        query: String,
+        limit: Int,
+        offset: Int,
+        hideBroken: Boolean,
+        filters: Set<BitrateFilter>
+    ): List<Station> = coroutineScope {
+        val main = async {
+            repository.searchStations(query = query, limit = limit, offset = offset, hideBroken = hideBroken)
+        }
+        val flac = if (filters.contains(BitrateFilter.FLAC)) async {
+            repository.searchStations(
+                query = query,
+                tag = "flac",
+                limit = limit,
+                offset = offset,
+                hideBroken = hideBroken
+            )
+        } else null
+        val stations = (main.await() + (flac?.await() ?: emptyList()))
+            .distinctBy { it.stationUuid }
+        filterStations(stations, filters)
+    }
 
     private var retryCount = 0
     private var lastErrorMediaId: String? = null
@@ -331,6 +445,11 @@ class PlaybackService : MediaLibraryService() {
             }
         })
 
+        val bitmapLoader = FallbackBitmapLoader(
+            DataSourceBitmapLoader(this),
+            MediaUtils.getAppIconBitmap(this)
+        )
+
         mediaLibrarySession = MediaLibrarySession.Builder(this, player, object : MediaLibrarySession.Callback {
 
             override fun onPostConnect(
@@ -518,14 +637,30 @@ class PlaybackService : MediaLibraryService() {
                     }
                     "popular" -> serviceScope.future {
                         try {
-                            val cached = browseCache.get("popular")
+                            val filters = currentBitrateFilters()
+                            val cacheKey = browseCacheKey("popular", filters)
+                            val cached = browseCache.get(cacheKey)
                             val items = cached ?: withTimeoutOrNull(10_000L) {
-                                val stations = repository.getTopStations(limit = 100, hideBroken = prefs.getBoolean("hide_broken", true))
-                                val newItems = stations.map { createPlayableItem(it, parentId = "popular") }
-                                browseCache.put("popular", newItems)
-                                newItems
+                                val hideBroken = prefs.getBoolean("hide_broken", true)
+                                coroutineScope {
+                                    val main = async {
+                                        repository.getTopStations(
+                                            limit = if (filters.isEmpty()) 100 else filteredBrowseLimit,
+                                            hideBroken = hideBroken
+                                        )
+                                    }
+                                    val flac = if (filters.contains(BitrateFilter.FLAC)) async {
+                                        repository.searchStations(tag = "flac", limit = 100, hideBroken = hideBroken)
+                                    } else null
+                                    val stations = (main.await() + (flac?.await() ?: emptyList()))
+                                        .distinctBy { it.stationUuid }
+                                    val newItems = filterStations(stations, filters)
+                                        .map { createPlayableItem(it, parentId = "popular") }
+                                    browseCache.put(cacheKey, newItems)
+                                    newItems
+                                }
                             } ?: emptyList()
-                            
+
                             val pagedItems = if (page >= 0 && pageSize >= 1) {
                                 val start = (page * pageSize).coerceAtMost(items.size)
                                 val end = ((page + 1) * pageSize).coerceAtMost(items.size)
@@ -624,12 +759,34 @@ class PlaybackService : MediaLibraryService() {
                     else -> if (parentId.startsWith("genre_")) serviceScope.future {
                         try {
                             val genre = MediaUtils.decodeBrowseName(parentId.removePrefix("genre_"))
-                            val cached = browseCache.get(parentId)
+                            val filters = currentBitrateFilters()
+                            val cacheKey = browseCacheKey(parentId, filters)
+                            val cached = browseCache.get(cacheKey)
                             val items = cached ?: withTimeoutOrNull(10_000L) {
-                                val stations = repository.searchStations(tag = genre, limit = 100, hideBroken = prefs.getBoolean("hide_broken", true))
-                                val newItems = stations.map { createPlayableItem(it, parentId = parentId) }
-                                browseCache.put(parentId, newItems)
-                                newItems
+                                val hideBroken = prefs.getBoolean("hide_broken", true)
+                                coroutineScope {
+                                    val main = async {
+                                        repository.searchStations(
+                                            tag = genre,
+                                            limit = if (filters.isEmpty()) 100 else filteredBrowseLimit,
+                                            hideBroken = hideBroken
+                                        )
+                                    }
+                                    val flac = if (filters.contains(BitrateFilter.FLAC)) async {
+                                        repository.searchStations(
+                                            query = genre,
+                                            tag = "flac",
+                                            limit = 100,
+                                            hideBroken = hideBroken
+                                        )
+                                    } else null
+                                    val stations = (main.await() + (flac?.await() ?: emptyList()))
+                                        .distinctBy { it.stationUuid }
+                                    val newItems = filterStations(stations, filters)
+                                        .map { createPlayableItem(it, parentId = parentId) }
+                                    browseCache.put(cacheKey, newItems)
+                                    newItems
+                                }
                             } ?: emptyList()
 
                             val pagedItems = if (page >= 0 && pageSize >= 1) {
@@ -644,14 +801,36 @@ class PlaybackService : MediaLibraryService() {
                     } else if (parentId.startsWith("country_")) serviceScope.future {
                         try {
                             val country = MediaUtils.decodeBrowseName(parentId.removePrefix("country_"))
-                            val cached = browseCache.get(parentId)
+                            val filters = currentBitrateFilters()
+                            val cacheKey = browseCacheKey(parentId, filters)
+                            val cached = browseCache.get(cacheKey)
                             val items = cached ?: withTimeoutOrNull(10_000L) {
-                                val stations = repository.searchStations(country = country, limit = 100, hideBroken = prefs.getBoolean("hide_broken", true))
-                                val newItems = stations.map { createPlayableItem(it, parentId = parentId) }
-                                browseCache.put(parentId, newItems)
-                                newItems
+                                val hideBroken = prefs.getBoolean("hide_broken", true)
+                                coroutineScope {
+                                    val main = async {
+                                        repository.searchStations(
+                                            country = country,
+                                            limit = if (filters.isEmpty()) 100 else filteredBrowseLimit,
+                                            hideBroken = hideBroken
+                                        )
+                                    }
+                                    val flac = if (filters.contains(BitrateFilter.FLAC)) async {
+                                        repository.searchStations(
+                                            country = country,
+                                            tag = "flac",
+                                            limit = 100,
+                                            hideBroken = hideBroken
+                                        )
+                                    } else null
+                                    val stations = (main.await() + (flac?.await() ?: emptyList()))
+                                        .distinctBy { it.stationUuid }
+                                    val newItems = filterStations(stations, filters)
+                                        .map { createPlayableItem(it, parentId = parentId) }
+                                    browseCache.put(cacheKey, newItems)
+                                    newItems
+                                }
                             } ?: emptyList()
-                            
+
                             val pagedItems = if (page >= 0 && pageSize >= 1) {
                                 val start = (page * pageSize).coerceAtMost(items.size)
                                 val end = ((page + 1) * pageSize).coerceAtMost(items.size)
@@ -662,19 +841,31 @@ class PlaybackService : MediaLibraryService() {
                             LibraryResult.ofItemList(ImmutableList.of(), params)
                         }
                     } else {
-                        serviceScope.future {
-                            try {
-                                val station = withTimeoutOrNull(10_000L) { repository.getStation(parentId) }
-                                if (station != null) {
-                                    LibraryResult.ofItemList(ImmutableList.of(createPlayableItem(station)), params)
-                                } else {
-                                    LibraryResult.ofItemList(ImmutableList.of<MediaItem>(), params)
-                                }
-                            } catch (e: Exception) {
-                                LibraryResult.ofItemList(ImmutableList.of(), params)
-                            }
-                        }
+                        // Every browsable parent is handled above. Any other ID is a
+                        // station (which has no children) or stale, so answer locally
+                        // instead of querying Radio Browser: a slow mirror here makes
+                        // the car display show a "Source error".
+                        Futures.immediateFuture(LibraryResult.ofItemList(ImmutableList.of(), params))
                     }
+                }
+            }
+
+            override fun onSubscribe(
+                session: MediaLibrarySession,
+                browser: MediaSession.ControllerInfo,
+                parentId: String,
+                params: LibraryParams?
+            ): ListenableFuture<LibraryResult<Void>> {
+                // The default implementation calls onGetItem(parentId). Resolve browsable
+                // folders locally so subscribing to a car display folder can never wait
+                // for (or fail on) a Radio Browser mirror.
+                val item = findItemInPlayer(parentId)
+                    ?: browseCache.find(parentId)
+                    ?: createLocalBrowseItem(parentId)
+                return if (item?.mediaMetadata?.isBrowsable == true) {
+                    Futures.immediateFuture(LibraryResult.ofVoid())
+                } else {
+                    super.onSubscribe(session, browser, parentId, params)
                 }
             }
 
@@ -683,64 +874,52 @@ class PlaybackService : MediaLibraryService() {
                 browser: MediaSession.ControllerInfo,
                 mediaId: String
             ): ListenableFuture<LibraryResult<MediaItem>> {
-                val realId = if (mediaId.contains("|station:")) mediaId.split("|")[1].removePrefix("station:") else mediaId
+                val hasStationSuffix = mediaId.contains("|station:")
+                val realId = if (hasStationSuffix) mediaId.substringAfter("|station:") else mediaId
+                val parentId = if (hasStationSuffix) mediaId.substringBefore("|station:") else null
 
                 // Resolve locally first to avoid network calls while the car displays items.
                 findItemInPlayer(mediaId)?.let { item ->
                     return Futures.immediateFuture(LibraryResult.ofItem(item, null))
                 }
+                browseCache.find(mediaId)?.let { item ->
+                    return Futures.immediateFuture(LibraryResult.ofItem(item, null))
+                }
+                // Browsable folders (root, categories, genres, countries, search) are
+                // built entirely from local data. Never look them up as station UUIDs.
+                createLocalBrowseItem(mediaId)?.let { item ->
+                    return Futures.immediateFuture(LibraryResult.ofItem(item, null))
+                }
                 val cachedStation = stationCache[realId]
                 if (cachedStation != null) {
-                    return Futures.immediateFuture(LibraryResult.ofItem(createPlayableItem(cachedStation), null))
+                    return Futures.immediateFuture(
+                        LibraryResult.ofItem(createPlayableItem(cachedStation, parentId = parentId), null)
+                    )
                 }
                 findStationInPrefs(realId)?.let { station ->
                     cacheStation(station)
-                    return Futures.immediateFuture(LibraryResult.ofItem(createPlayableItem(station), null))
+                    return Futures.immediateFuture(
+                        LibraryResult.ofItem(createPlayableItem(station, parentId = parentId), null)
+                    )
                 }
 
                 return serviceScope.future {
                     try {
-                        val station = withTimeoutOrNull(10_000L) { repository.getStation(realId) }
+                        val station = if (realId.isNotBlank()) {
+                            withTimeoutOrNull(10_000L) { repository.getStation(realId) }
+                        } else null
                         if (station != null) {
-                            stationCache.put(realId, station)
-                            LibraryResult.ofItem(createPlayableItem(station), null)
+                            cacheStation(station)
+                            // Preserve the requested context ID so tapping the item on the
+                            // car display still resolves its sibling playlist.
+                            LibraryResult.ofItem(createPlayableItem(station, parentId = parentId), null)
                         } else {
-                            val item = when (mediaId) {
-                                "root" -> MediaItem.Builder()
-                                    .setMediaId("root")
-                                    .setMediaMetadata(MediaMetadata.Builder()
-                                        .setIsBrowsable(true)
-                                        .setIsPlayable(false)
-                                        .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
-                                        .setTitle(getString(R.string.app_name))
-                                        .build())
-                                    .build()
-                                "home_screen" -> createBrowsableItem("home_screen", getString(R.string.nav_home), Uri.parse(MediaUtils.getCategoryImageUrl("home_screen")))
-                                "popular" -> createBrowsableItem("popular", getString(R.string.nav_popular), Uri.parse(MediaUtils.getCategoryImageUrl("popular")))
-                                "favourites" -> createBrowsableItem("favourites", getString(R.string.nav_favourites), Uri.parse(MediaUtils.getCategoryImageUrl("favourites")))
-                                "recent" -> createBrowsableItem("recent", getString(R.string.nav_recent), Uri.parse(MediaUtils.getCategoryImageUrl("recent")))
-                                "genres" -> createBrowsableItem("genres", getString(R.string.nav_genres), Uri.parse(MediaUtils.getCategoryImageUrl("genres")))
-                                "countries" -> createBrowsableItem("countries", getString(R.string.nav_countries), Uri.parse(MediaUtils.getCategoryImageUrl("countries")))
-                                else -> when {
-                                    mediaId.startsWith("genre_") -> {
-                                        val genre = MediaUtils.decodeBrowseName(mediaId.removePrefix("genre_"))
-                                        createBrowsableItem(mediaId, formatBrowseTitle(genre), Uri.parse(MediaUtils.getGenreImageUrl(genre)))
-                                    }
-                                    mediaId.startsWith("country_") -> {
-                                        val country = MediaUtils.decodeBrowseName(mediaId.removePrefix("country_"))
-                                        createBrowsableItem(mediaId, formatBrowseTitle(country), Uri.parse(MediaUtils.getCategoryImageUrl("countries")))
-                                    }
-                                    else -> null
-                                }
-                            }
-                            if (item != null) {
-                                LibraryResult.ofItem(item, null)
-                            } else {
-                                LibraryResult.ofError(SessionError.ERROR_BAD_VALUE)
-                            }
+                            // Returning an error here surfaces as "Source error" on some car
+                            // head units. Resolve to a harmless local placeholder instead.
+                            LibraryResult.ofItem(createUnavailableItem(mediaId), null)
                         }
                     } catch (e: Exception) {
-                        LibraryResult.ofError(SessionError.ERROR_NOT_SUPPORTED)
+                        LibraryResult.ofItem(createUnavailableItem(mediaId), null)
                     }
                 }
             }
@@ -754,7 +933,16 @@ class PlaybackService : MediaLibraryService() {
                 serviceScope.launch {
                     try {
                         val hideBroken = getSharedPreferences("pure_radio_prefs", MODE_PRIVATE).getBoolean("hide_broken", true)
-                        val stations = repository.searchStations(query = query, limit = 50, hideBroken = hideBroken)
+                        val filters = currentBitrateFilters()
+                        val stations = withTimeoutOrNull(10_000L) {
+                            fetchSearchResults(
+                                query = query,
+                                limit = if (filters.isEmpty()) 50 else 200,
+                                offset = 0,
+                                hideBroken = hideBroken,
+                                filters = filters
+                            )
+                        } ?: emptyList()
                         session.notifySearchResultChanged(browser, query, stations.size, params)
                     } catch (_: Exception) {}
                 }
@@ -774,8 +962,34 @@ class PlaybackService : MediaLibraryService() {
                 return serviceScope.future {
                     try {
                         val hideBroken = getSharedPreferences("pure_radio_prefs", MODE_PRIVATE).getBoolean("hide_broken", true)
+                        val filters = currentBitrateFilters()
                         val stations = withTimeoutOrNull(10_000L) {
-                            repository.searchStations(query = query, limit = safePageSize, offset = safePage * safePageSize, hideBroken = hideBroken)
+                            if (filters.isEmpty()) {
+                                repository.searchStations(
+                                    query = query,
+                                    limit = safePageSize,
+                                    offset = safePage * safePageSize,
+                                    hideBroken = hideBroken
+                                )
+                            } else {
+                                // Page over the filtered result set, not over raw database
+                                // pages, so a page can't turn empty just because the filter
+                                // removed every station on it.
+                                val window = ((safePage.toLong() + 1L) * safePageSize)
+                                    .coerceAtMost(500L)
+                                    .toInt()
+                                val filtered = fetchSearchResults(
+                                    query = query,
+                                    limit = window,
+                                    offset = 0,
+                                    hideBroken = hideBroken,
+                                    filters = filters
+                                )
+                                val from = (safePage.toLong() * safePageSize)
+                                    .coerceAtMost(Int.MAX_VALUE.toLong())
+                                    .toInt()
+                                filtered.drop(from).take(safePageSize)
+                            }
                         } ?: emptyList()
                         val items = stations.map { createPlayableItem(it, parentId = "search_$query") }
                         LibraryResult.ofItemList(ImmutableList.copyOf(items), params)
@@ -791,15 +1005,45 @@ class PlaybackService : MediaLibraryService() {
                 mediaItems: List<MediaItem>
             ): ListenableFuture<List<MediaItem>> {
                 return serviceScope.future {
+                    // Voice search / Assistant: Media3 passes a MediaItem with no URI
+                    // and the search query in requestMetadata.
+                    val searchQuery = mediaItems.singleOrNull()
+                        ?.requestMetadata?.searchQuery?.toString()?.trim()
+                    if (!searchQuery.isNullOrEmpty()) {
+                        val prefs = getSharedPreferences("pure_radio_prefs", MODE_PRIVATE)
+                        val stations = withTimeoutOrNull(10_000L) {
+                            fetchSearchResults(
+                                query = searchQuery,
+                                limit = 20,
+                                offset = 0,
+                                hideBroken = prefs.getBoolean("hide_broken", true),
+                                filters = currentBitrateFilters()
+                            )
+                        } ?: emptyList()
+                        if (stations.isNotEmpty()) {
+                            return@future stations.map {
+                                createPlayableItem(
+                                    it,
+                                    parentId = "search_$searchQuery",
+                                    forPlayback = true
+                                )
+                            }
+                        }
+                    }
+
                     if (mediaItems.size == 1) {
                         val item = mediaItems[0]
                         if (item.mediaId.contains("|station:")) {
                             val parts = item.mediaId.split("|")
                             val parentId = parts[0]
                             val stationUuid = parts[1].removePrefix("station:")
-                            
+                            val filters = currentBitrateFilters()
+
                             // Resolve siblings for playlist support on car display
-                            val cachedItems = browseCache.get(parentId)
+                            val cacheKey = if (isFilterableParent(parentId)) {
+                                browseCacheKey(parentId, filters)
+                            } else parentId
+                            val cachedItems = browseCache.get(cacheKey)
                             if (cachedItems != null) {
                                 val index = cachedItems.indexOfFirst { 
                                     it.mediaId.split("|").lastOrNull()?.removePrefix("station:") == stationUuid 
@@ -819,7 +1063,10 @@ class PlaybackService : MediaLibraryService() {
                             val prefs = getSharedPreferences("pure_radio_prefs", MODE_PRIVATE)
                             val hideBroken = prefs.getBoolean("hide_broken", true)
                             val siblings = when {
-                                parentId == "popular" -> repository.getTopStations(limit = 100, hideBroken = hideBroken)
+                                parentId == "popular" -> repository.getTopStations(
+                                    limit = if (filters.isEmpty()) 100 else filteredBrowseLimit,
+                                    hideBroken = hideBroken
+                                )
                                 parentId == "favourites" -> {
                                     val json = prefs.getString("favorite_stations_json", null)
                                     if (json != null) {
@@ -838,25 +1085,71 @@ class PlaybackService : MediaLibraryService() {
                                 }
                                 parentId.startsWith("genre_") -> {
                                     val genre = MediaUtils.decodeBrowseName(parentId.removePrefix("genre_"))
-                                    repository.searchStations(tag = genre, limit = 100, hideBroken = hideBroken)
+                                    repository.searchStations(
+                                        tag = genre,
+                                        limit = if (filters.isEmpty()) 100 else filteredBrowseLimit,
+                                        hideBroken = hideBroken
+                                    )
                                 }
                                 parentId.startsWith("country_") -> {
                                     val country = MediaUtils.decodeBrowseName(parentId.removePrefix("country_"))
-                                    repository.searchStations(country = country, limit = 100, hideBroken = hideBroken)
+                                    repository.searchStations(
+                                        country = country,
+                                        limit = if (filters.isEmpty()) 100 else filteredBrowseLimit,
+                                        hideBroken = hideBroken
+                                    )
                                 }
                                 parentId.startsWith("search_") -> {
                                     val query = parentId.removePrefix("search_")
-                                    repository.searchStations(query = query, limit = 50, hideBroken = hideBroken)
+                                    repository.searchStations(
+                                        query = query,
+                                        limit = if (filters.isEmpty()) 50 else 200,
+                                        hideBroken = hideBroken
+                                    )
                                 }
                                 else -> emptyList()
                             }
-                            
-                            if (siblings.isNotEmpty()) {
+
+                            // The FLAC chip also pulls in stations tagged "flac" that the
+                            // regular query may not return.
+                            val flacSiblings = if (filters.contains(BitrateFilter.FLAC)) {
+                                when {
+                                    parentId == "popular" -> repository.searchStations(
+                                        tag = "flac", limit = 100, hideBroken = hideBroken
+                                    )
+                                    parentId.startsWith("genre_") -> {
+                                        val genre = MediaUtils.decodeBrowseName(parentId.removePrefix("genre_"))
+                                        repository.searchStations(
+                                            query = genre, tag = "flac", limit = 100, hideBroken = hideBroken
+                                        )
+                                    }
+                                    parentId.startsWith("country_") -> {
+                                        val country = MediaUtils.decodeBrowseName(parentId.removePrefix("country_"))
+                                        repository.searchStations(
+                                            country = country, tag = "flac", limit = 100, hideBroken = hideBroken
+                                        )
+                                    }
+                                    parentId.startsWith("search_") -> {
+                                        val query = parentId.removePrefix("search_")
+                                        repository.searchStations(
+                                            query = query, tag = "flac", limit = 100, hideBroken = hideBroken
+                                        )
+                                    }
+                                    else -> emptyList()
+                                }
+                            } else emptyList()
+
+                            val allSiblings = (siblings + flacSiblings).distinctBy { it.stationUuid }
+                            val playableSiblings = if (isFilterableParent(parentId)) {
+                                filterStations(allSiblings, filters)
+                            } else allSiblings
+
+                            if (playableSiblings.isNotEmpty()) {
                                 // Create items for siblings, preserving the contextual ID
-                                val items = siblings.map { createPlayableItem(it, parentId = parentId, forPlayback = true) }
-                                
+                                val items = playableSiblings.map { createPlayableItem(it, parentId = parentId, forPlayback = true) }
+
                                 // Find the index of the requested item
-                                val index = siblings.indexOfFirst { it.stationUuid == stationUuid }
+                                val index = playableSiblings.indexOfFirst { it.stationUuid == stationUuid }
                                 if (index != -1) {
                                     // Set the index in the player session
                                     serviceScope.launch(Dispatchers.Main) {
@@ -869,7 +1162,9 @@ class PlaybackService : MediaLibraryService() {
                                     // Return empty list to prevent Media3 from adding the item again
                                     return@future emptyList()
                                 }
-                                return@future items
+                                // The requested station is not in the filtered sibling list
+                                // (e.g. the filter changed after the list was loaded). Fall
+                                // through and resolve the tapped item on its own.
                             }
                         }
                     }
@@ -890,6 +1185,7 @@ class PlaybackService : MediaLibraryService() {
         })
             // Tapping the notification / system media controls opens the app. Without this
             // the session had no activity and Android fell back to another media app (e.g. YouTube).
+            .setBitmapLoader(bitmapLoader)
             .setSessionActivity(createSessionActivityIntent())
             .setPeriodicPositionUpdateEnabled(false)
             .build()
@@ -940,13 +1236,86 @@ class PlaybackService : MediaLibraryService() {
             .build()
     }
 
+    /**
+     * Builds the media item for a browsable node (root, category, genre, country or
+     * search parent) without touching the network. Car head units resolve these IDs
+     * when subscribing to a folder, so they must always answer immediately.
+     */
+    private fun createLocalBrowseItem(mediaId: String): MediaItem? {
+        return when (mediaId) {
+            "root" -> MediaItem.Builder()
+                .setMediaId("root")
+                .setMediaMetadata(MediaMetadata.Builder()
+                    .setIsBrowsable(true)
+                    .setIsPlayable(false)
+                    .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
+                    .setTitle(getString(R.string.app_name))
+                    .build())
+                .build()
+            "home_screen" -> createBrowsableItem("home_screen", getString(R.string.nav_home), Uri.parse(MediaUtils.getCategoryImageUrl("home_screen")))
+            "popular" -> createBrowsableItem("popular", getString(R.string.nav_popular), Uri.parse(MediaUtils.getCategoryImageUrl("popular")))
+            "favourites" -> createBrowsableItem("favourites", getString(R.string.nav_favourites), Uri.parse(MediaUtils.getCategoryImageUrl("favourites")))
+            "recent" -> createBrowsableItem("recent", getString(R.string.nav_recent), Uri.parse(MediaUtils.getCategoryImageUrl("recent")))
+            "genres" -> createBrowsableItem("genres", getString(R.string.nav_genres), Uri.parse(MediaUtils.getCategoryImageUrl("genres")))
+            "countries" -> createBrowsableItem("countries", getString(R.string.nav_countries), Uri.parse(MediaUtils.getCategoryImageUrl("countries")))
+            else -> when {
+                mediaId.startsWith("genre_") -> {
+                    val genre = runCatching {
+                        MediaUtils.decodeBrowseName(mediaId.removePrefix("genre_"))
+                    }.getOrNull()
+                    genre?.let {
+                        createBrowsableItem(mediaId, formatBrowseTitle(it), Uri.parse(MediaUtils.getGenreImageUrl(it)))
+                    }
+                }
+                mediaId.startsWith("country_") -> {
+                    val country = runCatching {
+                        MediaUtils.decodeBrowseName(mediaId.removePrefix("country_"))
+                    }.getOrNull()
+                    country?.let {
+                        createBrowsableItem(mediaId, formatBrowseTitle(it), Uri.parse(MediaUtils.getCategoryImageUrl("countries")))
+                    }
+                }
+                mediaId.startsWith("search_") -> {
+                    val query = mediaId.removePrefix("search_")
+                    createBrowsableItem(
+                        mediaId,
+                        query.ifBlank { getString(R.string.nav_search) },
+                        Uri.parse(MediaUtils.getCategoryImageUrl("popular"))
+                    )
+                }
+                else -> null
+            }
+        }
+    }
+
+    /**
+     * Last-resort item for an unknown or stale media ID. Returning an error result
+     * from [onGetItem] can be rendered as a "Source error" by car head units.
+     */
+    private fun createUnavailableItem(mediaId: String): MediaItem {
+        return MediaItem.Builder()
+            .setMediaId(mediaId)
+            .setMediaMetadata(
+                MediaMetadata.Builder()
+                    .setTitle(getString(R.string.app_name))
+                    .setIsBrowsable(false)
+                    .setIsPlayable(false)
+                    .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
+                    .build()
+            )
+            .build()
+    }
+
     private fun getAppIconArtworkBytes(): ByteArray? {
         return MediaUtils.getAppIconArtworkBytes(this)
     }
 
     private fun cacheStation(station: Station) {
-        if (stationCache.size >= 500) {
-            stationCache.keys.take(100).forEach { stationCache.remove(it) }
+        // Station objects are tiny. Keep enough of them that browsing several
+        // 100-station car lists doesn't evict items the head unit still displays
+        // (an evicted station forces a network lookup in onGetItem).
+        if (stationCache.size >= 2000) {
+            stationCache.keys.take(500).forEach { stationCache.remove(it) }
         }
         stationCache[station.stationUuid] = station
     }

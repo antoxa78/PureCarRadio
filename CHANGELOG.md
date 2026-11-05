@@ -2,7 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [1.9.0] - 2026-11-05
+
+### Added
+- **Android Auto Voice Search**: the playback service now advertises `MEDIA_PLAY_FROM_SEARCH` and resolves Assistant/voice queries through the same station search and bitrate filters as the in-app search.
+
+### Changed
+- **Version bump**: `versionCode` 38 → 39, `versionName` 1.8.4 → 1.9.0.
+- **Bitrate Filters on the Car Display**: the bitrate chips selected on the phone (or the Android Automotive app) are now applied to the Android Auto / Automotive media browser. Popular, genre, country and search station lists are filtered with the same rules as the phone UI, including the extra FLAC search. The browse cache is keyed by the filter selection so changing it on the phone refreshes the car lists instead of serving a stale unfiltered list. Favourites and Recent stay unfiltered, matching the phone screens.
+
+### Fixed
+- **Station Artwork Fallback**: dead or non-image favicon URLs no longer cause bitmap decode failures in the media notification and legacy media controllers; the local app icon is used instead.
+- **Translations**: completed the missing Russian, Ukrainian and Hebrew strings for playback errors, export/import messages, screensaver status, sorting and update status.
+- **Home Tile Totals**: Home genre/country tiles could show `100 / 100` instead of the real station total (e.g. `100 / 3125`) when the tag/country list finished loading while the tile pages were still being fetched. Totals are now resolved again after all tiles finish loading and the corrected counts are cached and persisted.
+- **Car Display "Source error"**: Folder subscriptions and `onGetItem` lookups no longer fall through to a Radio Browser UUID request. Root, category, genre, country and search parents are now resolved locally, already-browsed items are reused before any network call, and unknown or stale IDs return a local placeholder instead of an error. A slow or unreachable mirror can no longer make Android Auto / Automotive show "Source error" while browsing. Station items also keep their parent context, so next/previous playlist navigation still works after a lookup.
 
 ## [1.8.4] - 2026-10-15
 

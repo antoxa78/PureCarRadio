@@ -211,7 +211,7 @@
     <string name="current_value">Current: %s</string>
     <string name="screensaver_status_enabled">Enabled (%dm)</string>
     <string name="screensaver_status_disabled">Disabled</string>
-    <string name="last_update_format">Last: %s • %s stations</string>
+    <string name="last_update_format">Last: %1$s • %2$s stations</string>
     <string name="last_update_never">Never</string>
 
     <string name="error_system_picker_unavailable">System file picker unavailable</string>
