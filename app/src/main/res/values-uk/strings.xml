@@ -37,6 +37,11 @@
     <string name="cancel">Скасувати</string>
     <string name="ok">ГАРАЗД</string>
     <string name="search_hint">Пошук станцій…</string>
+    <string name="voice_search">Голосовий пошук</string>
+    <string name="voice_listening">Слухаю…</string>
+    <string name="voice_unavailable">Голосовий пошук недоступний на цьому пристрої</string>
+    <string name="voice_permission_denied">Для голосового пошуку потрібен дозвіл на мікрофон</string>
+    <string name="voice_error">Не вдалося виконати голосовий пошук. Спробуйте ще раз</string>
     <string name="settings_theme_desc">Змінити тему застосунку</string>
     <string name="settings_language_desc">Вибрати мову застосунку</string>
     <string name="settings_home_genres_desc">Налаштувати жанри на головній</string>

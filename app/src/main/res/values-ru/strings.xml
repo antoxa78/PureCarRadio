@@ -37,6 +37,11 @@
     <string name="cancel">Отмена</string>
     <string name="ok">OK</string>
     <string name="search_hint">Поиск станций…</string>
+    <string name="voice_search">Голосовой поиск</string>
+    <string name="voice_listening">Слушаю…</string>
+    <string name="voice_unavailable">Голосовой поиск недоступен на этом устройстве</string>
+    <string name="voice_permission_denied">Для голосового поиска нужно разрешение на микрофон</string>
+    <string name="voice_error">Не удалось выполнить голосовой поиск. Повторите попытку</string>
     <string name="settings_theme_desc">Изменить тему приложения</string>
     <string name="settings_language_desc">Выбрать язык приложения</string>
     <string name="settings_home_genres_desc">Настроить жанры на главной</string>

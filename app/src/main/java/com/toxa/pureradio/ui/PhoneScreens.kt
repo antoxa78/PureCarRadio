@@ -1,6 +1,9 @@
 package com.toxa.pureradio.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.speech.SpeechRecognizer
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.FastOutLinearInEasing
@@ -131,8 +134,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -145,6 +151,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.activity.compose.BackHandler
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.window.Dialog
@@ -154,6 +161,7 @@ import androidx.media3.common.util.UnstableApi
 import coil.compose.AsyncImage
 import com.toxa.pureradio.BuildConfig
 import com.toxa.pureradio.R
+import com.toxa.pureradio.VoiceQuery
 import com.toxa.pureradio.data.model.Station
 import com.toxa.pureradio.network.Country
 import com.toxa.pureradio.network.Tag
@@ -1061,12 +1069,84 @@ fun PhoneSearchScreen(
     val tagSearchGroups by viewModel.tagSearchGroups.collectAsState()
     val selectedSearchTag by viewModel.selectedSearchTag.collectAsState()
     val hasMoreStations by viewModel.hasMoreStations.collectAsState()
+    val searchFocusTrigger by viewModel.searchFocusTrigger.collectAsState()
+    val voiceSearchTrigger by viewModel.voiceSearchTrigger.collectAsState()
     var localSearchQuery by remember { mutableStateOf(searchQuery) }
     val keyboardController = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+    val context = LocalContext.current
+    val searchFocusRequester = remember { FocusRequester() }
+    val isCar = remember(context) { isCarUi(context) }
+
+    val voiceSearch = rememberVoiceSearchController(
+        onPartialResult = { partial ->
+            // Show the words as they are recognised, but wait for the final
+            // result before starting the station search.
+            localSearchQuery = partial
+        },
+        onFinalResult = { text ->
+            val query = VoiceQuery.clean(text)
+            localSearchQuery = query
+            viewModel.onSearchQueryChange(query)
+            viewModel.addToRecentSearches(query)
+            keyboardController?.hide()
+        },
+        onError = { error ->
+            when (error) {
+                SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS ->
+                    viewModel.setError(context.getString(R.string.voice_permission_denied))
+                SpeechRecognizer.ERROR_NETWORK,
+                SpeechRecognizer.ERROR_NETWORK_TIMEOUT,
+                SpeechRecognizer.ERROR_SERVER ->
+                    viewModel.setError(context.getString(R.string.voice_error))
+                else -> Unit
+            }
+        }
+    )
+
+    val audioPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            searchFocusRequester.requestFocus()
+            voiceSearch.start()
+        } else {
+            viewModel.setError(context.getString(R.string.voice_permission_denied))
+        }
+    }
+
+    val startVoiceSearch: () -> Unit = {
+        keyboardController?.hide()
+        when {
+            !voiceSearch.isAvailable ->
+                viewModel.setError(context.getString(R.string.voice_unavailable))
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.RECORD_AUDIO
+            ) == PackageManager.PERMISSION_GRANTED ->
+                voiceSearch.start()
+            else ->
+                audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        }
+    }
 
     LaunchedEffect(searchQuery) {
         if (searchQuery != localSearchQuery) {
             localSearchQuery = searchQuery
+        }
+    }
+
+    // Opening Search puts the cursor in the field immediately.
+    LaunchedEffect(searchFocusTrigger) {
+        withFrameNanos { }
+        searchFocusRequester.requestFocus()
+    }
+
+    // On a head unit / Automotive build, opening Search also starts listening.
+    // On phones the mic button is available, but the keyboard is not replaced
+    // automatically.
+    LaunchedEffect(voiceSearchTrigger, isCar) {
+        if (isCar && voiceSearchTrigger > 0) {
+            startVoiceSearch()
         }
     }
 
@@ -1075,13 +1155,22 @@ fun PhoneSearchScreen(
             PhoneSearchField(
                 value = localSearchQuery,
                 onValueChange = { viewModel.onSearchQueryChange(it); localSearchQuery = it },
-                placeholder = stringResource(R.string.search_hint),
+                placeholder = if (voiceSearch.isListening) {
+                    stringResource(R.string.voice_listening)
+                } else {
+                    stringResource(R.string.search_hint)
+                },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 10.dp),
+                    .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 10.dp)
+                    .focusRequester(searchFocusRequester),
                 onSearch = {
                     viewModel.addToRecentSearches(localSearchQuery)
                     keyboardController?.hide()
+                },
+                isListening = voiceSearch.isListening,
+                onVoiceSearch = {
+                    if (voiceSearch.isListening) voiceSearch.cancel() else startVoiceSearch()
                 }
             )
 

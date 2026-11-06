@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.10.0] - 2026-11-06
+
+### Added
+- **Hands-free search on the head unit**: opening Search in the app's Automotive / head-unit UI now puts the cursor in the search field and starts listening automatically. Recognised words appear in the field as they are spoken, and the final phrase is searched without any further taps. Phones and tablets get the same microphone button without the automatic start.
+- **Better voice station matching**: Assistant / steering-wheel queries now strip command filler ("play…", "listen to…", "on Pure Radio", "… radio station"), search both the cleaned and original query, and rank exact or near station-name matches ahead of stations that only match a tag or country. The requested station therefore starts first, even when Assistant includes extra words.
+
+### Changed
+- **Version bump**: `versionCode` 40 → 41, `versionName` 1.9.1 → 1.10.0.
+
 ## [1.9.1] - 2026-11-05
 
 ### Changed

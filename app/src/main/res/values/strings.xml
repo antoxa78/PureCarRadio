@@ -37,6 +37,11 @@
     <string name="cancel">Cancel</string>
     <string name="ok">OK</string>
     <string name="search_hint">Search stations…</string>
+    <string name="voice_search">Voice search</string>
+    <string name="voice_listening">Listening…</string>
+    <string name="voice_unavailable">Voice search is not available on this device</string>
+    <string name="voice_permission_denied">Microphone permission is needed for voice search</string>
+    <string name="voice_error">Voice search failed. Please try again</string>
     <string name="settings_theme_desc">Change the app visual theme</string>
     <string name="settings_language_desc">Select application language</string>
     <string name="settings_home_genres_desc">Customize genres shown on home tab</string>

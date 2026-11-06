@@ -37,6 +37,11 @@
     <string name="cancel">ביטול</string>
     <string name="ok">אישור</string>
     <string name="search_hint">חיפוש תחנות…</string>
+    <string name="voice_search">חיפוש קולי</string>
+    <string name="voice_listening">מקשיב…</string>
+    <string name="voice_unavailable">חיפוש קולי אינו זמין במכשיר זה</string>
+    <string name="voice_permission_denied">נדרש אישור למיקרופון עבור חיפוש קולי</string>
+    <string name="voice_error">החיפוש הקולי נכשל. נסו שוב</string>
     <string name="settings_theme_desc">שינוי ערכת הנושא</string>
     <string name="settings_language_desc">בחירת שפת האפליקציה</string>
     <string name="settings_home_genres_desc">התאמת ז\'אנרים בעמוד הבית</string>

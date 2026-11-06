@@ -19,6 +19,7 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.toxa.pureradio.PlaybackService
 import com.toxa.pureradio.R
+import com.toxa.pureradio.VoiceQuery
 import com.toxa.pureradio.data.model.Station
 import com.toxa.pureradio.data.repository.RadioRepository
 import com.toxa.pureradio.network.Country
@@ -367,6 +368,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _searchFocusTrigger = MutableStateFlow(0)
     val searchFocusTrigger: StateFlow<Int> = _searchFocusTrigger
+
+    /** Incremented only when Search is opened from the navigation, not on clear. */
+    private val _voiceSearchTrigger = MutableStateFlow(0)
+    val voiceSearchTrigger: StateFlow<Int> = _voiceSearchTrigger
 
     private var homeJob: kotlinx.coroutines.Job? = null
 
@@ -1457,6 +1462,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     _stations.value = emptyList()
                 }
                 _searchFocusTrigger.value++
+                _voiceSearchTrigger.value++
             }
             else -> {
                 _allStations.value = emptyList()
@@ -2427,8 +2433,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     val flacResults = repository.searchStations(query = query, tag = "flac", hideBroken = _hideBrokenStations.value)
                     (results + flacResults).distinctBy { it.stationUuid }
                 } else results
-                _hasMoreStations.value = finalResults.size >= 100
-                updateStations(finalResults)
+                val rankedResults = VoiceQuery.rank(finalResults, query)
+                _hasMoreStations.value = rankedResults.size >= 100
+                updateStations(rankedResults)
             } catch (e: Exception) {
                 _error.value = str(R.string.error_search_failed)
             } finally {

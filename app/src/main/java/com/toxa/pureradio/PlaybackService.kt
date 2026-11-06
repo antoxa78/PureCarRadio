@@ -48,6 +48,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -197,6 +198,48 @@ class PlaybackService : MediaLibraryService() {
         val stations = (main.await() + (flac?.await() ?: emptyList()))
             .distinctBy { it.stationUuid }
         filterStations(stations, filters)
+    }
+
+    private data class VoiceSearchResult(
+        val query: String,
+        val stations: List<Station>
+    )
+
+    /**
+     * Resolves a spoken/Assistant query to a ranked station list. Assistant may
+     * include command words ("play ...") or the app name; both the cleaned and
+     * the raw query are searched so a station actually called "Play Radio" is
+     * still found.
+     */
+    private suspend fun resolveVoiceSearch(
+        rawQuery: String,
+        limit: Int,
+        hideBroken: Boolean,
+        filters: Set<BitrateFilter>
+    ): VoiceSearchResult {
+        val cleanQuery = VoiceQuery.clean(rawQuery)
+        val queries = LinkedHashSet<String>().apply {
+            add(cleanQuery)
+            val trimmedRaw = rawQuery.trim()
+            if (trimmedRaw.isNotEmpty()) add(trimmedRaw)
+        }
+        val candidateLimit = (limit * 3).coerceAtLeast(30)
+        val candidates = coroutineScope {
+            queries.map { query ->
+                async {
+                    fetchSearchResults(
+                        query = query,
+                        limit = candidateLimit,
+                        offset = 0,
+                        hideBroken = hideBroken,
+                        filters = filters
+                    )
+                }
+            }.awaitAll()
+        }.flatten().distinctBy { it.stationUuid }
+
+        val ranked = VoiceQuery.rank(candidates, rawQuery, cleanQuery)
+        return VoiceSearchResult(cleanQuery, ranked.take(limit))
     }
 
     private var retryCount = 0
@@ -1007,24 +1050,31 @@ class PlaybackService : MediaLibraryService() {
                 return serviceScope.future {
                     // Voice search / Assistant: Media3 passes a MediaItem with no URI
                     // and the search query in requestMetadata.
-                    val searchQuery = mediaItems.singleOrNull()
-                        ?.requestMetadata?.searchQuery?.toString()?.trim()
+                    val searchQuery = mediaItems
+                        .asSequence()
+                        .mapNotNull { item ->
+                            item.requestMetadata.searchQuery
+                                ?.toString()
+                                ?.trim()
+                                ?.takeIf { it.isNotEmpty() }
+                        }
+                        .firstOrNull()
                     if (!searchQuery.isNullOrEmpty()) {
                         val prefs = getSharedPreferences("pure_radio_prefs", MODE_PRIVATE)
-                        val stations = withTimeoutOrNull(10_000L) {
-                            fetchSearchResults(
-                                query = searchQuery,
+                        val voiceResult = withTimeoutOrNull(12_000L) {
+                            resolveVoiceSearch(
+                                rawQuery = searchQuery,
                                 limit = 20,
-                                offset = 0,
                                 hideBroken = prefs.getBoolean("hide_broken", true),
                                 filters = currentBitrateFilters()
                             )
-                        } ?: emptyList()
-                        if (stations.isNotEmpty()) {
-                            return@future stations.map {
+                        }
+                        if (voiceResult != null && voiceResult.stations.isNotEmpty()) {
+                            val parentQuery = voiceResult.query.ifBlank { searchQuery }
+                            return@future voiceResult.stations.map {
                                 createPlayableItem(
                                     it,
-                                    parentId = "search_$searchQuery",
+                                    parentId = "search_$parentQuery",
                                     forPlayback = true
                                 )
                             }

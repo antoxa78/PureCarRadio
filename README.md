@@ -4,7 +4,7 @@ Pure Car Radio is a premium, retro-styled internet radio application for Android
 
 ## ✨ Features
 
-- **🚗 Built for the Car**: Full Android Auto / Android Automotive OS support with native browsing, search, and playback controls directly on the car head unit.
+- **🚗 Built for the Car**: Full Android Auto / Android Automotive OS support with native browsing, search, and playback controls directly on the car head unit. Voice search works with the steering-wheel/Assistant button, and opening Search on the head unit starts listening automatically.
 - **🎙️ Global Discovery**: Access thousands of stations via the community-driven Radio Browser database.
 - **🔥 Popular Stations**: Dedicated section for the world's most-voted and trending radio stations.
 - **🎵 Now Playing Metadata**: Real-time song and artist titles via ICY metadata, with bitrate and codec info on the Now Playing bar.

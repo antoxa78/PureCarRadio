@@ -35,6 +35,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
@@ -294,8 +295,15 @@ fun PhoneSearchField(
     onValueChange: (String) -> Unit,
     placeholder: String,
     modifier: Modifier = Modifier,
-    onSearch: () -> Unit = {}
+    onSearch: () -> Unit = {},
+    isListening: Boolean = false,
+    onVoiceSearch: (() -> Unit)? = null
 ) {
+    val voiceDescription = if (isListening) {
+        stringResource(R.string.voice_listening)
+    } else {
+        stringResource(R.string.voice_search)
+    }
     TextField(
         value = value,
         onValueChange = onValueChange,
@@ -308,10 +316,27 @@ fun PhoneSearchField(
         leadingIcon = {
             Icon(Icons.Default.Search, contentDescription = null)
         },
-        trailingIcon = if (value.isNotEmpty()) {
+        trailingIcon = if (value.isNotEmpty() || onVoiceSearch != null) {
             {
-                IconButton(onClick = { onValueChange("") }) {
-                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.clear_desc))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (onVoiceSearch != null) {
+                        IconButton(onClick = onVoiceSearch) {
+                            Icon(
+                                Icons.Default.Mic,
+                                contentDescription = voiceDescription,
+                                tint = if (isListening) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                }
+                            )
+                        }
+                    }
+                    if (value.isNotEmpty()) {
+                        IconButton(onClick = { onValueChange("") }) {
+                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.clear_desc))
+                        }
+                    }
                 }
             }
         } else null,
